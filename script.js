@@ -42,6 +42,8 @@ function init(){
   document.getElementById('date').value = today;
   document.getElementById('tripDate').value = today;
 
+  loadAds();
+
   userUI.classList.add("hidden");
   busUI.classList.add("hidden");
   adminUI.classList.add("hidden");
@@ -338,6 +340,23 @@ Booked on: ${new Date(t.timestamp).toLocaleString()}
   alert("Ticket downloaded (simulated):\n" + ticketText);
 }
 
+function shareTicket(index){
+  let t = tickets[index];
+  let shareText = `UG Bus Ticket: ${t.from} to ${t.to} on ${t.date}. Bus: ${t.bus}, Seat: ${t.seat}.`;
+  
+  if (navigator.share) {
+    navigator.share({
+      title: 'My UG Bus Ticket',
+      text: shareText,
+      url: window.location.href
+    }).catch(console.error);
+  } else {
+    // Fallback: Copy to clipboard
+    navigator.clipboard.writeText(shareText);
+    showNotification("Ticket details copied to clipboard!", "success");
+  }
+}
+
 /* LOAD BUS SELECT */
 function loadBusSelect(){
   selectBus.innerHTML = "<option value=''>Select Bus</option>";
@@ -482,6 +501,7 @@ function renderTickets(){
       </div>
       <div style="display: flex; gap: 10px;">
         <button class="btn" style="flex: 1;" onclick="downloadTicket(${index})"><i class="fas fa-download"></i> Download</button>
+        <button class="btn" style="flex: 1; background: #4a5568;" onclick="shareTicket(${index})"><i class="fas fa-share-alt"></i> Share</button>
         ${(isPast || t.used) ? `<button class="btn" style="flex: 1; background: var(--uganda-yellow); color: #000;" onclick="rebook('${t.from}', '${t.to}')"><i class="fas fa-redo"></i> Rebook</button>` : ''}
       </div>
     `;
@@ -621,6 +641,7 @@ function adminTab(section){
   document.getElementById('adminNotifications').classList.add('hidden');
   document.getElementById('adminSettings').classList.add('hidden');
   document.getElementById('adminActivity').classList.add('hidden');
+  document.getElementById('adminAds').classList.add('hidden');
 
   // Remove active class from all admin nav buttons
   document.querySelectorAll('.sidebar button, .topbar-nav button').forEach(btn => btn.classList.remove('active-tab'));
@@ -641,7 +662,8 @@ function adminTab(section){
     'payments': 'Payment Settings',
     'notifications': 'Notifications',
     'settings': 'System Settings',
-    'activity': 'Activity Log'
+    'activity': 'Activity Log',
+    'ads': 'Ads Management'
   };
   title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
 
@@ -650,7 +672,7 @@ function adminTab(section){
     let target = event.target.closest('button');
     if(target) target.classList.add('active-tab');
   } else {
-    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10' }[section];
+    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10', 'ads': 'a11' }[section];
     if(btnId) document.getElementById(btnId).classList.add('active-tab');
   }
 
@@ -665,6 +687,7 @@ function adminTab(section){
   else if(section === 'notifications') loadNotifications();
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
+  else if(section === 'ads') loadAdSettings();
 }
 
 function loadDashboard(){
@@ -921,6 +944,28 @@ function saveSettings(){
   
   localStorage.setItem('appSettings', JSON.stringify(settings));
   alert('Settings saved successfully!');
+}
+
+function loadAdSettings(){
+  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://via.placeholder.com/400x200?text=Promotion+Banner", "link": "#"}');
+  document.getElementById('adImageUrl').value = ads.img;
+  document.getElementById('adRedirectUrl').value = ads.link;
+}
+
+function saveAdSettings(){
+  let settings = {
+    img: document.getElementById('adImageUrl').value,
+    link: document.getElementById('adRedirectUrl').value
+  };
+  localStorage.setItem('adSettings', JSON.stringify(settings));
+  loadAds();
+  alert('Ad settings updated!');
+}
+
+function loadAds(){
+  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://via.placeholder.com/400x200?text=Promotion+Banner", "link": "#"}');
+  document.getElementById('adImage').src = ads.img;
+  document.getElementById('adLink').href = ads.link;
 }
 
 function deleteUser(userId){

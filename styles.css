@@ -272,6 +272,19 @@ body{
   color: var(--primary-color);
 }
 
+.ad-banner-card {
+  background: #ffffff;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid #e2e8f0;
+}
+
+.ad-banner-card img {
+  width: 100%;
+  display: block;
+}
+
 /* LAYOUT */
 .app{display:none}
 .wrapper{
