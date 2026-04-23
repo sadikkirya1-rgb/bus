@@ -20,10 +20,19 @@ function login(){
   else if(e==="admin@bus.ug") role="admin";
   else return alert("Invalid");
 
+  // Set current user for personalized features
+  currentUser = users.find(u => u.email === e) || {name: e.split('@')[0], email: e};
+
   loginPage.style.display="none";
   app.style.display="block";
 
   init();
+}
+
+function quickFill(type){
+  if(type==='admin'){ email.value='admin@bus.ug'; password.value='1234'; }
+  else if(type==='user'){ email.value='user@bus.ug'; password.value='1234'; }
+  else if(type==='bus'){ email.value='bus@bus.ug'; password.value='1234'; }
 }
 
 /* INIT */
@@ -41,6 +50,13 @@ function init(){
   sidebar.classList.add("hidden");
   document.getElementById('topbarNav').classList.remove('hidden');
   document.querySelector('.topbar').classList.add('hidden');
+
+  // Back to Top functionality
+  window.onscroll = function() {
+    let btn = document.getElementById("backToTop");
+    if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) btn.classList.remove("hidden");
+    else btn.classList.add("hidden");
+  };
 
   if(role==="user"){
     userUI.classList.remove("hidden");
@@ -60,15 +76,35 @@ function init(){
   }
 
   if(role==="admin"){
-    title.innerText="UG BUS | ADMIN";
     sidebar.classList.remove("hidden");
     document.getElementById('sidebarToggle').classList.remove("hidden");
     adminUI.classList.remove("hidden");
     document.querySelector('.topbar').classList.remove('hidden');
     document.getElementById('topbarActions').classList.remove('hidden');
+    document.getElementById('adminClock').classList.remove('hidden');
     bottomNav.classList.add("hidden");
+    startClock();
     adminTab('dashboard'); // Initialize with dashboard
   }
+}
+
+/* ADMIN CLOCK */
+function startClock() {
+  if (window.clockInterval) clearInterval(window.clockInterval);
+  
+  const update = () => {
+    const clockEl = document.getElementById('adminClock');
+    if (clockEl) {
+      const now = new Date();
+      clockEl.innerHTML = `<i class="far fa-clock"></i> ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    }
+  };
+  update();
+  window.clockInterval = setInterval(update, 1000);
+}
+
+function scrollToTop() {
+  window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 function renderBottomNav(){
@@ -160,6 +196,7 @@ function loadTrips(){
   let to = document.getElementById('to').value;
   let date = document.getElementById('date').value;
   let time = document.getElementById('time').value;
+  let sortOrder = document.getElementById('sortTrips').value;
 
   let searchWifi = document.getElementById('searchWifi').checked;
   let searchAc = document.getElementById('searchAc').checked;
@@ -169,7 +206,7 @@ function loadTrips(){
     return;
   }
 
-  trips.innerHTML="";
+  document.getElementById('trips').innerHTML = "";
 
   // Filter trips based on search
   let availableTrips = trips.filter(t => 
@@ -183,6 +220,13 @@ function loadTrips(){
     if (searchUsb && (!trip.amenities || !trip.amenities.includes('charging-station'))) return false;
     return true;
   });
+
+  // Sort trips
+  if (sortOrder === "priceLow") availableTrips.sort((a, b) => a.price - b.price);
+  else if (sortOrder === "priceHigh") availableTrips.sort((a, b) => b.price - a.price);
+  else if (sortOrder === "time") availableTrips.sort((a, b) => a.time.localeCompare(b.time));
+
+  let tripsContainer = document.getElementById('trips');
 
   if(availableTrips.length === 0) {
     // Show default buses if no scheduled trips
@@ -207,7 +251,7 @@ function loadTrips(){
         <p><strong>UGX ${b.price.toLocaleString()}</strong></p>
         <button class='btn' onclick='selectSeat("${b.name}", ${b.price})'><i class="fas fa-chair"></i> Select Seat</button>
       `;
-      trips.appendChild(d);
+      tripsContainer.appendChild(d);
     });
   } else {
     availableTrips.forEach(t=>{
@@ -221,7 +265,7 @@ function loadTrips(){
         <p><strong>UGX ${t.price.toLocaleString()}</strong></p>
         <button class='btn' onclick='selectSeat("${t.busName}", ${t.price})'><i class="fas fa-chair"></i> Select Seat</button>
       `;
-      trips.appendChild(d);
+      tripsContainer.appendChild(d);
     });
   }
 }
@@ -271,6 +315,7 @@ function confirmBooking(){
   tickets.push(ticket);
   localStorage.setItem("tickets", JSON.stringify(tickets));
 
+  addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser.name}`);
   bookingConfirm.classList.add("hidden");
   showNotification("Booking confirmed! Check your tickets.", "success");
   userTab("tickets");
@@ -304,6 +349,33 @@ function loadBusSelect(){
   });
 }
 
+/* ADD BUS */
+function addNewBus(){
+  let name = document.getElementById('newBusName').value;
+  let route = document.getElementById('newBusRoute').value;
+  let price = document.getElementById('newBusPrice').value;
+  let type = document.getElementById('newBusType').value;
+
+  if(!name || !route || !price) return alert("Please fill all fields");
+
+  let bus = {
+    id: Date.now(),
+    name, route, type,
+    price: parseInt(price),
+    operator: currentUser.name
+  };
+
+  buses.push(bus);
+  localStorage.setItem("buses", JSON.stringify(buses));
+  addActivityLog(`New bus registered: ${name} by ${currentUser.name}`);
+  
+  document.getElementById('newBusName').value = "";
+  document.getElementById('newBusRoute').value = "";
+  document.getElementById('newBusPrice').value = "";
+  renderFleet();
+  showNotification("Bus added to fleet!", "success");
+}
+
 /* SCHEDULE TRIP */
 function scheduleTrip(){
   let busId = selectBus.value;
@@ -331,6 +403,7 @@ function scheduleTrip(){
   trips.push(trip);
   localStorage.setItem("trips", JSON.stringify(trips));
 
+  addActivityLog(`Trip scheduled: ${bus.name} on ${date}`);
   alert("Trip scheduled successfully!");
   tripDate.value = departureTime.value = "";
   document.getElementById('wifiAmenity').checked = false;
@@ -391,10 +464,14 @@ function renderTickets(){
   }
 
   tickets.forEach((t, index)=>{
+    let isPast = new Date(t.date) < new Date();
     let d=document.createElement("div");
     d.className="card";
     d.innerHTML=`
-      <h4><i class="fas fa-ticket-alt"></i> Ticket #${index+1}</h4>
+      <div style="display: flex; justify-content: space-between;">
+        <h4><i class="fas fa-ticket-alt"></i> Ticket #${index+1}</h4>
+        <span class="badge ${isPast ? 'bg-secondary' : 'bg-primary'}">${isPast ? 'Past' : 'Active'}</span>
+      </div>
       <p><strong>Bus:</strong> ${t.bus || t}</p>
       <p><strong>Seat:</strong> ${t.seat || 'N/A'}</p>
       <p><strong>Route:</strong> ${t.from || 'N/A'} - ${t.to || 'N/A'}</p>
@@ -403,7 +480,10 @@ function renderTickets(){
       <div class="qr-code" title="Scan to verify ticket">
         <i class="fas fa-qrcode"></i>
       </div>
-      <button class="btn" onclick="downloadTicket(${index})"><i class="fas fa-download"></i> Download</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn" style="flex: 1;" onclick="downloadTicket(${index})"><i class="fas fa-download"></i> Download</button>
+        ${(isPast || t.used) ? `<button class="btn" style="flex: 1; background: var(--uganda-yellow); color: #000;" onclick="rebook('${t.from}', '${t.to}')"><i class="fas fa-redo"></i> Rebook</button>` : ''}
+      </div>
     `;
     ticketsDiv.appendChild(d);
   });
@@ -452,8 +532,9 @@ function selectPayment(method){
 
 /* LOAD PROFILE */
 function loadProfile(){
-  let user = users.find(u => u.email === "user@bus.ug"); // For demo
+  let user = currentUser || users.find(u => u.email === "user@bus.ug");
   if(user) {
+    document.getElementById('userGreeting').innerText = `Hello, ${user.name}!`;
     profileName.value = user.name;
     profileEmail.value = user.email;
     profilePhone.value = user.phone;
@@ -509,6 +590,19 @@ function showNotification(message, type = 'info'){
   }, 5000);
 }
 
+function addActivityLog(message) {
+  let logs = JSON.parse(localStorage.getItem("systemLogs") || "[]");
+  logs.unshift({ message, time: new Date().toISOString() });
+  localStorage.setItem("systemLogs", JSON.stringify(logs.slice(0, 50)));
+}
+
+function rebook(from, to){
+  document.getElementById('from').value = from;
+  document.getElementById('to').value = to;
+  userTab('home');
+  showNotification(`Route ${from} to ${to} selected! Choose your date.`, "success");
+}
+
 /* LOGOUT */
 function logout(){
   location.reload();
@@ -526,16 +620,39 @@ function adminTab(section){
   document.getElementById('adminPayments').classList.add('hidden');
   document.getElementById('adminNotifications').classList.add('hidden');
   document.getElementById('adminSettings').classList.add('hidden');
+  document.getElementById('adminActivity').classList.add('hidden');
 
   // Remove active class from all admin nav buttons
   document.querySelectorAll('.sidebar button, .topbar-nav button').forEach(btn => btn.classList.remove('active-tab'));
 
   // Show selected section
-  document.getElementById('admin' + section.charAt(0).toUpperCase() + section.slice(1)).classList.remove('hidden');
+  const sectionId = 'admin' + section.charAt(0).toUpperCase() + section.slice(1);
+  const el = document.getElementById(sectionId);
+  if(el) el.classList.remove('hidden');
   
+  // Update Breadcrumb Trail
+  const sectionLabels = {
+    'dashboard': 'Dashboard',
+    'users': 'User Management',
+    'operators': 'Bus Operators',
+    'routes': 'Route Management',
+    'bookings': 'Booking Management',
+    'analytics': 'Analytics',
+    'payments': 'Payment Settings',
+    'notifications': 'Notifications',
+    'settings': 'System Settings',
+    'activity': 'Activity Log'
+  };
+  title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
+
   // Add active class to clicked button
-  let target = event.target.closest('button');
-  if(target) target.classList.add('active-tab');
+  if (typeof event !== 'undefined' && event && event.target) {
+    let target = event.target.closest('button');
+    if(target) target.classList.add('active-tab');
+  } else {
+    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10' }[section];
+    if(btnId) document.getElementById(btnId).classList.add('active-tab');
+  }
 
   // Load data for the section
   if(section === 'dashboard') loadDashboard();
@@ -547,24 +664,33 @@ function adminTab(section){
   else if(section === 'payments') loadPaymentSettings();
   else if(section === 'notifications') loadNotifications();
   else if(section === 'settings') loadSettings();
+  else if(section === 'activity') loadActivity();
 }
 
 function loadDashboard(){
   // Update dashboard stats
-  document.querySelector('#adminDashboard .card:nth-child(1) div').textContent = users.length;
-  document.querySelector('#adminDashboard .card:nth-child(2) div').textContent = buses.length;
-  document.querySelector('#adminDashboard .card:nth-child(3) div').textContent = tickets.length;
+  document.getElementById('statUsers').textContent = users.length.toLocaleString();
+  document.getElementById('statBuses').textContent = buses.length.toLocaleString();
+  document.getElementById('statBookings').textContent = tickets.length.toLocaleString();
+  document.getElementById('statTrips').textContent = trips.length.toLocaleString();
   
   // Calculate revenue
   let revenue = tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
-  document.querySelector('#adminDashboard .card:nth-child(4) div').textContent = 'UGX ' + revenue.toLocaleString();
+  document.getElementById('statRevenue').textContent = 'UGX ' + revenue.toLocaleString();
 }
 
 function loadUsers(){
   let userList = document.getElementById('userList');
   userList.innerHTML = '';
   
-  users.forEach(user => {
+  let query = document.getElementById('userSearch') ? document.getElementById('userSearch').value.toLowerCase() : '';
+  
+  let filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(query) || 
+    user.email.toLowerCase().includes(query)
+  );
+  
+  filteredUsers.forEach(user => {
     let userCard = document.createElement('div');
     userCard.className = 'card';
     userCard.innerHTML = `
@@ -648,6 +774,23 @@ function loadBookings(){
   });
 }
 
+function loadActivity(){
+  let activityLog = document.getElementById('fullActivityLog');
+  let logs = JSON.parse(localStorage.getItem("systemLogs") || "[]");
+  
+  if(logs.length === 0) {
+    activityLog.innerHTML = "<p style='padding: 20px;'>No recent activity recorded.</p>";
+    return;
+  }
+
+  activityLog.innerHTML = logs.map(log => `
+    <div class="activity-item">
+      <i class="fas fa-circle-notch fa-spin" style="font-size: 0.8rem;"></i> ${log.message} 
+      <span class="time">${new Date(log.time).toLocaleTimeString()}</span>
+    </div>
+  `).join('');
+}
+
 function loadAnalytics(){
   // This would typically load charts and analytics data
   // For now, just update the popular routes
@@ -665,6 +808,15 @@ function loadAnalytics(){
     let routeName = route.replace('-', ' → ');
     popularRoutesDiv.innerHTML += `<p>${index + 1}. ${routeName} (${count} bookings)</p>`;
   });
+}
+
+function exportUsers(){
+  let csv = "Name,Email,Phone,Role\n";
+  users.forEach(u => csv += `${u.name},${u.email},${u.phone},${u.role}\n`);
+  let blob = new Blob([csv], { type: 'text/csv' });
+  let url = window.URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url; a.download = 'ugbus_users.csv'; a.click();
 }
 
 function loadPaymentSettings(){
@@ -807,5 +959,34 @@ function cancelBooking(ticketId){
     localStorage.setItem('tickets', JSON.stringify(tickets));
     loadBookings();
     alert('Booking cancelled successfully!');
+  }
+}
+
+/* TICKET SCANNER */
+function verifyTicket() {
+  let id = parseInt(document.getElementById('scanInput').value);
+  let resultDiv = document.getElementById('scanResult');
+  resultDiv.classList.remove('hidden');
+
+  let ticketIndex = id - 1;
+  let ticket = tickets[ticketIndex];
+
+  if (!ticket) {
+    resultDiv.style.background = "#fff5f5";
+    resultDiv.style.color = "#c53030";
+    resultDiv.innerHTML = `<h4><i class="fas fa-times-circle"></i> Invalid Ticket</h4><p>No ticket found with ID #${id}</p>`;
+  } else if (ticket.used) {
+    resultDiv.style.background = "#fffaf0";
+    resultDiv.style.color = "#9b2c2c";
+    resultDiv.innerHTML = `<h4><i class="fas fa-exclamation-triangle"></i> Already Used</h4><p>Ticket #${id} was scanned on ${new Date(ticket.usedAt).toLocaleString()}</p>`;
+  } else {
+    ticket.used = true;
+    ticket.usedAt = new Date().toISOString();
+    localStorage.setItem("tickets", JSON.stringify(tickets));
+    
+    resultDiv.style.background = "#f0fff4";
+    resultDiv.style.color = "#2f855a";
+    resultDiv.innerHTML = `<h4><i class="fas fa-check-circle"></i> Ticket Verified!</h4><p>Ticket #${id} for ${ticket.from} → ${ticket.to} is valid. Boarding allowed.</p>`;
+    addActivityLog(`Ticket #${id} scanned and verified.`);
   }
 }

@@ -177,6 +177,42 @@ body{
   text-decoration: underline;
 }
 
+.quick-login {
+  margin-top: 25px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 20px;
+}
+.quick-login p {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+.quick-login-btns {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+.quick-login-btns button {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: var(--primary-color);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.quick-login-btns button:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
 .login-info {
   display: flex;
   flex-direction: column;
@@ -266,6 +302,7 @@ body{
   bottom: 0;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 0 20px 20px 0;
+  pointer-events: none;
 }
 
 .sidebar h3 {
@@ -345,6 +382,16 @@ body{
   color: var(--primary-color);
 }
 
+.admin-clock {
+  font-family: 'Inter', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-light);
+  padding-left: 15px;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 5px;
+}
+
 .topbar-nav {
   display: flex;
   flex-wrap: wrap;
@@ -411,7 +458,7 @@ body{
 /* CARD */
 .card{
   background: var(--card-bg);
-  padding: 25px;
+  padding: 18px;
   border-radius: var(--border-radius);
   margin-bottom: 20px;
   box-shadow: var(--shadow);
@@ -433,7 +480,7 @@ body{
 /* GRID */
 .grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
   gap:20px;
 }
 
@@ -494,6 +541,25 @@ input:focus, select:focus, textarea:focus {
   transition: var(--transition);
   border: 2px solid #e9ecef;
   font-weight: 600;
+}
+
+.bus-front-indicator {
+  background: #edf2f7;
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  color: var(--text-light);
+  font-weight: bold;
+  font-size: 0.8rem;
+  border: 2px solid #e2e8f0;
+}
+
+.fa-steering-wheel:before {
+  content: "\f8d1"; /* FA Steering wheel icon */
 }
 
 .seat:hover {
@@ -612,6 +678,103 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
+/* BADGES */
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.bg-primary {
+  background: rgba(0, 122, 61, 0.1);
+  color: var(--primary-color);
+}
+
+.bg-secondary {
+  background: #edf2f7;
+  color: var(--text-light);
+}
+
+/* ADMIN SEARCH & CHARTS */
+.search-box {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.search-box i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+}
+
+.search-box input {
+  padding-left: 45px;
+  margin: 0;
+}
+
+.chart-container {
+  height: 110px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding-top: 20px;
+  border-bottom: 2px solid #edf2f7;
+}
+
+.bar {
+  width: 30px;
+  background: var(--primary-color);
+  border-radius: 4px 4px 0 0;
+  transition: var(--transition);
+  cursor: help;
+}
+
+.bar:hover {
+  opacity: 0.8;
+}
+
+.circle-chart {
+  align-items: center;
+  border: none;
+}
+
+.circle-inner {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 8px solid var(--primary-color);
+  border-top-color: #edf2f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+/* ACTIVITY LOG */
+.activity-item {
+  padding: 12px;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.activity-item i {
+  color: var(--primary-color);
+}
+
+.activity-item .time {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-light);
+}
+
 /* UGANDA THEME */
 .uganda-flag {
   background: linear-gradient(to bottom, #000000 33%, #FCD116 33%, #FCD116 66%, #E53E3E 66%);
@@ -649,6 +812,23 @@ input:focus, select:focus, textarea:focus {
 @keyframes slideInRight {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+
+/* BACK TO TOP */
+.back-to-top {
+  position: fixed;
+  bottom: 80px;
+  right: 30px;
+  width: 50px;
+  height: 50px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow-hover);
+  z-index: 999;
+  transition: var(--transition);
 }
 
 /* PROFILE */

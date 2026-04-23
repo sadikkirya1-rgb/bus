@@ -30,6 +30,15 @@
         </button>
       </form>
 
+      <div class="quick-login">
+        <p>Quick login as:</p>
+        <div class="quick-login-btns">
+          <button type="button" onclick="quickFill('admin')" title="Admin"><i class="fas fa-user-shield"></i></button>
+          <button type="button" onclick="quickFill('user')" title="User"><i class="fas fa-user"></i></button>
+          <button type="button" onclick="quickFill('bus')" title="Bus Operator"><i class="fas fa-bus"></i></button>
+        </div>
+      </div>
+
       <div class="login-footer">
         <p>Don't have an account?
           <a href="#" onclick="showRegister()" class="register-link">Create one here</a>
@@ -38,21 +47,6 @@
     </div>
 
     <div class="login-info">
-      <div class="info-card">
-        <h4><i class="fas fa-users"></i> Test Accounts</h4>
-        <div class="test-accounts">
-          <div class="account-item">
-            <strong>Admin:</strong> admin@bus.ug / 1234
-          </div>
-          <div class="account-item">
-            <strong>User:</strong> user@bus.ug / 1234
-          </div>
-          <div class="account-item">
-            <strong>Bus Operator:</strong> bus@bus.ug / 1234
-          </div>
-        </div>
-      </div>
-
       <div class="info-card">
         <h4><i class="fas fa-route"></i> Popular Routes</h4>
         <div class="popular-routes">
@@ -118,6 +112,7 @@
     <button onclick="adminTab('payments')" id="a7" title="Payment Settings"><i class="fas fa-credit-card"></i> <span>Payment Settings</span></button>
     <button onclick="adminTab('notifications')" id="a8" title="Notifications"><i class="fas fa-bell"></i> <span>Notifications</span></button>
     <button onclick="adminTab('settings')" id="a9" title="System Settings"><i class="fas fa-cogs"></i> <span>System Settings</span></button>
+    <button onclick="adminTab('activity')" id="a10" title="Activity Log"><i class="fas fa-history"></i> <span>Activity Log</span></button>
   </div>
 
   <!-- MAIN -->
@@ -129,6 +124,7 @@
           <i class="fas fa-bars"></i>
         </button>
         <h3 id="title"></h3>
+        <div id="adminClock" class="admin-clock hidden"></div>
       </div>
       <div id="topbarNav" class="topbar-nav"></div>
       <div class="topbar-actions" id="topbarActions">
@@ -189,6 +185,14 @@
               </select>
             </div>
           </div>
+          <div style="margin-top: 10px;">
+            <label style="font-size: 0.9rem; color: var(--text-light);">Sort Results By</label>
+            <select id="sortTrips" onchange="loadTrips()">
+              <option value="time">Departure Time</option>
+              <option value="priceLow">Price: Low to High</option>
+              <option value="priceHigh">Price: High to Low</option>
+            </select>
+          </div>
           <div style="margin: 10px 0; text-align: left;">
             <label style="font-size: 0.9rem; color: var(--text-light); display: block; margin-bottom: 5px;">Amenities</label>
             <div style="display: flex; gap: 15px; flex-wrap: wrap; color: var(--text);">
@@ -210,6 +214,10 @@
 
         <div id="seatBox" class="card hidden">
           <h3><i class="fas fa-chair"></i> Select Your Seat</h3>
+          <div class="bus-front-indicator">
+            <i class="fas fa-steering-wheel"></i>
+            <span>FRONT OF BUS</span>
+          </div>
           <div id="seats" class="seats"></div>
           <div style="margin-top: 20px;">
             <button class="btn" onclick="book()"><i class="fas fa-credit-card"></i> Proceed to Payment</button>
@@ -275,6 +283,7 @@
           <div class="profile-avatar">
             <i class="fas fa-user"></i>
           </div>
+          <h2 id="userGreeting" style="margin-bottom: 5px; color: var(--text);"></h2>
           <h3>Profile Settings</h3>
           <input placeholder="Full Name" id="profileName">
           <input placeholder="Phone Number" id="profilePhone">
@@ -336,8 +345,36 @@
 
       <div id="busFleet" class="hidden">
         <div class="card">
+          <h3><i class="fas fa-plus-circle"></i> Add New Bus</h3>
+          <div class="grid">
+            <input id="newBusName" placeholder="Bus Name (e.g., King Coach)">
+            <input id="newBusRoute" placeholder="Primary Route (e.g., Kampala - Lira)">
+            <input id="newBusPrice" type="number" placeholder="Standard Price (UGX)">
+            <select id="newBusType">
+              <option value="Standard">Standard</option>
+              <option value="Luxury">Luxury</option>
+              <option value="VIP">VIP</option>
+            </select>
+          </div>
+          <button class="btn" style="margin-top: 10px;" onclick="addNewBus()"><i class="fas fa-save"></i> Register Bus</button>
+        </div>
+        <div class="card">
           <h3><i class="fas fa-bus"></i> My Fleet</h3>
           <div id="fleet" class="grid"></div>
+        </div>
+      </div>
+
+      <div id="busScanner" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-barcode"></i> Ticket Scanner</h3>
+          <p>Enter Ticket ID to verify and mark as used.</p>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <input id="scanInput" type="number" placeholder="Enter Ticket # (e.g., 1)">
+            <button class="btn" onclick="verifyTicket()"><i class="fas fa-qrcode"></i> Scan</button>
+          </div>
+          <div id="scanResult" class="hidden" style="margin-top: 20px; padding: 15px; border-radius: 8px;">
+            <!-- Scan results will appear here -->
+          </div>
         </div>
       </div>
 
@@ -388,32 +425,60 @@
         <div class="grid">
           <div class="card">
             <h3><i class="fas fa-users"></i> Users</h3>
-            <div style="font-size: 2rem; color: var(--primary-color);">1,250</div>
+            <div id="statUsers" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
             <p>Active users this month</p>
           </div>
           <div class="card">
             <h3><i class="fas fa-bus"></i> Buses</h3>
-            <div style="font-size: 2rem; color: var(--primary-color);">45</div>
-            <p>Total registered buses</p>
+            <div id="statBuses" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
+            <p>Registered buses</p>
           </div>
           <div class="card">
             <h3><i class="fas fa-ticket-alt"></i> Bookings</h3>
-            <div style="font-size: 2rem; color: var(--primary-color);">3,420</div>
-            <p>Bookings this month</p>
+            <div id="statBookings" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
+            <p>Monthly bookings</p>
           </div>
           <div class="card">
             <h3><i class="fas fa-dollar-sign"></i> Revenue</h3>
-            <div style="font-size: 2rem; color: var(--primary-color);">UGX 12.5M</div>
-            <p>Monthly revenue</p>
+            <div id="statRevenue" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">UGX 0</div>
+            <p>Total revenue</p>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-route"></i> Active Trips</h3>
+            <div id="statTrips" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
+            <p>Trips in progress</p>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-times-circle"></i> Cancelled</h3>
+            <div id="statCancelled" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">12</div>
+            <p>Cancellation rate: 2%</p>
           </div>
         </div>
 
-        <div class="card">
-          <h3><i class="fas fa-chart-bar"></i> Recent Activity</h3>
-          <div id="activityLog">
-            <p><i class="fas fa-user-plus"></i> New user registered: john@example.com</p>
-            <p><i class="fas fa-bus"></i> New bus added: Luxury Express</p>
-            <p><i class="fas fa-ticket-alt"></i> Booking confirmed: Kampala to Gulu</p>
+        <div class="grid">
+          <div class="card">
+            <h3><i class="fas fa-chart-line"></i> Revenue Trend</h3>
+            <div class="chart-container">
+              <div class="bar" style="height: 40%;" title="Jan"></div>
+              <div class="bar" style="height: 60%;" title="Feb"></div>
+              <div class="bar" style="height: 85%;" title="Mar"></div>
+              <div class="bar" style="height: 70%;" title="Apr"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-pie-chart"></i> Booking Distribution</h3>
+            <div class="chart-container circle-chart">
+              <div class="circle-inner">78% Full</div>
+            </div>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-user-plus"></i> User Growth</h3>
+            <div class="chart-container">
+              <div class="bar" style="height: 30%; background: #4a5568;" title="W1"></div>
+              <div class="bar" style="height: 50%; background: #4a5568;" title="W2"></div>
+              <div class="bar" style="height: 45%; background: #4a5568;" title="W3"></div>
+              <div class="bar" style="height: 80%; background: #4a5568;" title="W4"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -421,7 +486,14 @@
       <!-- USER MANAGEMENT -->
       <div id="adminUsers" class="hidden">
         <div class="card">
-          <h3><i class="fas fa-users"></i> User Management</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3><i class="fas fa-users"></i> User Management</h3>
+            <button class="theme-btn" onclick="exportUsers()"><i class="fas fa-file-export"></i> Export CSV</button>
+          </div>
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="userSearch" placeholder="Search users by name or email..." onkeyup="loadUsers()">
+          </div>
           <div id="userList" class="grid">
             <!-- Users will be populated here -->
           </div>
@@ -510,6 +582,16 @@
         </div>
       </div>
 
+      <!-- ACTIVITY LOG -->
+      <div id="adminActivity" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-history"></i> Recent Activity</h3>
+          <div id="fullActivityLog" class="activity-log">
+            <!-- Activity log entries will be populated here -->
+          </div>
+        </div>
+      </div>
+
       <!-- NOTIFICATIONS -->
       <div id="adminNotifications" class="hidden">
         <div class="card">
@@ -558,6 +640,11 @@
 
 <!-- BOTTOM NAV -->
 <div id="bottomNav" class="bottom-nav hidden"></div>
+
+<!-- BACK TO TOP -->
+<button id="backToTop" class="back-to-top hidden" onclick="scrollToTop()">
+  <i class="fas fa-chevron-up"></i>
+</button>
 
 <script src="script.js"></script>
 
