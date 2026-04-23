@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UG Bus Premium</title>
+<link rel="stylesheet" href="styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage" class="login">
+  <div class="login-header">
+    <div class="logo">
+      <span class="uganda-flag"></span>
+      <h1>UG Bus</h1>
+    </div>
+  </div>
+
+  <div class="login-container">
+    <div class="login-card">
+      <form class="login-form" onsubmit="login(); return false;">
+        <input id="email" type="email" placeholder="Email address" required>
+        <input id="password" type="password" placeholder="Password" required>
+        <button type="submit" class="btn login-btn">
+          <i class="fas fa-sign-in-alt"></i> Login
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p>Don't have an account?
+          <a href="#" onclick="showRegister()" class="register-link">Create one here</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="login-info">
+      <div class="info-card">
+        <h4><i class="fas fa-users"></i> Test Accounts</h4>
+        <div class="test-accounts">
+          <div class="account-item">
+            <strong>Admin:</strong> admin@bus.ug / 1234
+          </div>
+          <div class="account-item">
+            <strong>User:</strong> user@bus.ug / 1234
+          </div>
+          <div class="account-item">
+            <strong>Bus Operator:</strong> bus@bus.ug / 1234
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h4><i class="fas fa-route"></i> Popular Routes</h4>
+        <div class="popular-routes">
+          <div class="route-item">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>Kampala → Gulu</span>
+          </div>
+          <div class="route-item">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>Kampala → Mbale</span>
+          </div>
+          <div class="route-item">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>Kampala → Mbarara</span>
+          </div>
+          <div class="route-item">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>Kampala → Jinja</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="registerPage" class="login hidden">
+  <h2><span class="uganda-flag"></span> Create Account</h2>
+  <div class="card">
+    <input id="regName" placeholder="Full Name" required>
+    <input id="regEmail" type="email" placeholder="Email Address" required>
+    <input id="regPhone" placeholder="Phone Number (+256)" required>
+    <input id="regPassword" type="password" placeholder="Password" required>
+    <select id="regRole" required>
+      <option value="">Select Account Type</option>
+      <option value="user">Passenger</option>
+      <option value="bus">Bus Operator</option>
+    </select>
+    <button class="btn" onclick="register()"><i class="fas fa-user-plus"></i> Register</button>
+    <p style="text-align: center; margin-top: 15px;">
+      <a href="#" onclick="showLogin()" style="color: var(--primary-color);">Already have an account? Login</a>
+    </p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app">
+
+<!-- DARK MODE TOGGLE -->
+<button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+  <i class="fas fa-moon"></i>
+</button>
+
+<!-- NOTIFICATIONS -->
+<div id="notifications" class="notifications"></div>
+
+<!-- CHAT SUPPORT (Only for users and bus operators) -->
+<div class="chat-support" id="chatSupport" onclick="toggleChat()" title="Customer Support" style="display: none;">
+  <i class="fas fa-comments"></i>
+</div>
+
+<div class="chat-window" id="chatWindow">
+  <div class="chat-header">
+    <h4><i class="fas fa-headset"></i> Support</h4>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="notification" style="margin: 0; animation: none;">
+      <strong>Support</strong><br>
+      Hello! How can we help you today?
+    </div>
+  </div>
+  <div class="chat-input">
+    <input type="text" id="chatInput" placeholder="Type your message..." onkeypress="handleChatKeyPress(event)">
+    <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+  </div>
+</div>
+
+<div class="wrapper">
+
+  <!-- SIDEBAR (ADMIN ONLY) -->
+  <div id="sidebar" class="sidebar hidden">
+    <h3><i class="fas fa-cog"></i> Admin Panel</h3>
+    <button onclick="adminTab('dashboard')" id="a1"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+    <button onclick="adminTab('users')" id="a2"><i class="fas fa-users"></i> User Management</button>
+    <button onclick="adminTab('operators')" id="a3"><i class="fas fa-bus"></i> Bus Operators</button>
+    <button onclick="adminTab('routes')" id="a4"><i class="fas fa-route"></i> Route Management</button>
+    <button onclick="adminTab('bookings')" id="a5"><i class="fas fa-ticket-alt"></i> Booking Management</button>
+    <button onclick="adminTab('analytics')" id="a6"><i class="fas fa-chart-bar"></i> Analytics</button>
+    <button onclick="adminTab('payments')" id="a7"><i class="fas fa-credit-card"></i> Payment Settings</button>
+    <button onclick="adminTab('notifications')" id="a8"><i class="fas fa-bell"></i> Notifications</button>
+    <button onclick="adminTab('settings')" id="a9"><i class="fas fa-cogs"></i> System Settings</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="topbar">
+      <div class="topbar-brand">
+        <h3 id="title"></h3>
+      </div>
+      <div id="topbarNav" class="topbar-nav"></div>
+      <button onclick="logout()">Logout</button>
+    </div>
+
+    <!-- USER -->
+    <div id="userUI" class="hidden">
+
+      <div id="userHome">
+
+        <!-- PROFILE CARD -->
+        <div class="card profile-card">
+          <div class="profile-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <h3 id="userName">Welcome Back!</h3>
+          <p id="userEmail">user@bus.ug</p>
+          <div class="loyalty-card">
+            <h4>Loyalty Points</h4>
+            <div class="loyalty-points" id="loyaltyPoints">250</div>
+            <p>Redeem points for discounts!</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-search"></i> Search Trips</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 0.9rem; color: var(--text-light);">From</label>
+              <select id="from" required>
+                <option value="">Select City</option>
+                <option value="Kampala">Kampala</option>
+                <option value="Entebbe">Entebbe</option>
+                <option value="Jinja">Jinja</option>
+                <option value="Mbale">Mbale</option>
+                <option value="Gulu">Gulu</option>
+                <option value="Mbarara">Mbarara</option>
+                <option value="Masaka">Masaka</option>
+                <option value="Lira">Lira</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 0.9rem; color: var(--text-light);">To</label>
+              <select id="to" required>
+                <option value="">Select City</option>
+                <option value="Kampala">Kampala</option>
+                <option value="Entebbe">Entebbe</option>
+                <option value="Jinja">Jinja</option>
+                <option value="Mbale">Mbale</option>
+                <option value="Gulu">Gulu</option>
+                <option value="Mbarara">Mbarara</option>
+                <option value="Masaka">Masaka</option>
+                <option value="Lira">Lira</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 0.9rem; color: var(--text-light);">Date</label>
+              <input id="date" type="date" required>
+            </div>
+            <div>
+              <label style="font-size: 0.9rem; color: var(--text-light);">Time Preference</label>
+              <select id="time">
+                <option value="">Any Time</option>
+                <option value="morning">Morning (6AM-12PM)</option>
+                <option value="afternoon">Afternoon (12PM-6PM)</option>
+                <option value="evening">Evening (6PM-12AM)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
+        </div>
+
+        <!-- ROUTE MAP PLACEHOLDER -->
+        <div class="card">
+          <h3><i class="fas fa-map-marked-alt"></i> Route Map</h3>
+          <div class="route-map">
+            <i class="fas fa-map"></i>
+            <p style="margin: 10px 0 0 0; color: #a0aec0;">Interactive map coming soon!</p>
+          </div>
+        </div>
+
+        <div id="trips" class="grid"></div>
+
+        <div id="seatBox" class="card hidden">
+          <h3><i class="fas fa-chair"></i> Select Your Seat</h3>
+          <div id="seats" class="seats"></div>
+          <div style="margin-top: 20px;">
+            <button class="btn" onclick="book()"><i class="fas fa-credit-card"></i> Proceed to Payment</button>
+          </div>
+        </div>
+
+        <div id="bookingConfirm" class="card hidden">
+          <h3><i class="fas fa-check-circle"></i> Booking Confirmation</h3>
+          <p id="bookingDetails"></p>
+
+          <!-- PAYMENT METHODS -->
+          <h4>Select Payment Method</h4>
+          <div class="payment-methods">
+            <div class="payment-method" onclick="selectPayment('mtn')" id="mtnPayment">
+              <i class="fas fa-mobile-alt" style="font-size: 1.5rem; color: #ff6b6b;"></i>
+              <div>MTN Mobile Money</div>
+            </div>
+            <div class="payment-method" onclick="selectPayment('airtel')" id="airtelPayment">
+              <i class="fas fa-mobile-alt" style="font-size: 1.5rem; color: #ff9500;"></i>
+              <div>Airtel Money</div>
+            </div>
+            <div class="payment-method" onclick="selectPayment('card')" id="cardPayment">
+              <i class="fas fa-credit-card" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+              <div>Credit Card</div>
+            </div>
+            <div class="payment-method" onclick="selectPayment('cash')" id="cashPayment">
+              <i class="fas fa-money-bill-wave" style="font-size: 1.5rem; color: #FCD116;"></i>
+              <div>Cash on Board</div>
+            </div>
+          </div>
+
+          <button class="btn" onclick="confirmBooking()" id="confirmBtn" disabled><i class="fas fa-check"></i> Confirm & Pay</button>
+        </div>
+
+      </div>
+
+      <div id="userTickets" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-ticket-alt"></i> My Tickets</h3>
+          <div id="tickets" class="grid"></div>
+        </div>
+
+        <!-- REVIEWS SECTION -->
+        <div class="card">
+          <h3><i class="fas fa-star"></i> Recent Reviews</h3>
+          <div class="reviews">
+            <div class="review">
+              <div class="stars">★★★★★</div>
+              <p>"Excellent service! Bus was on time and clean."</p>
+              <small>- Sarah from Kampala</small>
+            </div>
+            <div class="review">
+              <div class="stars">★★★★☆</div>
+              <p>"Good experience overall. Would recommend."</p>
+              <small>- John from Gulu</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="userProfile" class="hidden">
+        <div class="card profile-card">
+          <div class="profile-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <h3>Profile Settings</h3>
+          <input placeholder="Full Name" id="profileName">
+          <input placeholder="Phone Number" id="profilePhone">
+          <input placeholder="Email" id="profileEmail">
+          <button class="btn" onclick="updateProfile()"><i class="fas fa-save"></i> Update Profile</button>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-bell"></i> Notification Preferences</h3>
+          <label style="display: block; margin: 10px 0;">
+            <input type="checkbox" checked> Booking confirmations
+          </label>
+          <label style="display: block; margin: 10px 0;">
+            <input type="checkbox" checked> Trip reminders
+          </label>
+          <label style="display: block; margin: 10px 0;">
+            <input type="checkbox"> Promotional offers
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BUS -->
+    <div id="busUI" class="hidden">
+
+      <div id="busHome">
+
+        <div class="card">
+          <h3><i class="fas fa-plus-circle"></i> Add New Bus</h3>
+          <input id="busName" placeholder="Bus Name (e.g., Swift Express)" required>
+          <input id="route" placeholder="Route (e.g., Kampala - Gulu)" required>
+          <input id="capacity" type="number" placeholder="Capacity (e.g., 50)" required>
+          <input id="price" type="number" placeholder="Price per seat (UGX)" required>
+          <select id="busType">
+            <option value="standard">Standard</option>
+            <option value="luxury">Luxury</option>
+            <option value="vip">VIP</option>
+          </select>
+          <button class="btn" onclick="addBus()"><i class="fas fa-save"></i> Add Bus</button>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-calendar-plus"></i> Schedule Trip</h3>
+          <select id="selectBus">
+            <option value="">Select Bus</option>
+          </select>
+          <input id="tripDate" type="date" required>
+          <input id="departureTime" type="time" required>
+          <button class="btn" onclick="scheduleTrip()"><i class="fas fa-clock"></i> Schedule Trip</button>
+        </div>
+
+      </div>
+
+      <div id="busFleet" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-bus"></i> My Fleet</h3>
+          <div id="fleet" class="grid"></div>
+        </div>
+      </div>
+
+      <div id="busSchedules" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-calendar-alt"></i> Scheduled Trips</h3>
+          <div id="schedules" class="grid"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ADMIN -->
+    <div id="adminUI" class="hidden">
+
+      <!-- DASHBOARD -->
+      <div id="adminDashboard">
+        <div class="grid">
+          <div class="card">
+            <h3><i class="fas fa-users"></i> Users</h3>
+            <div style="font-size: 2rem; color: var(--primary-color);">1,250</div>
+            <p>Active users this month</p>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-bus"></i> Buses</h3>
+            <div style="font-size: 2rem; color: var(--primary-color);">45</div>
+            <p>Total registered buses</p>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-ticket-alt"></i> Bookings</h3>
+            <div style="font-size: 2rem; color: var(--primary-color);">3,420</div>
+            <p>Bookings this month</p>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-dollar-sign"></i> Revenue</h3>
+            <div style="font-size: 2rem; color: var(--primary-color);">UGX 12.5M</div>
+            <p>Monthly revenue</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-chart-bar"></i> Recent Activity</h3>
+          <div id="activityLog">
+            <p><i class="fas fa-user-plus"></i> New user registered: john@example.com</p>
+            <p><i class="fas fa-bus"></i> New bus added: Luxury Express</p>
+            <p><i class="fas fa-ticket-alt"></i> Booking confirmed: Kampala to Gulu</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- USER MANAGEMENT -->
+      <div id="adminUsers" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-users"></i> User Management</h3>
+          <div id="userList" class="grid">
+            <!-- Users will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- BUS OPERATORS -->
+      <div id="adminOperators" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-bus"></i> Bus Operators</h3>
+          <div id="operatorList" class="grid">
+            <!-- Operators will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ROUTE MANAGEMENT -->
+      <div id="adminRoutes" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-route"></i> Route Management</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <input id="newRouteFrom" placeholder="From City">
+            <input id="newRouteTo" placeholder="To City">
+          </div>
+          <input id="routePrice" type="number" placeholder="Base Price (UGX)">
+          <button class="btn" onclick="addRoute()"><i class="fas fa-plus"></i> Add Route</button>
+          <div id="routeList" class="grid" style="margin-top: 20px;">
+            <!-- Routes will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- BOOKING MANAGEMENT -->
+      <div id="adminBookings" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-ticket-alt"></i> Booking Management</h3>
+          <div id="bookingList" class="grid">
+            <!-- Bookings will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div id="adminAnalytics" class="hidden">
+        <div class="grid">
+          <div class="card">
+            <h3><i class="fas fa-chart-line"></i> Monthly Trends</h3>
+            <div style="height: 200px; background: linear-gradient(45deg, #f7fafc, #edf2f7); border-radius: var(--border-radius); display: flex; align-items: center; justify-content: center; border: 2px dashed #cbd5e0;">
+              <i class="fas fa-chart-line" style="font-size: 3rem; color: #a0aec0;"></i>
+              <span style="margin-left: 10px; color: #a0aec0;">Chart coming soon!</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3><i class="fas fa-map-marked-alt"></i> Popular Routes</h3>
+            <div id="popularRoutes">
+              <p>1. Kampala → Gulu (450 bookings)</p>
+              <p>2. Kampala → Mbale (380 bookings)</p>
+              <p>3. Kampala → Mbarara (320 bookings)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYMENT SETTINGS -->
+      <div id="adminPayments" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-credit-card"></i> Payment Settings</h3>
+          <div class="payment-methods">
+            <div class="payment-method">
+              <i class="fas fa-mobile-alt" style="font-size: 1.5rem; color: #ff6b6b;"></i>
+              <div>MTN Mobile Money</div>
+              <label><input type="checkbox" checked id="mtnEnabled"> Enabled</label>
+            </div>
+            <div class="payment-method">
+              <i class="fas fa-mobile-alt" style="font-size: 1.5rem; color: #ff9500;"></i>
+              <div>Airtel Money</div>
+              <label><input type="checkbox" checked id="airtelEnabled"> Enabled</label>
+            </div>
+            <div class="payment-method">
+              <i class="fas fa-credit-card" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+              <div>Credit Card</div>
+              <label><input type="checkbox" checked id="cardEnabled"> Enabled</label>
+            </div>
+          </div>
+          <button class="btn" onclick="savePaymentSettings()"><i class="fas fa-save"></i> Save Settings</button>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div id="adminNotifications" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-bell"></i> Send Notification</h3>
+          <select id="notificationType">
+            <option value="all">All Users</option>
+            <option value="users">Passengers Only</option>
+            <option value="operators">Bus Operators Only</option>
+          </select>
+          <input id="notificationTitle" placeholder="Notification Title">
+          <textarea id="notificationMessage" placeholder="Notification Message" rows="4"></textarea>
+          <button class="btn" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Send Notification</button>
+        </div>
+      </div>
+
+      <!-- SYSTEM SETTINGS -->
+      <div id="adminSettings" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-cogs"></i> System Settings</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+              <label>App Name</label>
+              <input value="UG Bus Premium" id="appName">
+            </div>
+            <div>
+              <label>Support Email</label>
+              <input value="support@ugbus.ug" id="supportEmail">
+            </div>
+            <div>
+              <label>Support Phone</label>
+              <input value="+256 414 123 456" id="supportPhone">
+            </div>
+            <div>
+              <label>Booking Fee (%)</label>
+              <input type="number" value="2" id="bookingFee">
+            </div>
+          </div>
+          <button class="btn" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div id="bottomNav" class="bottom-nav hidden"></div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
