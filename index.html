@@ -363,6 +363,20 @@
         </div>
       </div>
 
+      <div id="busScanner" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-barcode"></i> Ticket Scanner</h3>
+          <p>Enter Ticket ID to verify and mark as used.</p>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <input id="scanInput" type="number" placeholder="Enter Ticket # (e.g., 1)">
+            <button class="btn" onclick="verifyTicket()"><i class="fas fa-qrcode"></i> Scan</button>
+          </div>
+          <div id="scanResult" class="hidden" style="margin-top: 20px; padding: 15px; border-radius: 8px;">
+            <!-- Scan results will appear here -->
+          </div>
+        </div>
+      </div>
+
       <div id="busSchedules" class="hidden">
         <div class="card">
           <h3><i class="fas fa-calendar-alt"></i> Scheduled Trips</h3>

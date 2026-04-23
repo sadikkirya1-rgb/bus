@@ -126,6 +126,7 @@ function renderBottomNav(){
       <button onclick="busTab('home')" id="b1"><i class="fas fa-plus"></i> Home</button>
       <button onclick="busTab('fleet')" id="b2"><i class="fas fa-bus"></i> Fleet</button>
       <button onclick="busTab('schedules')" id="b3"><i class="fas fa-calendar"></i> Schedules</button>
+      <button onclick="busTab('scanner')" id="b5"><i class="fas fa-barcode"></i> Scanner</button>
       <button onclick="busTab('profile')" id="b4"><i class="fas fa-user-cog"></i> Profile</button>
     `;
   }
@@ -166,12 +167,14 @@ function busTab(tab){
   busHome.classList.add("hidden");
   busFleet.classList.add("hidden");
   busSchedules.classList.add("hidden");
+  busScanner.classList.add("hidden");
   busProfile.classList.add("hidden");
 
   document.getElementById("b1").classList.remove("active-tab");
   document.getElementById("b2").classList.remove("active-tab");
   document.getElementById("b3").classList.remove("active-tab");
   document.getElementById("b4").classList.remove("active-tab");
+  document.getElementById("b5").classList.remove("active-tab");
 
   if(tab==="home"){
     busHome.classList.remove("hidden");
@@ -185,6 +188,9 @@ function busTab(tab){
     busSchedules.classList.remove("hidden");
     b3.classList.add("active-tab");
     renderSchedules();
+  }else if(tab==="scanner"){
+    busScanner.classList.remove("hidden");
+    b5.classList.add("active-tab");
   }else if(tab==="profile"){
     busProfile.classList.remove("hidden");
     b4.classList.add("active-tab");
@@ -482,19 +488,38 @@ function renderTickets(){
     return;
   }
 
+  const calculateETA = (startTime) => {
+    if (!startTime) return "N/A";
+    let [hours, minutes] = startTime.split(':').map(Number);
+    let arrivalHours = (hours + 4) % 24; // Simulated 4 hour trip
+    return `${arrivalHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   tickets.forEach((t, index)=>{
-    let isPast = new Date(t.date) < new Date();
+    let ticketDate = new Date(t.date + 'T' + (t.time || '00:00'));
+    let now = new Date();
+    let isPast = ticketDate < now;
+    
+    // Trip Tracking Logic
+    let status = "Scheduled";
+    if (t.used) status = "Completed";
+    else if (isPast) status = "In Transit";
+    
     let d=document.createElement("div");
     d.className="card";
     d.innerHTML=`
       <div style="display: flex; justify-content: space-between;">
         <h4><i class="fas fa-ticket-alt"></i> Ticket #${index+1}</h4>
-        <span class="badge ${isPast ? 'bg-secondary' : 'bg-primary'}">${isPast ? 'Past' : 'Active'}</span>
+        <span class="badge ${t.used ? 'bg-secondary' : 'bg-primary'}">${status}</span>
       </div>
       <p><strong>Bus:</strong> ${t.bus || t}</p>
       <p><strong>Seat:</strong> ${t.seat || 'N/A'}</p>
       <p><strong>Route:</strong> ${t.from || 'N/A'} - ${t.to || 'N/A'}</p>
       <p><strong>Date:</strong> ${t.date || 'N/A'}</p>
+      <div class="trip-tracking" style="background: #f0f7f4; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px dashed var(--primary-color);">
+        <p style="margin: 0; font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> <strong>ETA:</strong> ${calculateETA(t.time)}</p>
+        <p style="margin: 0; font-size: 0.85rem;"><i class="fas fa-info-circle"></i> <strong>Status:</strong> ${status}</p>
+      </div>
       <p><strong>Price:</strong> <span class="ugx-price">UGX ${(t.price || 0).toLocaleString()}</span></p>
       <div class="qr-code" title="Scan to verify ticket">
         <i class="fas fa-qrcode"></i>
@@ -1004,6 +1029,35 @@ function cancelBooking(ticketId){
     localStorage.setItem('tickets', JSON.stringify(tickets));
     loadBookings();
     alert('Booking cancelled successfully!');
+  }
+}
+
+/* TICKET SCANNER */
+function verifyTicket() {
+  let id = parseInt(document.getElementById('scanInput').value);
+  let resultDiv = document.getElementById('scanResult');
+  resultDiv.classList.remove('hidden');
+
+  let ticketIndex = id - 1;
+  let ticket = tickets[ticketIndex];
+
+  if (!ticket) {
+    resultDiv.style.background = "#fff5f5";
+    resultDiv.style.color = "#c53030";
+    resultDiv.innerHTML = `<h4><i class="fas fa-times-circle"></i> Invalid Ticket</h4><p>No ticket found with ID #${id}</p>`;
+  } else if (ticket.used) {
+    resultDiv.style.background = "#fffaf0";
+    resultDiv.style.color = "#9b2c2c";
+    resultDiv.innerHTML = `<h4><i class="fas fa-exclamation-triangle"></i> Already Used</h4><p>Ticket #${id} was scanned on ${new Date(ticket.usedAt).toLocaleString()}</p>`;
+  } else {
+    ticket.used = true;
+    ticket.usedAt = new Date().toISOString();
+    localStorage.setItem("tickets", JSON.stringify(tickets));
+    
+    resultDiv.style.background = "#f0fff4";
+    resultDiv.style.color = "#2f855a";
+    resultDiv.innerHTML = `<h4><i class="fas fa-check-circle"></i> Ticket Verified!</h4><p>Ticket #${id} for ${ticket.from} → ${ticket.to} is valid. Boarding allowed.</p>`;
+    addActivityLog(`Ticket #${id} scanned and verified.`);
   }
 }
 
