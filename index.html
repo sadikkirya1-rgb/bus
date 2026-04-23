@@ -101,49 +101,23 @@
 <!-- APP -->
 <div id="app" class="app">
 
-<!-- DARK MODE TOGGLE -->
-<button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode">
-  <i class="fas fa-moon"></i>
-</button>
-
 <!-- NOTIFICATIONS -->
 <div id="notifications" class="notifications"></div>
-
-<!-- CHAT SUPPORT (Only for users and bus operators) -->
-<div class="chat-support" id="chatSupport" onclick="toggleChat()" title="Customer Support" style="display: none;">
-  <i class="fas fa-comments"></i>
-</div>
-
-<div class="chat-window" id="chatWindow">
-  <div class="chat-header">
-    <h4><i class="fas fa-headset"></i> Support</h4>
-  </div>
-  <div class="chat-messages" id="chatMessages">
-    <div class="notification" style="margin: 0; animation: none;">
-      <strong>Support</strong><br>
-      Hello! How can we help you today?
-    </div>
-  </div>
-  <div class="chat-input">
-    <input type="text" id="chatInput" placeholder="Type your message..." onkeypress="handleChatKeyPress(event)">
-    <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
-  </div>
-</div>
 
 <div class="wrapper">
 
   <!-- SIDEBAR (ADMIN ONLY) -->
   <div id="sidebar" class="sidebar hidden">
-    <h3><i class="fas fa-cog"></i> Admin Panel</h3>
-    <button onclick="adminTab('dashboard')" id="a1"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
-    <button onclick="adminTab('users')" id="a2"><i class="fas fa-users"></i> User Management</button>
-    <button onclick="adminTab('operators')" id="a3"><i class="fas fa-bus"></i> Bus Operators</button>
-    <button onclick="adminTab('routes')" id="a4"><i class="fas fa-route"></i> Route Management</button>
-    <button onclick="adminTab('bookings')" id="a5"><i class="fas fa-ticket-alt"></i> Booking Management</button>
-    <button onclick="adminTab('analytics')" id="a6"><i class="fas fa-chart-bar"></i> Analytics</button>
-    <button onclick="adminTab('payments')" id="a7"><i class="fas fa-credit-card"></i> Payment Settings</button>
-    <button onclick="adminTab('notifications')" id="a8"><i class="fas fa-bell"></i> Notifications</button>
-    <button onclick="adminTab('settings')" id="a9"><i class="fas fa-cogs"></i> System Settings</button>
+    <h3><i class="fas fa-cog"></i> <span>Admin Panel</span></h3>
+    <button onclick="adminTab('dashboard')" id="a1" title="Dashboard"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></button>
+    <button onclick="adminTab('users')" id="a2" title="User Management"><i class="fas fa-users"></i> <span>User Management</span></button>
+    <button onclick="adminTab('operators')" id="a3" title="Bus Operators"><i class="fas fa-bus"></i> <span>Bus Operators</span></button>
+    <button onclick="adminTab('routes')" id="a4" title="Route Management"><i class="fas fa-route"></i> <span>Route Management</span></button>
+    <button onclick="adminTab('bookings')" id="a5" title="Booking Management"><i class="fas fa-ticket-alt"></i> <span>Booking Management</span></button>
+    <button onclick="adminTab('analytics')" id="a6" title="Analytics"><i class="fas fa-chart-bar"></i> <span>Analytics</span></button>
+    <button onclick="adminTab('payments')" id="a7" title="Payment Settings"><i class="fas fa-credit-card"></i> <span>Payment Settings</span></button>
+    <button onclick="adminTab('notifications')" id="a8" title="Notifications"><i class="fas fa-bell"></i> <span>Notifications</span></button>
+    <button onclick="adminTab('settings')" id="a9" title="System Settings"><i class="fas fa-cogs"></i> <span>System Settings</span></button>
   </div>
 
   <!-- MAIN -->
@@ -151,30 +125,22 @@
 
     <div class="topbar">
       <div class="topbar-brand">
+        <button id="sidebarToggle" class="sidebar-toggle-btn hidden" onclick="toggleSidebar()">
+          <i class="fas fa-bars"></i>
+        </button>
         <h3 id="title"></h3>
       </div>
       <div id="topbarNav" class="topbar-nav"></div>
-      <button onclick="logout()">Logout</button>
+      <div class="topbar-actions" id="topbarActions">
+        <button class="theme-btn" onclick="toggleDarkMode()" title="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
+        <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      </div>
     </div>
 
     <!-- USER -->
     <div id="userUI" class="hidden">
 
       <div id="userHome">
-
-        <!-- PROFILE CARD -->
-        <div class="card profile-card">
-          <div class="profile-avatar">
-            <i class="fas fa-user"></i>
-          </div>
-          <h3 id="userName">Welcome Back!</h3>
-          <p id="userEmail">user@bus.ug</p>
-          <div class="loyalty-card">
-            <h4>Loyalty Points</h4>
-            <div class="loyalty-points" id="loyaltyPoints">250</div>
-            <p>Redeem points for discounts!</p>
-          </div>
-        </div>
 
         <div class="card">
           <h3><i class="fas fa-search"></i> Search Trips</h3>
@@ -223,16 +189,21 @@
               </select>
             </div>
           </div>
-          <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
-        </div>
-
-        <!-- ROUTE MAP PLACEHOLDER -->
-        <div class="card">
-          <h3><i class="fas fa-map-marked-alt"></i> Route Map</h3>
-          <div class="route-map">
-            <i class="fas fa-map"></i>
-            <p style="margin: 10px 0 0 0; color: #a0aec0;">Interactive map coming soon!</p>
+          <div style="margin: 10px 0; text-align: left;">
+            <label style="font-size: 0.9rem; color: var(--text-light); display: block; margin-bottom: 5px;">Amenities</label>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; color: var(--text);">
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" id="searchWifi" style="width: auto; margin: 0;"> <i class="fas fa-wifi"></i> WiFi
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" id="searchAc" style="width: auto; margin: 0;"> <i class="fas fa-snowflake"></i> AC
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" id="searchUsb" style="width: auto; margin: 0;"> <i class="fas fa-charging-station"></i> USB
+              </label>
+            </div>
           </div>
+          <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
         </div>
 
         <div id="trips" class="grid"></div>
@@ -309,6 +280,11 @@
           <input placeholder="Phone Number" id="profilePhone">
           <input placeholder="Email" id="profileEmail">
           <button class="btn" onclick="updateProfile()"><i class="fas fa-save"></i> Update Profile</button>
+          
+          <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+            <button class="theme-btn" onclick="toggleDarkMode()" style="flex: 1;"><i class="fas fa-moon"></i> Theme</button>
+            <button class="logout-btn" onclick="logout()" style="flex: 1;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+          </div>
         </div>
 
         <div class="card">
@@ -333,26 +309,26 @@
       <div id="busHome">
 
         <div class="card">
-          <h3><i class="fas fa-plus-circle"></i> Add New Bus</h3>
-          <input id="busName" placeholder="Bus Name (e.g., Swift Express)" required>
-          <input id="route" placeholder="Route (e.g., Kampala - Gulu)" required>
-          <input id="capacity" type="number" placeholder="Capacity (e.g., 50)" required>
-          <input id="price" type="number" placeholder="Price per seat (UGX)" required>
-          <select id="busType">
-            <option value="standard">Standard</option>
-            <option value="luxury">Luxury</option>
-            <option value="vip">VIP</option>
-          </select>
-          <button class="btn" onclick="addBus()"><i class="fas fa-save"></i> Add Bus</button>
-        </div>
-
-        <div class="card">
           <h3><i class="fas fa-calendar-plus"></i> Schedule Trip</h3>
           <select id="selectBus">
             <option value="">Select Bus</option>
           </select>
           <input id="tripDate" type="date" required>
           <input id="departureTime" type="time" required>
+          <div style="margin: 10px 0; text-align: left;">
+            <label style="font-size: 0.9rem; color: var(--text-light); display: block; margin-bottom: 5px;">Amenities</label>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; color: var(--text);">
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" id="wifiAmenity" style="width: auto; margin: 0;"> <i class="fas fa-wifi"></i> WiFi
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" id="acAmenity" style="width: auto; margin: 0;"> <i class="fas fa-snowflake"></i> AC
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" id="usbAmenity" style="width: auto; margin: 0;"> <i class="fas fa-charging-station"></i> USB
+              </label>
+            </div>
+          </div>
           <button class="btn" onclick="scheduleTrip()"><i class="fas fa-clock"></i> Schedule Trip</button>
         </div>
 
@@ -369,6 +345,36 @@
         <div class="card">
           <h3><i class="fas fa-calendar-alt"></i> Scheduled Trips</h3>
           <div id="schedules" class="grid"></div>
+        </div>
+        <div class="card">
+          <h3><i class="fas fa-info-circle"></i> Seat Preview Legend</h3>
+          <div class="seat-legend">
+            <span class="seat-legend-item available">Available</span> <span class="seat-legend-item occupied">Occupied</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="busProfile" class="hidden">
+        <div class="card profile-card">
+          <div class="profile-avatar"><i class="fas fa-bus"></i></div>
+          <h3>Operator Profile</h3>
+          <div style="text-align: left; margin-top: 20px;">
+            <label style="font-size: 0.9rem; color: var(--text-light);">Company Name</label>
+            <input id="busCompanyName" placeholder="e.g., Swift Express">
+            <label style="font-size: 0.9rem; color: var(--text-light);">Contact Email</label>
+            <input id="busContactEmail" type="email" placeholder="contact@operator.ug">
+            <label style="font-size: 0.9rem; color: var(--text-light);">Contact Phone</label>
+            <input id="busContactPhone" placeholder="+256 ...">
+            <label style="font-size: 0.9rem; color: var(--text-light);">Office Address</label>
+            <textarea id="busAddress" rows="2" placeholder="Street, Building, City"></textarea>
+            <button class="btn" style="width: 100%; margin-top: 10px;" onclick="updateBusProfile()">
+              <i class="fas fa-save"></i> Save Changes
+            </button>
+          </div>
+          <div style="margin-top: 30px; display: flex; flex-direction: column; gap: 10px;">
+            <button class="theme-btn" onclick="toggleDarkMode()"><i class="fas fa-moon"></i> Toggle Theme</button>
+            <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+          </div>
         </div>
       </div>
 

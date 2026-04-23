@@ -33,8 +33,6 @@ function init(){
   document.getElementById('date').value = today;
   document.getElementById('tripDate').value = today;
 
-  title.innerText=role.toUpperCase()+" DASHBOARD";
-
   userUI.classList.add("hidden");
   busUI.classList.add("hidden");
   adminUI.classList.add("hidden");
@@ -42,32 +40,39 @@ function init(){
   bottomNav.classList.add("hidden");
   sidebar.classList.add("hidden");
   document.getElementById('topbarNav').classList.remove('hidden');
+  document.querySelector('.topbar').classList.add('hidden');
 
   if(role==="user"){
     userUI.classList.remove("hidden");
-    renderTopbarNav();
+    bottomNav.classList.remove("hidden");
+    document.getElementById('topbarActions').classList.add('hidden');
+    renderBottomNav();
     userTab("home");
     showNotification("Welcome to UG Bus! Book your next trip with ease.", "success");
-    document.getElementById('chatSupport').style.display = 'flex';
   }
 
   if(role==="bus"){
     busUI.classList.remove("hidden");
-    renderTopbarNav();
+    bottomNav.classList.remove("hidden");
+    document.getElementById('topbarActions').classList.add('hidden');
+    renderBottomNav();
     busTab("home");
-    document.getElementById('chatSupport').style.display = 'flex';
   }
 
   if(role==="admin"){
+    title.innerText="UG BUS | ADMIN";
+    sidebar.classList.remove("hidden");
+    document.getElementById('sidebarToggle').classList.remove("hidden");
     adminUI.classList.remove("hidden");
-    renderTopbarNav();
-    document.getElementById('chatSupport').style.display = 'none';
+    document.querySelector('.topbar').classList.remove('hidden');
+    document.getElementById('topbarActions').classList.remove('hidden');
+    bottomNav.classList.add("hidden");
     adminTab('dashboard'); // Initialize with dashboard
   }
 }
 
-function renderTopbarNav(){
-  let nav = document.getElementById('topbarNav');
+function renderBottomNav(){
+  let nav = document.getElementById('bottomNav');
   nav.innerHTML = '';
 
   if(role === 'user'){
@@ -75,32 +80,22 @@ function renderTopbarNav(){
       <button onclick="userTab('home')" id="u1"><i class="fas fa-home"></i> Home</button>
       <button onclick="userTab('tickets')" id="u2"><i class="fas fa-ticket-alt"></i> Tickets</button>
       <button onclick="userTab('profile')" id="u3"><i class="fas fa-user"></i> Profile</button>
-      <button onclick="toggleChat()" id="u4"><i class="fas fa-comments"></i> Support</button>
     `;
   }
 
   if(role === 'bus'){
     nav.innerHTML = `
-      <button onclick="busTab('home')" id="b1"><i class="fas fa-plus"></i> Add Bus</button>
+      <button onclick="busTab('home')" id="b1"><i class="fas fa-plus"></i> Home</button>
       <button onclick="busTab('fleet')" id="b2"><i class="fas fa-bus"></i> Fleet</button>
       <button onclick="busTab('schedules')" id="b3"><i class="fas fa-calendar"></i> Schedules</button>
-      <button onclick="toggleChat()" id="b4"><i class="fas fa-comments"></i> Support</button>
+      <button onclick="busTab('profile')" id="b4"><i class="fas fa-user-cog"></i> Profile</button>
     `;
   }
+}
 
-  if(role === 'admin'){
-    nav.innerHTML = `
-      <button onclick="adminTab('dashboard')" id="a1"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
-      <button onclick="adminTab('users')" id="a2"><i class="fas fa-users"></i> Users</button>
-      <button onclick="adminTab('operators')" id="a3"><i class="fas fa-bus"></i> Operators</button>
-      <button onclick="adminTab('routes')" id="a4"><i class="fas fa-route"></i> Routes</button>
-      <button onclick="adminTab('bookings')" id="a5"><i class="fas fa-ticket-alt"></i> Bookings</button>
-      <button onclick="adminTab('analytics')" id="a6"><i class="fas fa-chart-bar"></i> Analytics</button>
-      <button onclick="adminTab('payments')" id="a7"><i class="fas fa-credit-card"></i> Payments</button>
-      <button onclick="adminTab('notifications')" id="a8"><i class="fas fa-bell"></i> Notifications</button>
-      <button onclick="adminTab('settings')" id="a9"><i class="fas fa-cogs"></i> Settings</button>
-    `;
-  }
+/* SIDEBAR TOGGLE */
+function toggleSidebar(){
+  sidebar.classList.toggle("collapsed");
 }
 
 
@@ -113,7 +108,6 @@ function userTab(tab){
   document.getElementById("u1").classList.remove("active-tab");
   document.getElementById("u2").classList.remove("active-tab");
   document.getElementById("u3").classList.remove("active-tab");
-  document.getElementById("u4").classList.remove("active-tab");
 
   if(tab==="home"){
     userHome.classList.remove("hidden");
@@ -134,6 +128,7 @@ function busTab(tab){
   busHome.classList.add("hidden");
   busFleet.classList.add("hidden");
   busSchedules.classList.add("hidden");
+  busProfile.classList.add("hidden");
 
   document.getElementById("b1").classList.remove("active-tab");
   document.getElementById("b2").classList.remove("active-tab");
@@ -152,6 +147,10 @@ function busTab(tab){
     busSchedules.classList.remove("hidden");
     b3.classList.add("active-tab");
     renderSchedules();
+  }else if(tab==="profile"){
+    busProfile.classList.remove("hidden");
+    b4.classList.add("active-tab");
+    loadBusProfile();
   }
 }
 
@@ -162,6 +161,9 @@ function loadTrips(){
   let date = document.getElementById('date').value;
   let time = document.getElementById('time').value;
 
+  let searchWifi = document.getElementById('searchWifi').checked;
+  let searchAc = document.getElementById('searchAc').checked;
+  let searchUsb = document.getElementById('searchUsb').checked;
   if(!from || !to || !date) {
     alert("Please fill in all search fields");
     return;
@@ -174,14 +176,24 @@ function loadTrips(){
     t.from.toLowerCase().includes(from.toLowerCase()) && 
     t.to.toLowerCase().includes(to.toLowerCase()) &&
     t.date === date
-  );
+  ).filter(trip => {
+    // Filter by amenities
+    if (searchWifi && (!trip.amenities || !trip.amenities.includes('wifi'))) return false;
+    if (searchAc && (!trip.amenities || !trip.amenities.includes('snowflake'))) return false;
+    if (searchUsb && (!trip.amenities || !trip.amenities.includes('charging-station'))) return false;
+    return true;
+  });
 
   if(availableTrips.length === 0) {
     // Show default buses if no scheduled trips
+    // Ensure default buses also have amenities for consistent display
+    // Note: These are just examples, in a real app, default buses would also come from a data source
+    // and have their amenities defined.
+
     let defaultBuses = [
-      {name: "Swift Express", route: `${from} - ${to}`, price: 25000, type: "Standard", time: "08:00"},
-      {name: "Link Coaches", route: `${from} - ${to}`, price: 30000, type: "Luxury", time: "10:00"},
-      {name: "Post Bus", route: `${from} - ${to}`, price: 20000, type: "Standard", time: "14:00"}
+      {name: "Swift Express", route: `${from} - ${to}`, price: 25000, type: "Standard", time: "08:00", amenities: ['wifi', 'charging-station']},
+      {name: "Link Coaches", route: `${from} - ${to}`, price: 30000, type: "Luxury", time: "10:00", amenities: ['wifi', 'snowflake', 'charging-station']},
+      {name: "Post Bus", route: `${from} - ${to}`, price: 20000, type: "Standard", time: "14:00", amenities: ['charging-station']}
     ];
 
     defaultBuses.forEach(b=>{
@@ -191,6 +203,7 @@ function loadTrips(){
         <h4>${b.name}</h4>
         <p><i class="fas fa-route"></i> ${b.route}</p>
         <p><i class="fas fa-clock"></i> ${b.time} | <i class="fas fa-star"></i> ${b.type}</p>
+        <div style="margin: 8px 0; color: var(--text-light);">${(b.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
         <p><strong>UGX ${b.price.toLocaleString()}</strong></p>
         <button class='btn' onclick='selectSeat("${b.name}", ${b.price})'><i class="fas fa-chair"></i> Select Seat</button>
       `;
@@ -204,6 +217,7 @@ function loadTrips(){
         <h4>${t.busName}</h4>
         <p><i class="fas fa-route"></i> ${t.from} - ${t.to}</p>
         <p><i class="fas fa-clock"></i> ${t.time} | <i class="fas fa-star"></i> ${t.busType}</p>
+        <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
         <p><strong>UGX ${t.price.toLocaleString()}</strong></p>
         <button class='btn' onclick='selectSeat("${t.busName}", ${t.price})'><i class="fas fa-chair"></i> Select Seat</button>
       `;
@@ -296,6 +310,11 @@ function scheduleTrip(){
   let date = tripDate.value;
   let time = departureTime.value;
 
+  let amenities = [];
+  if(document.getElementById('wifiAmenity').checked) amenities.push('wifi');
+  if(document.getElementById('acAmenity').checked) amenities.push('snowflake');
+  if(document.getElementById('usbAmenity').checked) amenities.push('charging-station');
+
   if(!busId || !date || !time) {
     alert("Please fill all fields");
     return;
@@ -306,7 +325,7 @@ function scheduleTrip(){
 
   let trip = {
     busId, busName: bus.name, from: bus.route.split(' - ')[0], to: bus.route.split(' - ')[1],
-    date, time, price: bus.price, busType: bus.type, id: Date.now()
+    date, time, price: bus.price, busType: bus.type, id: Date.now(), amenities
   };
 
   trips.push(trip);
@@ -314,6 +333,9 @@ function scheduleTrip(){
 
   alert("Trip scheduled successfully!");
   tripDate.value = departureTime.value = "";
+  document.getElementById('wifiAmenity').checked = false;
+  document.getElementById('acAmenity').checked = false;
+  document.getElementById('usbAmenity').checked = false;
   renderSchedules();
 }
 
@@ -333,10 +355,29 @@ function renderSchedules(){
       <h4>${t.busName}</h4>
       <p><i class="fas fa-route"></i> ${t.from} - ${t.to}</p>
       <p><i class="fas fa-calendar"></i> ${t.date} | <i class="fas fa-clock"></i> ${t.time}</p>
+      <p><strong>Seats:</strong> ${t.availableSeats || 16} available out of ${t.totalSeats || 16}</p>
+      <div class="seat-preview" style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 10px;">
+        ${generateSeatPreview(t.totalSeats || 16, t.availableSeats || 16)}
+      </div>
+      <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
       <p><i class="fas fa-dollar-sign"></i> UGX ${t.price.toLocaleString()}</p>
     `;
     schedules.appendChild(d);
   });
+}
+
+/* GENERATE SEAT PREVIEW */
+function generateSeatPreview(totalSeats, availableSeats) {
+  let previewHtml = '';
+  let occupiedSeats = totalSeats - availableSeats;
+  for (let i = 0; i < totalSeats; i++) {
+    if (i < occupiedSeats) {
+      previewHtml += '<div class="seat-mini occupied"></div>';
+    } else {
+      previewHtml += '<div class="seat-mini available"></div>';
+    }
+  }
+  return previewHtml;
 }
 
 /* RENDER TICKETS */
@@ -435,42 +476,24 @@ function toggleDarkMode(){
   }
 }
 
-/* TOGGLE CHAT */
-function toggleChat(){
-  chatWindow.classList.toggle('hidden');
+/* BUS PROFILE */
+function loadBusProfile(){
+  let profile = JSON.parse(localStorage.getItem("busOperatorProfile") || "{}");
+  document.getElementById('busCompanyName').value = profile.company || "Swift Express";
+  document.getElementById('busContactEmail').value = profile.email || "bus@bus.ug";
+  document.getElementById('busContactPhone').value = profile.phone || "+256 700 000 000";
+  document.getElementById('busAddress').value = profile.address || "Kampala Road, Plot 12";
 }
 
-/* SEND CHAT MESSAGE */
-function sendChatMessage(){
-  let input = document.getElementById('chatInput');
-  let message = input.value.trim();
-  if(!message) return;
-
-  let chatMessages = document.getElementById('chatMessages');
-  let userMsg = document.createElement('div');
-  userMsg.className = 'notification';
-  userMsg.style.cssText = 'margin: 5px 0; background: var(--primary); color: white; text-align: right;';
-  userMsg.innerHTML = `<strong>You:</strong> ${message}`;
-  chatMessages.appendChild(userMsg);
-
-  input.value = '';
-
-  // Simulate response
-  setTimeout(() => {
-    let response = document.createElement('div');
-    response.className = 'notification';
-    response.style.cssText = 'margin: 5px 0;';
-    response.innerHTML = `<strong>Support:</strong> Thank you for your message. Our team will respond shortly.`;
-    chatMessages.appendChild(response);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }, 1000);
-}
-
-/* HANDLE CHAT KEY PRESS */
-function handleChatKeyPress(event){
-  if(event.key === 'Enter') {
-    sendChatMessage();
-  }
+function updateBusProfile(){
+  let profile = {
+    company: document.getElementById('busCompanyName').value,
+    email: document.getElementById('busContactEmail').value,
+    phone: document.getElementById('busContactPhone').value,
+    address: document.getElementById('busAddress').value
+  };
+  localStorage.setItem("busOperatorProfile", JSON.stringify(profile));
+  showNotification("Operator profile updated!", "success");
 }
 
 /* SHOW NOTIFICATION */
@@ -487,7 +510,9 @@ function showNotification(message, type = 'info'){
 }
 
 /* LOGOUT */
-function logout(){location.reload()}
+function logout(){
+  location.reload();
+}
 
 /* ADMIN FUNCTIONS */
 function adminTab(section){
