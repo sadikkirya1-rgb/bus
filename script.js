@@ -9,6 +9,44 @@ let trips = JSON.parse(localStorage.getItem("trips") || "[]");
 let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 
+/* DYNAMIC INFO TICKER */
+let currentInfoIndex = 0;
+const infoItems = [
+  { type: 'PROMOTION', title: 'Weekend Special', detail: 'Get 20% cashback on all trips to Jinja this weekend!', icon: 'fa-gift', color: '#FCD116' },
+  { type: 'ANNOUNCEMENT', title: 'New Route Added', detail: 'We now operate daily direct buses from Kampala to Lira.', icon: 'fa-bullhorn', color: '#ff6b6b' },
+  { type: 'TRENDING ROUTE', title: 'Kampala → Mbarara', detail: 'Travel in luxury for only UGX 25,000.', icon: 'fa-route', color: '#48bb78' },
+  { type: 'SPONSORED', title: 'MTN MoMo Pay', detail: 'Pay for your bus ticket using MoMo and win instant prizes!', icon: 'fa-ad', color: '#63b3ed' },
+  { type: 'DAILY DEAL', title: 'Kampala → Gulu', detail: 'Limited seats available at UGX 30,000 today!', icon: 'fa-bolt', color: '#f6ad55' }
+];
+
+function rotateInfoTicker() {
+  const content = document.getElementById('tickerContent');
+  if (!content) return;
+
+  // Fade out
+  content.style.opacity = '0';
+  
+  setTimeout(() => {
+    const item = infoItems[currentInfoIndex];
+    content.innerHTML = `
+      <div style="color: ${item.color}; font-weight: bold; font-size: 0.7rem; letter-spacing: 1px; margin-bottom: 5px;">
+        <i class="fas ${item.icon}"></i> ${item.type}
+      </div>
+      <h4 style="margin: 0 0 5px 0; color: #fff; font-size: 1.1rem;">${item.title}</h4>
+      <p style="margin: 0; font-size: 0.9rem; color: rgba(255,255,255,0.8);">${item.detail}</p>
+    `;
+    // Fade in
+    content.style.opacity = '1';
+    currentInfoIndex = (currentInfoIndex + 1) % infoItems.length;
+  }, 500);
+}
+
+function startInfoTicker() {
+  if (window.tickerInterval) return;
+  rotateInfoTicker();
+  window.tickerInterval = setInterval(rotateInfoTicker, 6000);
+}
+
 /* LOGIN */
 function login(){
   let e = email.value, p = password.value;
@@ -96,12 +134,14 @@ function init(){
     bottomNav.classList.remove("hidden"); // Guest users still get bottom nav for home/profile
     renderBottomNav();
     userTab("home");
+    startInfoTicker();
     // showNotification("Welcome to UG Bus! Book your next trip with ease.", "success"); // Optional: show welcome message
   } else if (role === "user") {
     userUI.classList.remove("hidden");
     bottomNav.classList.remove("hidden");
     renderBottomNav();
     userTab("home");
+    startInfoTicker();
     showNotification(`Welcome back, ${currentUser.name}!`, "success");
   } else if (role === "bus") {
     busUI.classList.remove("hidden");
