@@ -92,25 +92,26 @@ body{
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   padding: 40px;
   border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   flex: 1;
   max-width: 450px;
+  color: #ffffff;
 }
 
 .login-card h2 {
   margin: 0 0 10px 0;
   font-size: 1.8rem;
-  color: var(--text);
+  color: #ffffff;
 }
 
 .login-subtitle {
-  color: var(--text-light);
+  color: rgba(255, 255, 255, 0.8);
   margin-bottom: 30px;
   font-size: 1rem;
 }
@@ -146,8 +147,8 @@ body{
 .input-group label {
   display: block;
   margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--text);
+  font-weight: 600;
+  color: #ffffff;
   font-size: 0.95rem;
 }
 
@@ -233,7 +234,7 @@ body{
 .login-footer {
   margin-top: 25px;
   padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .register-link {
@@ -249,12 +250,12 @@ body{
 
 .quick-login {
   margin-top: 25px;
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.3);
   padding-top: 20px;
 }
 .quick-login p {
   font-size: 0.9rem;
-  color: var(--text-light);
+  color: rgba(255, 255, 255, 0.8);
   margin-bottom: 12px;
 }
 .quick-login-btns {
