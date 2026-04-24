@@ -152,24 +152,29 @@ body{
   font-size: 0.95rem;
 }
 
-.input-group input {
+.input-group input, 
+.login-card input, 
+.login-card select, 
+.login-card textarea {
   width: 100%;
   padding: 15px 20px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   font-size: 1rem;
   transition: var(--transition);
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  color: #ffffff;
 }
 
-.input-group input:focus {
+.input-group input:focus,
+.login-card input:focus,
+.login-card select:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 122, 61, 0.1);
-}
-
-.input-group input::placeholder {
-  color: var(--text-light);
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
 .login-btn {
@@ -183,6 +188,14 @@ body{
   cursor: pointer;
   transition: var(--transition);
   margin-top: 10px;
+}
+
+#registerFormCard .btn {
+  width: 100%;
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 1.1rem;
 }
 
 .close-auth {
@@ -226,9 +239,11 @@ body{
   color: white;
 }
 
-.login-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-hover);
+.login-btn:hover,
+.login-card .btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.1);
 }
 
 .login-footer {
@@ -242,6 +257,15 @@ body{
   text-decoration: none;
   font-weight: 500;
   transition: var(--transition);
+}
+
+.login-card input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.login-card select option {
+  background-color: #2d3748;
+  color: #ffffff;
 }
 
 .register-link:hover {
