@@ -221,7 +221,7 @@ function userTab(tab){
   window.scrollTo(0, 0); // Fix: Ensure content shows from the top
 
   // Add animation to clicked button icon
-  if (event && event.currentTarget) {
+  if (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.classList) {
     const btn = event.currentTarget;
     btn.classList.add('animate-icon');
     setTimeout(() => btn.classList.remove('animate-icon'), 300);
@@ -268,7 +268,7 @@ function userTab(tab){
 function busTab(tab){
   window.scrollTo(0, 0); // Fix: Ensure content shows from the top
 
-  if (event && event.currentTarget) {
+  if (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.classList) {
     const btn = event.currentTarget;
     btn.classList.add('animate-icon');
     setTimeout(() => btn.classList.remove('animate-icon'), 300);
@@ -1086,7 +1086,7 @@ function saveSettings(){
 }
 
 function loadAdSettings(){
-  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://via.placeholder.com/400x200?text=Promotion+Banner", "link": "#"}');
+  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://placehold.co/400x200?text=Promotion+Banner", "link": "#"}');
   document.getElementById('adImageUrl').value = ads.img;
   document.getElementById('adRedirectUrl').value = ads.link;
 }
@@ -1102,7 +1102,7 @@ function saveAdSettings(){
 }
 
 function loadAds(){
-  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://via.placeholder.com/400x200?text=Promotion+Banner", "link": "#"}');
+  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://placehold.co/400x200?text=Promotion+Banner", "link": "#"}');
   document.getElementById('adImage').src = ads.img;
   document.getElementById('adLink').href = ads.link;
 }
