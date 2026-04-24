@@ -1,5 +1,5 @@
 :root{
-  --primary: linear-gradient(135deg, #007A3D 0%, #FCD116 50%, #000000 100%);
+  --primary: linear-gradient(135deg, #007A3D 0%, #00a352 100%);
   --primary-color: #007A3D;
   --secondary: #FCD116;
   --accent: #000000;
@@ -23,30 +23,33 @@
 body{
   margin:0;
   font-family: 'Inter', 'Segoe UI', sans-serif;
-  background: var(--bg);
+  background-color: #2d3748; /* Fallback color */
+  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), url('assests/background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text);
   line-height: 1.6;
+  min-height: 100vh;
 }
 
 /* LOGIN */
 .login{
-  max-width: 450px;
-  margin: 80px auto;
-  padding: 40px;
-  background: var(--card-bg);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  text-align: center;
+  min-height: 100vh; /* This class will be dynamically added to #loginPage when it's active */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   animation: fadeIn 0.5s ease;
 }
 
 .login h2 {
   margin-bottom: 30px;
   font-size: 2rem;
-  background: var(--primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text);
+  text-align: center;
 }
 
 /* ENHANCED LOGIN DESIGN */
@@ -80,16 +83,24 @@ body{
 
 .login-container {
   display: flex;
-  flex-direction: column;
-  gap: 30px;
+  flex-direction: row;
+  gap: 40px;
+  max-width: 1000px;
+  width: 100%;
+  align-items: stretch;
+  justify-content: center;
 }
 
 .login-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 40px;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow);
-  border: 1px solid rgba(0, 122, 61, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex: 1;
+  max-width: 450px;
 }
 
 .login-card h2 {
@@ -112,6 +123,24 @@ body{
 
 .input-group {
   text-align: left;
+}
+
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 0;
+  font-size: 1.1rem;
 }
 
 .input-group label {
@@ -153,6 +182,47 @@ body{
   cursor: pointer;
   transition: var(--transition);
   margin-top: 10px;
+}
+
+.close-auth {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  width: 45px;
+  height: 45px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  z-index: 1002;
+}
+
+.close-auth:hover {
+  background: rgba(229, 62, 62, 0.8);
+  transform: rotate(90deg);
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 1.3rem;
+}
+
+.auth-btn {
+  background: var(--primary);
+  color: white;
 }
 
 .login-btn:hover {
@@ -217,6 +287,9 @@ body{
   display: flex;
   flex-direction: column;
   gap: 20px;
+  flex: 1;
+  max-width: 400px;
+  justify-content: center;
 }
 
 .info-card {
@@ -290,7 +363,7 @@ body{
 .wrapper{
   display:flex;
   min-height:100vh;
-  background: var(--bg);
+  background: transparent;
 }
 
 /* SIDEBAR (ADMIN ONLY) */
@@ -377,10 +450,12 @@ body{
   gap: 15px;
   flex-wrap: wrap;
   margin-bottom: 30px;
-  padding: 20px;
-  background: var(--card-bg);
+  padding: 15px 25px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 
 .topbar-brand {
@@ -392,7 +467,7 @@ body{
 .topbar h3 {
   margin: 0;
   font-size: 1.5rem;
-  color: var(--primary-color);
+  color: #ffffff;
 }
 
 .admin-clock {
@@ -470,13 +545,20 @@ body{
 
 /* CARD */
 .card{
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   padding: 18px;
   border-radius: var(--border-radius);
   margin-bottom: 20px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
   transition: var(--transition);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+}
+
+#userHome .card h3 {
+  color: #ffffff;
 }
 
 .card:hover {
@@ -598,12 +680,18 @@ input:focus, select:focus, textarea:focus {
   bottom:0;
   left:0;
   right:0;
-  background: var(--card-bg);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   display:flex;
   justify-content:space-around;
   padding: 15px;
-  border-top: 2px solid #e9ecef;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.bottom-nav.hidden {
+  display: none;
 }
 
 .bottom-nav button{
@@ -619,6 +707,17 @@ input:focus, select:focus, textarea:focus {
 
 .bottom-nav button:hover {
   background: rgba(102, 126, 234, 0.1);
+}
+
+/* ICON ANIMATION */
+@keyframes navPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.animate-icon i {
+  animation: navPop 0.3s ease-out;
 }
 
 .active-tab{
@@ -673,9 +772,12 @@ input:focus, select:focus, textarea:focus {
   .bottom-nav {
     padding: 10px;
   }
-  .login {
-    margin: 20px;
-    padding: 30px 20px;
+  .login-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  .login-info {
+    display: none;
   }
 }
 
@@ -1022,15 +1124,24 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode .card {
-  background: var(--card-bg);
+  background: rgba(45, 55, 72, 0.9);
   color: var(--text);
   border-color: #4a5568;
+}
+
+.dark-mode .topbar {
+  background: rgba(45, 55, 72, 0.9);
 }
 
 .dark-mode input, .dark-mode select, .dark-mode textarea {
   background: #4a5568;
   border-color: #718096;
   color: var(--text);
+}
+
+.dark-mode .bottom-nav {
+  background: rgba(45, 55, 72, 0.75);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark-mode .bottom-nav, .dark-mode .topbar {

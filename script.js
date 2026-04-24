@@ -1,31 +1,40 @@
-let role="";
-let selectedSeat=null;
-let selectedBus=null;
-let selectedPayment=null;
-let currentUser=null;
-let tickets=JSON.parse(localStorage.getItem("tickets")||"[]");
-let buses=JSON.parse(localStorage.getItem("buses")||"[]");
-let trips=JSON.parse(localStorage.getItem("trips")||"[]");
-let users=JSON.parse(localStorage.getItem("users")||"[]");
-let notifications=JSON.parse(localStorage.getItem("notifications")||"[]");
+let role = null; // Initialize role to null for guest
+let selectedSeat = null;
+let selectedBus = null;
+let selectedPayment = null;
+let currentUser = null;
+let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
+let buses = JSON.parse(localStorage.getItem("buses") || "[]");
+let trips = JSON.parse(localStorage.getItem("trips") || "[]");
+let users = JSON.parse(localStorage.getItem("users") || "[]");
+let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 
 /* LOGIN */
 function login(){
-  let e=email.value,p=password.value;
+  let e = email.value, p = password.value;
 
-  if(p!=="1234") return alert("Wrong");
+  let foundUser = users.find(u => u.email === e && u.password === p);
 
-  if(e==="user@bus.ug") role="user";
-  else if(e==="bus@bus.ug") role="bus";
-  else if(e==="admin@bus.ug") role="admin";
-  else return alert("Invalid");
+  if (foundUser) {
+    role = foundUser.role;
+    currentUser = foundUser;
+  } else if (e === "user@bus.ug" && p === "1234") {
+    role = "user";
+    currentUser = { name: "Guest User", email: e, role: "user" };
+  } else if (e === "bus@bus.ug" && p === "1234") {
+    role = "bus";
+    currentUser = { name: "Guest Bus Operator", email: e, role: "bus" };
+  } else if (e === "admin@bus.ug" && p === "1234") {
+    role = "admin";
+    currentUser = { name: "Guest Admin", email: e, role: "admin" };
+  } else {
+    return alert("Invalid email or password");
+  }
 
-  // Set current user for personalized features
-  currentUser = users.find(u => u.email === e) || {name: e.split('@')[0], email: e};
-
-  loginPage.style.display="none";
-  app.style.display="block";
-
+  // After successful login, hide the login page and re-initialize the app
+  document.getElementById('loginPage').classList.add("hidden");
+  document.getElementById('loginPage').classList.remove("login"); // Remove login styling
+  app.classList.remove("hidden");
   init();
 }
 
@@ -35,23 +44,43 @@ function quickFill(type){
   else if(type==='bus'){ email.value='bus@bus.ug'; password.value='1234'; }
 }
 
+function togglePassword(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (input.type === "password") {
+    input.type = "text";
+    icon.classList.replace("fa-eye", "fa-eye-slash");
+  } else {
+    input.type = "password";
+    icon.classList.replace("fa-eye-slash", "fa-eye");
+  }
+}
+
 /* INIT */
 function init(){
   // Set default date to today
-  let today = new Date().toISOString().split('T')[0];
-  document.getElementById('date').value = today;
-  document.getElementById('tripDate').value = today;
+  const today = new Date().toISOString().split('T')[0];
+  if (document.getElementById('date')) document.getElementById('date').value = today;
+  if (document.getElementById('tripDate')) document.getElementById('tripDate').value = today;
 
   loadAds();
 
-  userUI.classList.add("hidden");
+  // Ensure app is visible and login page is hidden
+  app.classList.remove("hidden");
+  document.getElementById('loginPage').classList.add("hidden");
+  document.getElementById('loginPage').classList.remove("login"); // Ensure login styling is removed when hidden
+
+  userUI.classList.add("hidden"); // Hide all main UIs initially
   busUI.classList.add("hidden");
   adminUI.classList.add("hidden");
 
-  bottomNav.classList.add("hidden");
-  sidebar.classList.add("hidden");
-  document.getElementById('topbarNav').classList.remove('hidden');
-  document.querySelector('.topbar').classList.add('hidden');
+  bottomNav.classList.add("hidden"); // Hide bottom nav by default
+  sidebar.classList.add("hidden"); // Hide sidebar by default
+  document.getElementById('sidebarToggle').classList.add('hidden'); // Hide sidebar toggle by default
+  document.getElementById('adminClock').classList.add('hidden'); // Hide admin clock by default
+
+  document.querySelector('.topbar').classList.remove('hidden'); // Always show the topbar
+  document.getElementById('topbarNav').classList.remove('hidden'); // Ensure topbarNav is visible
 
   // Back to Top functionality
   window.onscroll = function() {
@@ -59,34 +88,36 @@ function init(){
     if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) btn.classList.remove("hidden");
     else btn.classList.add("hidden");
   };
+  
+  renderTopbarNav(); // Render topbar buttons based on role
 
-  if(role==="user"){
+  if (role === null) { // Guest user
     userUI.classList.remove("hidden");
-    bottomNav.classList.remove("hidden");
-    document.getElementById('topbarActions').classList.add('hidden');
+    bottomNav.classList.remove("hidden"); // Guest users still get bottom nav for home/profile
     renderBottomNav();
     userTab("home");
-    showNotification("Welcome to UG Bus! Book your next trip with ease.", "success");
-  }
-
-  if(role==="bus"){
+    // showNotification("Welcome to UG Bus! Book your next trip with ease.", "success"); // Optional: show welcome message
+  } else if (role === "user") {
+    userUI.classList.remove("hidden");
+    bottomNav.classList.remove("hidden");
+    renderBottomNav();
+    userTab("home");
+    showNotification(`Welcome back, ${currentUser.name}!`, "success");
+  } else if (role === "bus") {
     busUI.classList.remove("hidden");
     bottomNav.classList.remove("hidden");
-    document.getElementById('topbarActions').classList.add('hidden');
     renderBottomNav();
     busTab("home");
-  }
-
-  if(role==="admin"){
+    showNotification(`Welcome, ${currentUser.name}! Manage your trips.`, "success");
+  } else if (role === "admin") {
     sidebar.classList.remove("hidden");
     document.getElementById('sidebarToggle').classList.remove("hidden");
     adminUI.classList.remove("hidden");
-    document.querySelector('.topbar').classList.remove('hidden');
-    document.getElementById('topbarActions').classList.remove('hidden');
     document.getElementById('adminClock').classList.remove('hidden');
-    bottomNav.classList.add("hidden");
+    bottomNav.classList.add("hidden"); // Admin doesn't use bottom nav
     startClock();
     adminTab('dashboard'); // Initialize with dashboard
+    showNotification(`Welcome, ${currentUser.name}! Admin panel ready.`, "success");
   }
 }
 
@@ -109,16 +140,63 @@ function scrollToTop() {
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
+/* New function to show the login/register page */
+function showAuthPage() {
+  app.classList.add("hidden");
+  document.getElementById('loginPage').classList.remove("hidden"); // loginPage is now the auth container
+  document.getElementById('loginPage').classList.add("login"); // Apply login page styling
+
+  // By default, show the login form when entering the auth page
+  showLogin();
+}
+
+/* Hide the login page and return to landing */
+function hideAuthPage() {
+  document.getElementById('loginPage').classList.add("hidden");
+  document.getElementById('loginPage').classList.remove("login");
+  app.classList.remove("hidden");
+  init(); // Refresh UI as guest
+}
+
+/* Render Topbar Navigation (Login/Profile/Logout) */
+function renderTopbarNav() {
+  let topbarActions = document.getElementById('topbarActions');
+  topbarActions.innerHTML = ''; // Clear existing buttons
+
+  if (role === null) { // Guest user
+    document.getElementById('topbarNav').innerHTML = ''; // Clear any other nav items
+  } else { // Logged-in user (user, bus, admin)
+    // Only Admin keeps Logout in Topbar; Bus and User move to Profile
+    if (role === 'admin') {
+      let logoutButton = document.createElement('button');
+      logoutButton.className = 'logout-btn';
+      logoutButton.setAttribute('onclick', 'logout()');
+      logoutButton.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
+      topbarActions.appendChild(logoutButton);
+    }
+
+    if (role === 'user' || role === 'bus') {
+      document.getElementById('topbarNav').innerHTML = ''; // Clear any other nav items
+    }
+  }
+}
+
 function renderBottomNav(){
   let nav = document.getElementById('bottomNav');
   nav.innerHTML = '';
 
-  if(role === 'user'){
+  if(role === 'user' || role === null){
     nav.innerHTML = `
       <button onclick="userTab('home')" id="u1"><i class="fas fa-home"></i> Home</button>
       <button onclick="userTab('tickets')" id="u2"><i class="fas fa-ticket-alt"></i> Tickets</button>
       <button onclick="userTab('profile')" id="u3"><i class="fas fa-user"></i> Profile</button>
     `;
+    // If guest, the profile button should lead to login
+    if (role === null) {
+      let loginBtn = nav.querySelector('#u3');
+      loginBtn.setAttribute('onclick', 'showAuthPage()');
+      loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+    }
   }
 
   if(role === 'bus'){
@@ -140,17 +218,41 @@ function toggleSidebar(){
 
 /* USER NAV */
 function userTab(tab){
-  userHome.classList.add("hidden");
-  userTickets.classList.add("hidden");
-  userProfile.classList.add("hidden");
+  window.scrollTo(0, 0); // Fix: Ensure content shows from the top
 
-  document.getElementById("u1").classList.remove("active-tab");
-  document.getElementById("u2").classList.remove("active-tab");
-  document.getElementById("u3").classList.remove("active-tab");
+  // Add animation to clicked button icon
+  if (event && event.currentTarget) {
+    const btn = event.currentTarget;
+    btn.classList.add('animate-icon');
+    setTimeout(() => btn.classList.remove('animate-icon'), 300);
+  }
+
+  document.getElementById('userHome').classList.add("hidden");
+  document.getElementById('userTickets').classList.add("hidden");
+  document.getElementById('userProfile').classList.add("hidden");
+
+  // Remove active class from all bottom nav buttons
+  document.querySelectorAll("#bottomNav button").forEach(btn => btn.classList.remove("active-tab"));
 
   if(tab==="home"){
-    userHome.classList.remove("hidden");
-    u1.classList.add("active-tab");
+    document.getElementById('userHome').classList.remove("hidden");
+    document.getElementById("u1").classList.add("active-tab");
+  }else if(tab==="tickets"){
+    if (role === null) { // If guest, tickets require login
+      showAuthPage();
+      return;
+    }
+    document.getElementById('userTickets').classList.remove("hidden");
+    document.getElementById("u2").classList.add("active-tab");
+    renderTickets();
+  }else if(tab==="profile"){
+    if (role === null) { // If guest, profile leads to login
+      showAuthPage();
+      return;
+    }
+    document.getElementById('userProfile').classList.remove("hidden");
+    document.getElementById("u3").classList.add("active-tab");
+    loadProfile();
   }else if(tab==="tickets"){
     userTickets.classList.remove("hidden");
     u2.classList.add("active-tab");
@@ -164,36 +266,41 @@ function userTab(tab){
 
 /* BUS NAV */
 function busTab(tab){
-  busHome.classList.add("hidden");
-  busFleet.classList.add("hidden");
-  busSchedules.classList.add("hidden");
-  busScanner.classList.add("hidden");
-  busProfile.classList.add("hidden");
+  window.scrollTo(0, 0); // Fix: Ensure content shows from the top
 
-  document.getElementById("b1").classList.remove("active-tab");
-  document.getElementById("b2").classList.remove("active-tab");
-  document.getElementById("b3").classList.remove("active-tab");
-  document.getElementById("b4").classList.remove("active-tab");
-  document.getElementById("b5").classList.remove("active-tab");
+  if (event && event.currentTarget) {
+    const btn = event.currentTarget;
+    btn.classList.add('animate-icon');
+    setTimeout(() => btn.classList.remove('animate-icon'), 300);
+  }
+
+  document.getElementById('busHome').classList.add("hidden");
+  document.getElementById('busFleet').classList.add("hidden");
+  document.getElementById('busSchedules').classList.add("hidden");
+  document.getElementById('busScanner').classList.add("hidden");
+  document.getElementById('busProfile').classList.add("hidden");
+
+  // Remove active class from all bus nav buttons
+  document.querySelectorAll("#bottomNav button").forEach(btn => btn.classList.remove("active-tab"));
 
   if(tab==="home"){
-    busHome.classList.remove("hidden");
-    b1.classList.add("active-tab");
+    document.getElementById('busHome').classList.remove("hidden");
+    document.getElementById('b1').classList.add("active-tab");
     loadBusSelect();
   }else if(tab==="fleet"){
-    busFleet.classList.remove("hidden");
-    b2.classList.add("active-tab");
+    document.getElementById('busFleet').classList.remove("hidden");
+    document.getElementById('b2').classList.add("active-tab");
     renderFleet();
   }else if(tab==="schedules"){
-    busSchedules.classList.remove("hidden");
-    b3.classList.add("active-tab");
+    document.getElementById('busSchedules').classList.remove("hidden");
+    document.getElementById('b3').classList.add("active-tab");
     renderSchedules();
   }else if(tab==="scanner"){
-    busScanner.classList.remove("hidden");
-    b5.classList.add("active-tab");
+    document.getElementById('busScanner').classList.remove("hidden");
+    document.getElementById('b5').classList.add("active-tab");
   }else if(tab==="profile"){
-    busProfile.classList.remove("hidden");
-    b4.classList.add("active-tab");
+    document.getElementById('busProfile').classList.remove("hidden");
+    document.getElementById('b4').classList.add("active-tab");
     loadBusProfile();
   }
 }
@@ -556,16 +663,19 @@ function register(){
 }
 
 /* SHOW REGISTER */
-function showRegister(){
-  loginPage.classList.add("hidden");
-  registerPage.classList.remove("hidden");
+function showRegister() {
+  document.getElementById('loginFormCard').classList.add("hidden");
+  document.getElementById('registerFormCard').classList.remove("hidden");
 }
 
 /* SHOW LOGIN */
-function showLogin(){
-  registerPage.classList.add("hidden");
-  loginPage.classList.remove("hidden");
+function showLogin() {
+  document.getElementById('registerFormCard').classList.add("hidden");
+  document.getElementById('loginFormCard').classList.remove("hidden");
 }
+
+// Call init() on page load to start the app in guest mode
+document.addEventListener('DOMContentLoaded', init);
 
 /* SELECT PAYMENT */
 function selectPayment(method){
@@ -594,12 +704,14 @@ function updateProfile(){
 /* TOGGLE DARK MODE */
 function toggleDarkMode(){
   document.body.classList.toggle('dark-mode');
-  let icon = document.querySelector('.dark-mode-toggle i');
-  if(document.body.classList.contains('dark-mode')) {
-    icon.className = 'fas fa-sun';
-  } else {
-    icon.className = 'fas fa-moon';
-  }
+  
+  // Find all theme icons (in profiles and sidebar) and update them
+  const themeIcons = document.querySelectorAll('.theme-btn i, .sidebar button i.fa-moon, .sidebar button i.fa-sun, .profile-card button i');
+  const isDark = document.body.classList.contains('dark-mode');
+  
+  themeIcons.forEach(icon => {
+    icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+  });
 }
 
 /* BUS PROFILE */
@@ -650,7 +762,9 @@ function rebook(from, to){
 
 /* LOGOUT */
 function logout(){
-  location.reload();
+  role = null;
+  currentUser = null;
+  init(); // Re-initialize the app to the guest view
 }
 
 /* ADMIN FUNCTIONS */
