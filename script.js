@@ -8,6 +8,7 @@ let buses = JSON.parse(localStorage.getItem("buses") || "[]");
 let trips = JSON.parse(localStorage.getItem("trips") || "[]");
 let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
+let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
 
 /* DYNAMIC INFO TICKER */
 let currentInfoIndex = 0;
@@ -47,6 +48,55 @@ function startInfoTicker() {
   window.tickerInterval = setInterval(rotateInfoTicker, 6000);
 }
 
+/* ONBOARDING & SPLASH */
+function checkFirstVisit() {
+  setTimeout(() => {
+    document.getElementById('splashScreen').style.opacity = '0';
+    setTimeout(() => document.getElementById('splashScreen').classList.add('hidden'), 500);
+    
+    if (!localStorage.getItem("onboarded")) {
+      document.getElementById('onboardingModal').classList.remove('hidden');
+    }
+  }, 2000);
+}
+
+function nextOnboarding(step) {
+  document.getElementById('onboardingStep1').classList.add('hidden');
+  document.getElementById('onboardingStep2').classList.add('hidden');
+  document.getElementById('onboardingStep3').classList.add('hidden');
+  document.getElementById(`onboardingStep${step}`).classList.remove('hidden');
+}
+
+function closeOnboarding() {
+  localStorage.setItem("onboarded", "true");
+  document.getElementById('onboardingModal').classList.add('hidden');
+}
+
+/* AUTH METHODS */
+function toggleAuthMethod(method) {
+  if (method === 'phone') {
+    document.getElementById('emailTab').classList.remove('active');
+    document.getElementById('phoneTab').classList.add('active');
+    document.querySelector('.login-form').classList.add('hidden');
+    document.getElementById('phoneAuthForm').classList.remove('hidden');
+  } else {
+    document.getElementById('phoneTab').classList.remove('active');
+    document.getElementById('emailTab').classList.add('active');
+    document.getElementById('phoneAuthForm').classList.add('hidden');
+    document.querySelector('.login-form').classList.remove('hidden');
+  }
+}
+
+function sendOTP() {
+  const phone = document.getElementById('phoneInput').value;
+  if (!phone) return alert("Enter phone number");
+  document.getElementById('otpInput').classList.remove('hidden');
+  showNotification("OTP Sent to " + phone, "success");
+  setTimeout(() => {
+    document.getElementById('otpInput').value = "1234"; // Auto-fill for demo
+  }, 1000);
+}
+
 /* LOGIN */
 function login(){
   let e = email.value, p = password.value;
@@ -56,13 +106,13 @@ function login(){
   if (foundUser) {
     role = foundUser.role;
     currentUser = foundUser;
-  } else if (e === "user@bus.ug" && p === "1234") {
+  } else if (e === "user@smartseat.ug" && p === "1234") {
     role = "user";
     currentUser = { name: "Guest User", email: e, role: "user" };
-  } else if (e === "bus@bus.ug" && p === "1234") {
+  } else if (e === "bus@smartseat.ug" && p === "1234") {
     role = "bus";
     currentUser = { name: "Guest Bus Operator", email: e, role: "bus" };
-  } else if (e === "admin@bus.ug" && p === "1234") {
+  } else if (e === "admin@smartseat.ug" && p === "1234") {
     role = "admin";
     currentUser = { name: "Guest Admin", email: e, role: "admin" };
   } else {
@@ -77,9 +127,9 @@ function login(){
 }
 
 function quickFill(type){
-  if(type==='admin'){ email.value='admin@bus.ug'; password.value='1234'; }
-  else if(type==='user'){ email.value='user@bus.ug'; password.value='1234'; }
-  else if(type==='bus'){ email.value='bus@bus.ug'; password.value='1234'; }
+  if(type==='admin'){ email.value='admin@smartseat.ug'; password.value='1234'; }
+  else if(type==='user'){ email.value='user@smartseat.ug'; password.value='1234'; }
+  else if(type==='bus'){ email.value='bus@smartseat.ug'; password.value='1234'; }
 }
 
 function togglePassword(inputId, iconId) {
@@ -130,12 +180,7 @@ function init(){
   renderTopbarNav(); // Render topbar buttons based on role
 
   if (role === null) { // Guest user
-    userUI.classList.remove("hidden");
-    bottomNav.classList.remove("hidden"); // Guest users still get bottom nav for home/profile
-    renderBottomNav();
-    userTab("home");
-    startInfoTicker();
-    // showNotification("Welcome to UG Bus! Book your next trip with ease.", "success"); // Optional: show welcome message
+    showAuthPage(); // Force login on landing
   } else if (role === "user") {
     userUI.classList.remove("hidden");
     bottomNav.classList.remove("hidden");
@@ -229,6 +274,7 @@ function renderBottomNav(){
     nav.innerHTML = `
       <button onclick="userTab('home')" id="u1"><i class="fas fa-home"></i> Home</button>
       <button onclick="userTab('tickets')" id="u2"><i class="fas fa-ticket-alt"></i> Tickets</button>
+      <button onclick="userTab('support')" id="u4"><i class="fas fa-headset"></i> Support</button>
       <button onclick="userTab('profile')" id="u3"><i class="fas fa-user"></i> Profile</button>
     `;
     // If guest, the profile button should lead to login
@@ -270,6 +316,7 @@ function userTab(tab){
   document.getElementById('userHome').classList.add("hidden");
   document.getElementById('userTickets').classList.add("hidden");
   document.getElementById('userProfile').classList.add("hidden");
+  document.getElementById('userSupport').classList.add("hidden");
 
   // Remove active class from all bottom nav buttons
   document.querySelectorAll("#bottomNav button").forEach(btn => btn.classList.remove("active-tab"));
@@ -293,15 +340,17 @@ function userTab(tab){
     document.getElementById('userProfile').classList.remove("hidden");
     document.getElementById("u3").classList.add("active-tab");
     loadProfile();
-  }else if(tab==="tickets"){
-    userTickets.classList.remove("hidden");
-    u2.classList.add("active-tab");
-    renderTickets();
-  }else if(tab==="profile"){
-    userProfile.classList.remove("hidden");
-    u3.classList.add("active-tab");
-    loadProfile();
+  }else if(tab==="support"){
+    document.getElementById('userSupport').classList.remove("hidden");
+    document.getElementById("u4").classList.add("active-tab");
+    renderRefunds();
   }
+}
+
+function swapLocations() {
+    const from = document.getElementById('from');
+    const to = document.getElementById('to');
+    [from.value, to.value] = [to.value, from.value];
 }
 
 /* BUS NAV */
@@ -404,7 +453,7 @@ function loadTrips(){
         <p><i class="fas fa-clock"></i> ${b.time} | <i class="fas fa-star"></i> ${b.type}</p>
         <div style="margin: 8px 0; color: var(--text-light);">${(b.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
         <p><strong>UGX ${b.price.toLocaleString()}</strong></p>
-        <button class='btn' onclick='selectSeat("${b.name}", ${b.price})'><i class="fas fa-chair"></i> Select Seat</button>
+        <button class='btn' onclick='showBusDetails("${b.name}", ${b.price}, ${JSON.stringify(b.amenities || [])})'><i class="fas fa-info-circle"></i> View Details</button>
       `;
       tripsContainer.appendChild(d);
     });
@@ -418,11 +467,32 @@ function loadTrips(){
         <p><i class="fas fa-clock"></i> ${t.time} | <i class="fas fa-star"></i> ${t.busType}</p>
         <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
         <p><strong>UGX ${t.price.toLocaleString()}</strong></p>
-        <button class='btn' onclick='selectSeat("${t.busName}", ${t.price})'><i class="fas fa-chair"></i> Select Seat</button>
+        <button class='btn' onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'><i class="fas fa-info-circle"></i> View Details</button>
       `;
       tripsContainer.appendChild(d);
     });
   }
+}
+
+/* BUS DETAILS SCREEN */
+function showBusDetails(name, price, amenities) {
+    selectedBus = { name, price, amenities };
+    document.getElementById('trips').classList.add('hidden');
+    const box = document.getElementById('busDetailsBox');
+    box.classList.remove('hidden');
+    document.getElementById('detailsBusName').innerText = name;
+    document.getElementById('detailsRoute').innerHTML = `
+        <i class="fas fa-route"></i> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
+        <i class="fas fa-tag"></i> Base Fare: UGX ${price.toLocaleString()}
+    `;
+    document.getElementById('detailsAmenities').innerHTML = amenities.map(a => 
+        `<span class="badge bg-primary" style="margin-right:5px;"><i class="fas fa-${a}"></i> ${a}</span>`
+    ).join('');
+}
+
+function proceedToSeats() {
+    document.getElementById('busDetailsBox').classList.add('hidden');
+    selectSeat(selectedBus.name, selectedBus.price);
 }
 
 /* SEATS */
@@ -444,17 +514,56 @@ function selectSeat(busName, price){
       selectedSeat=i;
       document.querySelectorAll(".seat").forEach(x=>x.classList.remove("active"));
       s.classList.add("active");
+      // Real-time price display
+      document.getElementById('seatPriceDisplay').style.display = 'block';
+      document.getElementById('displaySeatNum').innerText = '#' + i;
+      document.getElementById('displaySeatPrice').innerText = 'UGX ' + price.toLocaleString();
     };
     seats.appendChild(s);
   }
 }
 
+/* BOOKING FLOW ENHANCEMENTS */
+function showBoardingPoints() {
+  if (!selectedSeat) return alert("Please select a seat first");
+  document.getElementById('seatBox').classList.add("hidden");
+  document.getElementById('pointsBox').classList.remove("hidden");
+}
+
+function showPassengerInfo() {
+  const count = parseInt(document.getElementById('passengerCount').value) || 1;
+  const container = document.getElementById('passengerForms');
+  container.innerHTML = "";
+  for(let i = 1; i <= count; i++) {
+    container.innerHTML += `
+      <div class="passenger-entry">
+        <h5>Passenger ${i}</h5>
+        <input placeholder="Full Name" class="p-name">
+        <div style="display:flex; gap:10px;">
+          <input placeholder="Age" type="number" class="p-age">
+          <select class="p-gender"><option>Male</option><option>Female</option></select>
+        </div>
+      </div>
+    `;
+  }
+  document.getElementById('pointsBox').classList.add("hidden");
+  document.getElementById('passengerBox').classList.remove("hidden");
+}
+
+function showBookingSummary() {
+  document.getElementById('passengerBox').classList.add("hidden");
+  document.getElementById('bookingConfirm').classList.remove("hidden");
+  document.getElementById('bookingDetails').innerHTML = `
+    <strong>Bus:</strong> ${selectedBus.name}<br>
+    <strong>Route:</strong> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
+    <strong>Points:</strong> ${document.getElementById('boardingPoint').value} → ${document.getElementById('droppingPoint').value}<br>
+    <strong>Total:</strong> UGX ${(selectedBus.price * parseInt(document.getElementById('passengerCount').value)).toLocaleString()}
+  `;
+}
+
 /* CONFIRM BOOKING */
 function confirmBooking(){
-  if(!selectedPayment) {
-    alert("Please select a payment method");
-    return;
-  }
+  if(!selectedPayment) return alert("Select payment method");
 
   let ticket = {
     bus: selectedBus.name,
@@ -464,6 +573,8 @@ function confirmBooking(){
     from: document.getElementById('from').value,
     to: document.getElementById('to').value,
     payment: selectedPayment,
+    passenger: document.querySelector('.p-name')?.value || currentUser.name,
+    id: Math.floor(100000 + Math.random() * 900000),
     timestamp: new Date().toISOString()
   };
 
@@ -472,8 +583,49 @@ function confirmBooking(){
 
   addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser.name}`);
   bookingConfirm.classList.add("hidden");
+  showNotification("Payment successful! Booking ID: #" + ticket.id, "success");
   showNotification("Booking confirmed! Check your tickets.", "success");
   userTab("tickets");
+}
+
+/* REFUND SYSTEM */
+function openRefundModal() {
+    const select = document.getElementById('refundTicketSelect');
+    select.innerHTML = tickets.map(t => `<option value="${t.id}">Ticket #${t.id} (${t.from}-${t.to})</option>`).join('');
+    if (tickets.length === 0) return alert("No tickets available for refund.");
+    document.getElementById('refundModal').classList.remove('hidden');
+}
+
+function submitRefund() {
+    const ticketId = document.getElementById('refundTicketSelect').value;
+    const reason = document.getElementById('refundReason').value;
+    if (!reason) return alert("Please provide a reason.");
+    
+    const refundRequest = {
+        id: Date.now(),
+        ticketId: ticketId,
+        reason: reason,
+        status: 'Pending',
+        date: new Date().toISOString()
+    };
+    
+    refunds.push(refundRequest);
+    localStorage.setItem("refunds", JSON.stringify(refunds));
+    document.getElementById('refundModal').classList.add('hidden');
+    showNotification("Refund request submitted successfully.", "success");
+    renderRefunds();
+}
+
+function renderRefunds() {
+    const container = document.getElementById('refundItems');
+    const listBox = document.getElementById('refundStatusList');
+    if (refunds.length > 0) listBox.classList.remove('hidden');
+    container.innerHTML = refunds.map(r => `
+        <div class="activity-item">
+            <p><strong>ID #${r.ticketId}</strong> - Status: <span class="badge ${r.status === 'Pending' ? 'bg-primary' : 'bg-secondary'}">${r.status}</span></p>
+            <small>${new Date(r.date).toLocaleDateString()}</small>
+        </div>
+    `).join('');
 }
 
 /* DOWNLOAD TICKET */
@@ -508,6 +660,14 @@ function shareTicket(index){
     navigator.clipboard.writeText(shareText);
     showNotification("Ticket details copied to clipboard!", "success");
   }
+}
+
+function trackBus(id) {
+    document.getElementById('trackingView').classList.remove('hidden');
+    document.getElementById('trackingETA').innerText = "ETA: 12 minutes away";
+    setTimeout(() => {
+        document.getElementById('trackingETA').innerText = "ETA: 8 minutes (Crossing Jinja Bridge)";
+    }, 3000);
 }
 
 /* LOAD BUS SELECT */
@@ -631,54 +791,77 @@ function renderTickets(){
   ticketsDiv.innerHTML="";
 
   if(tickets.length === 0) {
-    ticketsDiv.innerHTML = "<p>No tickets yet. Book your first trip!</p>";
+    ticketsDiv.innerHTML = "<p style='color:white;'>No boarding passes found. Start your journey today!</p>";
     return;
   }
 
-  const calculateETA = (startTime) => {
-    if (!startTime) return "N/A";
-    let [hours, minutes] = startTime.split(':').map(Number);
-    let arrivalHours = (hours + 4) % 24; // Simulated 4 hour trip
-    return `${arrivalHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
-
   tickets.forEach((t, index)=>{
-    let ticketDate = new Date(t.date + 'T' + (t.time || '00:00'));
-    let now = new Date();
-    let isPast = ticketDate < now;
+    const statusText = t.used ? "Completed" : "Confirmed";
+    const statusClass = t.used ? "bg-secondary" : "bg-primary";
     
-    // Trip Tracking Logic
-    let status = "Scheduled";
-    if (t.used) status = "Completed";
-    else if (isPast) status = "In Transit";
-    
-    let d=document.createElement("div");
-    d.className="card";
-    d.innerHTML=`
-      <div style="display: flex; justify-content: space-between;">
-        <h4><i class="fas fa-ticket-alt"></i> Ticket #${index+1}</h4>
-        <span class="badge ${t.used ? 'bg-secondary' : 'bg-primary'}">${status}</span>
+    let d = document.createElement("div");
+    d.className = "smart-ticket fade-in";
+    d.id = `ticket-card-${index}`;
+    d.innerHTML = `
+      <div class="ticket-header">
+        <div style="font-weight:bold; color:var(--primary-color);">SmartSeat Boarding Pass</div>
+        <div class="badge ${statusClass}">${statusText}</div>
       </div>
-      <p><strong>Bus:</strong> ${t.bus || t}</p>
-      <p><strong>Seat:</strong> ${t.seat || 'N/A'}</p>
-      <p><strong>Route:</strong> ${t.from || 'N/A'} - ${t.to || 'N/A'}</p>
-      <p><strong>Date:</strong> ${t.date || 'N/A'}</p>
-      <div class="trip-tracking" style="background: #f0f7f4; padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px dashed var(--primary-color);">
-        <p style="margin: 0; font-size: 0.85rem;"><i class="fas fa-map-marker-alt"></i> <strong>ETA:</strong> ${calculateETA(t.time)}</p>
-        <p style="margin: 0; font-size: 0.85rem;"><i class="fas fa-info-circle"></i> <strong>Status:</strong> ${status}</p>
+      <div class="ticket-body" onclick="expandTicket(${index})">
+        <div class="ticket-route">
+          <div class="route-node"><h2>${t.from.substring(0,3).toUpperCase()}</h2><p>${t.from}</p></div>
+          <div class="route-divider"><i class="fas fa-bus"></i></div>
+          <div class="route-node" style="text-align:right;"><h2>${t.to.substring(0,3).toUpperCase()}</h2><p>${t.to}</p></div>
+        </div>
+        <div class="ticket-info-grid">
+          <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
+          <div class="info-item"><label>Seat</label><span>#${t.seat}</span></div>
+          <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
+          <div class="info-item"><label>Booking ID</label><span>#${t.id}</span></div>
+        </div>
+        <div class="ticket-qr-section">
+          <div class="qr-container" id="qr-${t.id}"></div>
+          <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">Scan at Boarding</p>
+        </div>
       </div>
-      <p><strong>Price:</strong> <span class="ugx-price">UGX ${(t.price || 0).toLocaleString()}</span></p>
-      <div class="qr-code" title="Scan to verify ticket">
-        <i class="fas fa-qrcode"></i>
-      </div>
-      <div style="display: flex; gap: 10px;">
-        <button class="btn" style="flex: 1;" onclick="downloadTicket(${index})"><i class="fas fa-download"></i> Download</button>
-        <button class="btn" style="flex: 1; background: #4a5568;" onclick="shareTicket(${index})"><i class="fas fa-share-alt"></i> Share</button>
-        ${(isPast || t.used) ? `<button class="btn" style="flex: 1; background: var(--uganda-yellow); color: #000;" onclick="rebook('${t.from}', '${t.to}')"><i class="fas fa-redo"></i> Rebook</button>` : ''}
+      <div class="ticket-footer">
+        <div>Total Fare: UGX ${t.price.toLocaleString()}</div>
+        <div style="display:flex; gap:5px;">
+          <button class="icon-btn" onclick="downloadTicketAsImage(${index}, event)" title="Download"><i class="fas fa-download"></i></button>
+          <button class="icon-btn" onclick="shareTicket(${index})" title="Share"><i class="fas fa-share-alt"></i></button>
+        </div>
       </div>
     `;
     ticketsDiv.appendChild(d);
+    new QRCode(document.getElementById(`qr-${t.id}`), { text: `TICKET:${t.id}`, width: 80, height: 80 });
   });
+}
+
+function expandTicket(index) {
+    const t = tickets[index];
+    const modal = document.getElementById('ticketFullscreen');
+    const content = document.getElementById('fullscreenTicketContent');
+    content.innerHTML = document.getElementById(`ticket-card-${index}`).innerHTML;
+    // Re-generate QR for the modal since we copied HTML
+    const qrContainer = content.querySelector('.qr-container');
+    qrContainer.id = `qr-modal-${t.id}`;
+    qrContainer.innerHTML = "";
+    modal.classList.remove('hidden');
+    new QRCode(qrContainer, { text: `TICKET:${t.id}`, width: 150, height: 150 });
+}
+
+function closeFullscreenTicket() {
+    document.getElementById('ticketFullscreen').classList.add('hidden');
+}
+
+async function downloadTicketAsImage(index, event) {
+    if(event) event.stopPropagation();
+    const element = document.getElementById(`ticket-card-${index}`);
+    const canvas = await html2canvas(element);
+    const link = document.createElement('a');
+    link.download = `SmartSeat-Ticket-${tickets[index].id}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
 }
 
 /* REGISTER */
@@ -821,6 +1004,7 @@ function adminTab(section){
   document.getElementById('adminSettings').classList.add('hidden');
   document.getElementById('adminActivity').classList.add('hidden');
   document.getElementById('adminAds').classList.add('hidden');
+  document.getElementById('adminSupportTickets').classList.add('hidden');
 
   // Remove active class from all admin nav buttons
   document.querySelectorAll('.sidebar button, .topbar-nav button').forEach(btn => btn.classList.remove('active-tab'));
@@ -842,7 +1026,8 @@ function adminTab(section){
     'notifications': 'Notifications',
     'settings': 'System Settings',
     'activity': 'Activity Log',
-    'ads': 'Ads Management'
+    'ads': 'Ads Management',
+    'supportTickets': 'Support Tickets'
   };
   title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
 
@@ -867,6 +1052,7 @@ function adminTab(section){
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
   else if(section === 'ads') loadAdSettings();
+  else if(section === 'supportTickets') loadSupportTickets();
 }
 
 function loadDashboard(){
@@ -954,6 +1140,45 @@ function loadRoutes(){
     `;
     routeList.appendChild(routeCard);
   });
+}
+
+function loadSupportTickets() {
+    const container = document.getElementById('adminRefundList');
+    container.innerHTML = '';
+    if (refunds.length === 0) {
+        container.innerHTML = '<p>No pending refund requests found.</p>';
+        return;
+    }
+    refunds.forEach(r => {
+        const t = tickets.find(ticket => ticket.id == r.ticketId);
+        const d = document.createElement('div');
+        d.className = 'card';
+        d.innerHTML = `
+            <h4>Refund Request #${r.id}</h4>
+            <p><strong>Ticket ID:</strong> #${r.ticketId}</p>
+            <p><strong>Passenger:</strong> ${t ? t.passenger : 'N/A'}</p>
+            <p><strong>Reason:</strong> ${r.reason}</p>
+            <p><strong>Status:</strong> <span class="badge ${r.status === 'Pending' ? 'bg-primary' : 'bg-secondary'}">${r.status}</span></p>
+            ${r.status === 'Pending' ? `
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn" style="background:#48bb78;" onclick="updateRefundStatus(${r.id}, 'Approved')">Approve</button>
+                    <button class="btn" style="background:#e53e3e;" onclick="updateRefundStatus(${r.id}, 'Rejected')">Reject</button>
+                </div>
+            ` : ''}
+        `;
+        container.appendChild(d);
+    });
+}
+
+function updateRefundStatus(id, status) {
+    const refund = refunds.find(r => r.id === id);
+    if (refund) {
+        refund.status = status;
+        localStorage.setItem("refunds", JSON.stringify(refunds));
+        showNotification(`Refund request ${status.toLowerCase()}!`, "success");
+        loadSupportTickets();
+        addActivityLog(`Refund request #${id} was ${status.toLowerCase()}`);
+    }
 }
 
 function loadBookings(){

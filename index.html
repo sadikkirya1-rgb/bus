@@ -3,29 +3,73 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UG Bus Premium</title>
+<title>SmartSeat - Premium Bus Booking</title>
 <link rel="stylesheet" href="styles.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
-<body>
+<body onload="checkFirstVisit()">
+
+<!-- SPLASH SCREEN -->
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-content">
+    <div class="logo">
+      <span class="uganda-flag"></span>
+      <h1 style="color: white;">SmartSeat</h1>
+    </div>
+    <div class="loader"></div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboardingModal" class="modal hidden">
+  <div class="modal-content onboarding-card">
+    <div id="onboardingStep1">
+      <i class="fas fa-route onboarding-icon"></i>
+      <h2>Wide Coverage</h2>
+      <p>Book trips to any corner of Uganda with our extensive network of premium bus operators.</p>
+      <button class="btn" onclick="nextOnboarding(2)">Next</button>
+    </div>
+    <div id="onboardingStep2" class="hidden">
+      <i class="fas fa-map-marker-alt onboarding-icon"></i>
+      <h2>Real-time Tracking</h2>
+      <p>Never miss your bus. Track your journey in real-time and share your ETA with loved ones.</p>
+      <button class="btn" onclick="nextOnboarding(3)">Next</button>
+    </div>
+    <div id="onboardingStep3" class="hidden">
+      <i class="fas fa-shield-alt onboarding-icon"></i>
+      <h2>Secure Payments</h2>
+      <p>Pay safely using MTN MoMo, Airtel Money, or Card. Easy refunds and 24/7 support.</p>
+      <button class="btn" onclick="closeOnboarding()">Get Started</button>
+    </div>
+  </div>
+</div>
+
 <!-- LOGIN -->
-<!-- This div will be hidden by default and shown when login/register is needed -->
 <div id="loginPage" class="hidden">
   <button class="close-auth" onclick="hideAuthPage()" title="Close">
     <i class="fas fa-times"></i>
   </button>
-
   <div class="login-header">
     <div class="logo">
       <span class="uganda-flag"></span>
-      <h1>UG Bus</h1>
+      <h1>SmartSeat</h1>
     </div>
   </div>
-
   <div class="login-container">
     <div id="loginFormCard" class="login-card">
+      <div class="auth-toggle">
+        <button id="emailTab" class="active" onclick="toggleAuthMethod('email')">Email</button>
+        <button id="phoneTab" onclick="toggleAuthMethod('phone')">Phone / OTP</button>
+      </div>
+      <div id="phoneAuthForm" class="hidden">
+        <input id="phoneInput" type="tel" placeholder="Phone Number (+256...)">
+        <button class="btn login-btn" onclick="sendOTP()">Send OTP</button>
+        <input id="otpInput" class="hidden" type="text" placeholder="Enter 4-digit OTP">
+      </div>
       <form class="login-form" onsubmit="login(); return false;">
         <input id="email" type="email" placeholder="Email address" required>
         <div class="password-wrapper">
@@ -38,7 +82,6 @@
           <i class="fas fa-sign-in-alt"></i> Login
         </button>
       </form>
-
       <div class="quick-login">
         <p>Quick login as:</p>
         <div class="quick-login-btns">
@@ -47,7 +90,6 @@
           <button type="button" onclick="quickFill('bus')" title="Bus Operator"><i class="fas fa-bus"></i></button>
         </div>
       </div>
-
       <div class="login-footer">
         <p>Don't have an account?
           <a href="#" onclick="showRegister()" class="register-link">Create one here</a>
@@ -110,10 +152,11 @@
     <button onclick="adminTab('settings')" id="a9" title="System Settings"><i class="fas fa-cogs"></i> <span>System Settings</span></button>
     <button onclick="adminTab('activity')" id="a10" title="Activity Log"><i class="fas fa-history"></i> <span>Activity Log</span></button>
     <button onclick="adminTab('ads')" id="a11" title="Ads Management"><i class="fas fa-ad"></i> <span>Ads Management</span></button>
+    <button onclick="adminTab('supportTickets')" id="a12" title="Support Tickets"><i class="fas fa-headset"></i> <span>Support Tickets</span></button>
     <button onclick="toggleDarkMode()" title="Toggle Dark Mode"><i class="fas fa-moon"></i> <span>Toggle Theme</span></button>
   </div>
 
-  <!-- MAIN -->
+  <!-- MAIN CONTENT -->
   <div class="main">
 
     <div class="topbar">
@@ -134,40 +177,36 @@
     <div id="userUI" class="hidden">
 
       <div id="userHome">
-
-        <div class="card">
+        <div class="card search-section fade-in">
           <h3><i class="fas fa-search"></i> Search Trips</h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
+          <div style="display: flex; align-items: flex-end; gap: 10px; margin-bottom: 10px;">
+            <div style="flex: 1;">
               <label style="font-size: 0.9rem; color: #ffffff;">From</label>
               <select id="from" required>
-                <option value="">Select City</option>
                 <option value="Kampala">Kampala</option>
-                <option value="Entebbe">Entebbe</option>
                 <option value="Jinja">Jinja</option>
-                <option value="Mbale">Mbale</option>
                 <option value="Gulu">Gulu</option>
                 <option value="Mbarara">Mbarara</option>
-                <option value="Masaka">Masaka</option>
-                <option value="Lira">Lira</option>
               </select>
             </div>
-            <div>
+            <button class="icon-btn" onclick="swapLocations()" style="margin-bottom: 8px; background: rgba(255,255,255,0.2); border: none; color: white; height: 40px; width: 40px; border-radius: 50%;">
+                <i class="fas fa-exchange-alt"></i>
+            </button>
+            <div style="flex: 1;">
               <label style="font-size: 0.9rem; color: #ffffff;">To</label>
               <select id="to" required>
-                <option value="">Select City</option>
-                <option value="Kampala">Kampala</option>
-                <option value="Entebbe">Entebbe</option>
                 <option value="Jinja">Jinja</option>
-                <option value="Mbale">Mbale</option>
+                <option value="Kampala">Kampala</option>
                 <option value="Gulu">Gulu</option>
                 <option value="Mbarara">Mbarara</option>
-                <option value="Masaka">Masaka</option>
-                <option value="Lira">Lira</option>
               </select>
             </div>
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+              <label style="font-size: 0.9rem; color: #ffffff;">Passengers</label>
+              <input id="passengerCount" type="number" value="1" min="1" max="5">
+            </div>
             <div>
               <label style="font-size: 0.9rem; color: #ffffff;">Date</label>
               <input id="date" type="date" required>
@@ -215,6 +254,14 @@
 
         <div id="trips" class="grid"></div>
 
+        <!-- BUS DETAILS SCREEN -->
+        <div id="busDetailsBox" class="card hidden fade-in">
+            <h3 id="detailsBusName">Bus Details</h3>
+            <div id="detailsAmenities" class="amenities-list"></div>
+            <div id="detailsRoute" style="margin: 15px 0; color: rgba(255,255,255,0.8);"></div>
+            <button class="btn" onclick="proceedToSeats()"><i class="fas fa-chair"></i> Select Seat</button>
+        </div>
+
         <div id="seatBox" class="card hidden">
           <h3><i class="fas fa-chair"></i> Select Your Seat</h3>
           <div class="bus-front-indicator">
@@ -222,9 +269,50 @@
             <span>FRONT OF BUS</span>
           </div>
           <div id="seats" class="seats"></div>
-          <div style="margin-top: 20px;">
-            <button class="btn" onclick="book()"><i class="fas fa-credit-card"></i> Proceed to Payment</button>
+          <div id="seatPriceDisplay" class="card" style="background: rgba(0,0,0,0.2); border: 1px dashed white; margin-top: 10px; display: none;">
+              <p style="margin: 0;">Selected Seat: <span id="displaySeatNum">#</span></p>
+              <p style="margin: 0; font-weight: bold;">Price: <span id="displaySeatPrice">UGX 0</span></p>
           </div>
+          <div style="margin-top: 20px;">
+            <button class="btn" onclick="showBoardingPoints()"><i class="fas fa-arrow-right"></i> Select Points</button>
+          </div>
+        </div>
+
+        <!-- BOARDING & DROPPING POINTS -->
+        <div id="pointsBox" class="card hidden">
+          <h3><i class="fas fa-map-marker-alt"></i> Select Points</h3>
+          <label>Boarding Point</label>
+          <select id="boardingPoint">
+            <option>Main Terminal</option>
+            <option>Clock Tower</option>
+            <option>Wandegeya Stage</option>
+          </select>
+          <label>Dropping Point</label>
+          <select id="droppingPoint">
+            <option>Central Park</option>
+            <option>Market Square</option>
+            <option>Main Hospital Stage</option>
+          </select>
+          <button class="btn" style="margin-top:15px;" onclick="showPassengerInfo()"><i class="fas fa-user-edit"></i> Passenger Details</button>
+        </div>
+
+        <!-- PASSENGER INFO -->
+        <div id="passengerBox" class="card hidden">
+          <h3><i class="fas fa-id-card"></i> Passenger Details</h3>
+          <div id="passengerForms">
+            <!-- Dynamically generated based on count -->
+            <div class="input-group">
+              <input placeholder="Full Name" class="p-name">
+              <input placeholder="Age" type="number" class="p-age">
+              <select class="p-gender"><option>Male</option><option>Female</option></select>
+            </div>
+          </div>
+          <hr style="border: 0.5px solid rgba(255,255,255,0.2); margin: 15px 0;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="savePassenger" style="width: auto;">
+            <label for="savePassenger" style="font-size: 0.85rem;">Save for future bookings</label>
+          </div>
+          <button class="btn" style="margin-top:15px;" onclick="showBookingSummary()"><i class="fas fa-file-invoice-dollar"></i> Review Booking</button>
         </div>
 
         <div id="bookingConfirm" class="card hidden">
@@ -258,13 +346,18 @@
       </div>
 
       <div id="userTickets" class="hidden">
-        <div class="card">
-          <h3><i class="fas fa-ticket-alt"></i> My Tickets</h3>
+        <div id="trackingView" class="card hidden">
+            <h3><i class="fas fa-map-marked-alt"></i> Live Tracking</h3>
+            <div class="route-map"><i class="fas fa-bus-side fa-beat"></i></div>
+            <p id="trackingETA">ETA: Estimating...</p>
+            <button class="btn" onclick="document.getElementById('trackingView').classList.add('hidden')">Close Map</button>
+        </div>
+        <div class="card" style="background: transparent; box-shadow: none; border: none;">
+          <h3 style="color: white;"><i class="fas fa-ticket-alt"></i> My Boarding Passes</h3>
           <div id="tickets" class="grid"></div>
         </div>
 
-        <!-- REVIEWS SECTION -->
-        <div class="card">
+        <div class="card" style="margin-top: 30px;">
           <h3><i class="fas fa-star"></i> Recent Reviews</h3>
           <div class="reviews">
             <div class="review">
@@ -281,6 +374,46 @@
         </div>
       </div>
 
+      <!-- ADMIN SUPPORT TICKETS -->
+      <div id="adminSupportTickets" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-headset"></i> Refund Management</h3>
+          <div id="adminRefundList" class="grid"></div>
+        </div>
+      </div>
+
+      <!-- SUPPORT CENTER -->
+      <div id="userSupport" class="hidden">
+        <div class="card">
+            <h3><i class="fas fa-headset"></i> Support Center</h3>
+            <p>Need help with your booking? Our team is available 24/7.</p>
+            <div class="grid">
+                <button class="btn" style="background:#4a5568;"><i class="fas fa-question-circle"></i> FAQs</button>
+                <button class="btn" style="background:#4a5568;"><i class="fas fa-comments"></i> Live Chat</button>
+                <button class="btn" style="background:var(--uganda-red);" onclick="openRefundModal()"><i class="fas fa-undo"></i> Request Refund</button>
+            </div>
+        </div>
+        <div id="refundStatusList" class="card hidden">
+            <h3><i class="fas fa-history"></i> Refund Requests</h3>
+            <div id="refundItems"></div>
+        </div>
+      </div>
+
+      <!-- REFUND MODAL -->
+      <div id="refundModal" class="modal hidden">
+          <div class="modal-content card" style="max-width: 500px; background: white; color: #2d3748;">
+              <h3 style="color: var(--uganda-red);"><i class="fas fa-undo"></i> Request Refund</h3>
+              <label style="color: #4a5568;">Select Booking</label>
+              <select id="refundTicketSelect" style="border: 1px solid #cbd5e0; color: #2d3748;"></select>
+              <label style="color: #4a5568; margin-top: 10px; display: block;">Reason for Refund</label>
+              <textarea id="refundReason" placeholder="Tell us why you are requesting a refund..." style="border: 1px solid #cbd5e0; color: #2d3748;"></textarea>
+              <div style="display: flex; gap: 10px; margin-top: 20px;">
+                  <button class="btn" style="flex: 1; background: #a0aec0;" onclick="document.getElementById('refundModal').classList.add('hidden')">Cancel</button>
+                  <button class="btn" style="flex: 1; background: var(--uganda-red);" onclick="submitRefund()">Submit Request</button>
+              </div>
+          </div>
+      </div>
+
       <div id="userProfile" class="hidden">
         <div class="card profile-card">
           <div class="profile-avatar">
@@ -292,6 +425,12 @@
           <input placeholder="Phone Number" id="profilePhone">
           <input placeholder="Email" id="profileEmail">
           <button class="btn" onclick="updateProfile()"><i class="fas fa-save"></i> Update Profile</button>
+          
+          <div style="text-align: left; margin-top: 20px;">
+            <h4 style="color:white; margin-bottom: 10px;"><i class="fas fa-phone-alt"></i> Emergency Contacts</h4>
+            <input placeholder="Contact Name" id="iceName">
+            <input placeholder="Contact Phone" id="icePhone">
+          </div>
           
           <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
             <button class="theme-btn" onclick="toggleDarkMode()" style="flex: 1;"><i class="fas fa-moon"></i> Theme</button>
@@ -662,6 +801,11 @@
 <button id="backToTop" class="back-to-top hidden" onclick="scrollToTop()">
   <i class="fas fa-chevron-up"></i>
 </button>
+
+<!-- FULLSCREEN TICKET MODAL -->
+<div id="ticketFullscreen" class="modal hidden" onclick="closeFullscreenTicket()">
+  <div class="modal-content-ticket" id="fullscreenTicketContent" onclick="event.stopPropagation()"></div>
+</div>
 
 <script src="script.js"></script>
 
