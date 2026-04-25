@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 
 <body onload="checkFirstVisit()">
@@ -318,7 +319,7 @@
         <div id="bookingConfirm" class="card hidden">
           <h3><i class="fas fa-check-circle"></i> Booking Confirmation</h3>
           <p id="bookingDetails"></p>
-
+            <div id="bookingStatus" class="badge bg-secondary" style="margin-bottom: 10px; display: inline-block;">Status: CREATED</div>
           <!-- PAYMENT METHODS -->
           <h4>Select Payment Method</h4>
           <div class="payment-methods">
@@ -352,7 +353,7 @@
             <p id="trackingETA">ETA: Estimating...</p>
             <button class="btn" onclick="document.getElementById('trackingView').classList.add('hidden')">Close Map</button>
         </div>
-        <div class="card" style="background: transparent; box-shadow: none; border: none;">
+        <div class="card fade-in" style="background: transparent; box-shadow: none; border: none;">
           <h3 style="color: white;"><i class="fas fa-ticket-alt"></i> My Boarding Passes</h3>
           <div id="tickets" class="grid"></div>
         </div>
@@ -509,10 +510,14 @@
       <div id="busScanner" class="hidden">
         <div class="card">
           <h3><i class="fas fa-barcode"></i> Ticket Scanner</h3>
-          <p>Enter Ticket ID to verify and mark as used.</p>
+          <p>Scan QR code or enter Ticket ID to verify.</p>
+          <div id="reader" style="width: 100%; max-width: 400px; margin: 15px auto; border-radius: 12px; overflow: hidden; background: #000;"></div>
+          <button class="btn" id="startScannerBtn" onclick="startScanner()" style="width: 100%; margin-bottom: 15px;"><i class="fas fa-camera"></i> Open Camera Scanner</button>
+          <button class="btn hidden" id="stopScannerBtn" onclick="stopScanner()" style="width: 100%; margin-bottom: 15px; background: var(--uganda-red);"><i class="fas fa-stop"></i> Stop Scanner</button>
+          
           <div style="display: flex; gap: 10px; margin-top: 15px;">
             <input id="scanInput" type="number" placeholder="Enter Ticket # (e.g., 1)">
-            <button class="btn" onclick="verifyTicket()"><i class="fas fa-qrcode"></i> Scan</button>
+            <button class="btn" onclick="verifyTicket()"><i class="fas fa-check"></i> Verify</button>
           </div>
           <div id="scanResult" class="hidden" style="margin-top: 20px; padding: 15px; border-radius: 8px;">
             <!-- Scan results will appear here -->
@@ -529,6 +534,19 @@
           <h3><i class="fas fa-info-circle"></i> Seat Preview Legend</h3>
           <div class="seat-legend">
             <span class="seat-legend-item available">Available</span> <span class="seat-legend-item occupied">Occupied</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="busAnalytics" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-fire"></i> Seat Occupancy Heatmap</h3>
+          <p>Identify popular seats across your fleet.</p>
+          <select id="heatmapBusSelector" onchange="loadHeatmap()" style="margin-bottom: 20px;"></select>
+          <div id="seatHeatmap" class="heatmap-grid"></div>
+          <div class="seat-legend" style="margin-top: 20px;">
+            <span class="seat-legend-item"><div class="seat-mini" style="background: rgba(229,62,62,0.1);"></div> Low</span>
+            <span class="seat-legend-item"><div class="seat-mini" style="background: rgba(229,62,62,1);"></div> High Popularity</span>
           </div>
         </div>
       </div>

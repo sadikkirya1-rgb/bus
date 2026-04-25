@@ -216,6 +216,27 @@
     to { transform: scale(1); opacity: 1; }
 }
 
+/* HEATMAP STYLES */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+}
+
+.heatmap-cell {
+  padding: 15px 5px;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
 /* AMENITIES BADGE */
 .amenities-list {
     display: flex;
@@ -1039,6 +1060,11 @@ input:focus, select:focus, textarea:focus {
   background: #edf2f7;
   color: var(--text-light);
 }
+
+.bg-active { background: #48bb78; color: white; }
+.bg-boarded { background: #4299e1; color: white; }
+.bg-used { background: #a0aec0; color: white; }
+.bg-paid { background: #ed8936; color: white; }
 
 /* ADMIN SEARCH & CHARTS */
 .search-box {

@@ -9,6 +9,7 @@ let trips = JSON.parse(localStorage.getItem("trips") || "[]");
 let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
+let html5QrCode = null;
 
 /* DYNAMIC INFO TICKER */
 let currentInfoIndex = 0;
@@ -291,6 +292,7 @@ function renderBottomNav(){
       <button onclick="busTab('fleet')" id="b2"><i class="fas fa-bus"></i> Fleet</button>
       <button onclick="busTab('schedules')" id="b3"><i class="fas fa-calendar"></i> Schedules</button>
       <button onclick="busTab('scanner')" id="b5"><i class="fas fa-barcode"></i> Scanner</button>
+      <button onclick="busTab('analytics')" id="b6"><i class="fas fa-chart-pie"></i> Analytics</button>
       <button onclick="busTab('profile')" id="b4"><i class="fas fa-user-cog"></i> Profile</button>
     `;
   }
@@ -367,6 +369,7 @@ function busTab(tab){
   document.getElementById('busFleet').classList.add("hidden");
   document.getElementById('busSchedules').classList.add("hidden");
   document.getElementById('busScanner').classList.add("hidden");
+  document.getElementById('busAnalytics').classList.add("hidden");
   document.getElementById('busProfile').classList.add("hidden");
 
   // Remove active class from all bus nav buttons
@@ -387,11 +390,74 @@ function busTab(tab){
   }else if(tab==="scanner"){
     document.getElementById('busScanner').classList.remove("hidden");
     document.getElementById('b5').classList.add("active-tab");
+  }else if(tab==="analytics"){
+    document.getElementById('busAnalytics').classList.remove("hidden");
+    document.getElementById('b6').classList.add("active-tab");
+    loadHeatmap();
   }else if(tab==="profile"){
     document.getElementById('busProfile').classList.remove("hidden");
     document.getElementById('b4').classList.add("active-tab");
     loadBusProfile();
   }
+}
+
+/* QR SCANNER LOGIC */
+function startScanner() {
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    html5QrCode = new Html5Qrcode("reader");
+    
+    document.getElementById('startScannerBtn').classList.add('hidden');
+    document.getElementById('stopScannerBtn').classList.remove('hidden');
+    
+    html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+        stopScanner();
+        verifyTicket(decodedText);
+    }).catch(err => {
+        console.error(err);
+        showNotification("Camera access denied", "error");
+        stopScanner();
+    });
+}
+
+function stopScanner() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById('startScannerBtn').classList.remove('hidden');
+            document.getElementById('stopScannerBtn').classList.add('hidden');
+        }).catch(err => console.log(err));
+    }
+}
+
+/* HEATMAP LOGIC */
+function loadHeatmap() {
+    const heatmapContainer = document.getElementById('seatHeatmap');
+    const busSelector = document.getElementById('heatmapBusSelector');
+    
+    if (busSelector.options.length === 0) {
+        busSelector.innerHTML = '<option value="">All Fleet</option>';
+        const operatorBuses = buses.filter(b => b.operator === currentUser.name);
+        operatorBuses.forEach(b => {
+            busSelector.innerHTML += `<option value="${b.name}">${b.name}</option>`;
+        });
+    }
+
+    const selectedBusName = busSelector.value;
+    const seatCounts = Array(17).fill(0);
+    
+    tickets.filter(t => !selectedBusName || t.bus === selectedBusName)
+           .forEach(t => { if(t.seat) seatCounts[t.seat]++; });
+    
+    const max = Math.max(...seatCounts) || 1;
+    
+    heatmapContainer.innerHTML = '';
+    for(let i=1; i<=16; i++) {
+        const intensity = seatCounts[i] / max;
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        cell.style.backgroundColor = `rgba(229, 62, 62, ${Math.max(0.05, intensity)})`;
+        cell.innerHTML = `<small>#${i}</small><br><strong>${seatCounts[i]}</strong>`;
+        heatmapContainer.appendChild(cell);
+    }
 }
 
 /* TRIPS */
@@ -575,6 +641,7 @@ function confirmBooking(){
     payment: selectedPayment,
     passenger: document.querySelector('.p-name')?.value || currentUser.name,
     id: Math.floor(100000 + Math.random() * 900000),
+    status: "PAID", // Start at PAID for demo purposes once confirmed
     timestamp: new Date().toISOString()
   };
 
@@ -796,16 +863,24 @@ function renderTickets(){
   }
 
   tickets.forEach((t, index)=>{
-    const statusText = t.used ? "Completed" : "Confirmed";
-    const statusClass = t.used ? "bg-secondary" : "bg-primary";
+    // Status Lifecycle: CREATED → PAID → VERIFIED → ACTIVE → BOARDED → USED
+    let statusClass = "bg-secondary";
+    let statusLabel = t.status || "PAID";
     
+    if(statusLabel === "ACTIVE") statusClass = "bg-active";
+    else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
+    else if(statusLabel === "USED") statusClass = "bg-used";
+    else if(statusLabel === "PAID") statusClass = "bg-paid";
+    
+    const isUsed = statusLabel === "USED";
+
     let d = document.createElement("div");
-    d.className = "smart-ticket fade-in";
+    d.className = `smart-ticket fade-in ${isUsed ? 'used-ticket' : ''}`;
     d.id = `ticket-card-${index}`;
     d.innerHTML = `
       <div class="ticket-header">
         <div style="font-weight:bold; color:var(--primary-color);">SmartSeat Boarding Pass</div>
-        <div class="badge ${statusClass}">${statusText}</div>
+        <div class="badge ${statusClass}">${statusLabel}</div>
       </div>
       <div class="ticket-body" onclick="expandTicket(${index})">
         <div class="ticket-route">
@@ -819,9 +894,11 @@ function renderTickets(){
           <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
           <div class="info-item"><label>Booking ID</label><span>#${t.id}</span></div>
         </div>
-        <div class="ticket-qr-section">
+        <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''}">
           <div class="qr-container" id="qr-${t.id}"></div>
-          <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">Scan at Boarding</p>
+          <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">
+            ${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}
+          </p>
         </div>
       </div>
       <div class="ticket-footer">
@@ -833,7 +910,9 @@ function renderTickets(){
       </div>
     `;
     ticketsDiv.appendChild(d);
-    new QRCode(document.getElementById(`qr-${t.id}`), { text: `TICKET:${t.id}`, width: 80, height: 80 });
+    if (!isUsed) {
+        new QRCode(document.getElementById(`qr-${t.id}`), { text: `TICKET:${t.id}`, width: 80, height: 80 });
+    }
   });
 }
 
@@ -1186,6 +1265,7 @@ function loadBookings(){
   bookingList.innerHTML = '';
   
   tickets.forEach(ticket => {
+    let status = ticket.status || "PAID";
     let bookingCard = document.createElement('div');
     bookingCard.className = 'card';
     bookingCard.innerHTML = `
@@ -1194,11 +1274,44 @@ function loadBookings(){
       <p><i class="fas fa-route"></i> ${ticket.from} → ${ticket.to}</p>
       <p><i class="fas fa-calendar"></i> ${ticket.date} ${ticket.time}</p>
       <p><i class="fas fa-dollar-sign"></i> UGX ${ticket.price.toLocaleString()}</p>
-      <p><i class="fas fa-couch"></i> Seat ${ticket.seat}</p>
-      <button class="btn" onclick="cancelBooking(${ticket.id})"><i class="fas fa-times"></i> Cancel</button>
+      <p><i class="fas fa-info-circle"></i> Status: <strong>${status}</strong></p>
+      <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+        ${status === 'PAID' ? `<button class="btn btn-sm" style="background:#48bb78;" onclick="updateTicketStatus(${ticket.id}, 'VERIFIED')">Approve Payment</button>` : ''}
+        ${status === 'VERIFIED' ? `
+            <select id="opAssign-${ticket.id}" style="width: auto; padding: 5px;">
+                <option value="Operator_1">Bus 001 (Main)</option>
+                <option value="Operator_2">Bus 002 (Express)</option>
+            </select>
+            <button class="btn btn-sm" onclick="assignOperator(${ticket.id})">Assign & Activate</button>
+        ` : ''}
+        ${status === 'BOARDED' ? `<button class="btn btn-sm" style="background:var(--text-light);" onclick="updateTicketStatus(${ticket.id}, 'USED')">Mark as Used</button>` : ''}
+        <button class="btn btn-sm" style="background:var(--uganda-red);" onclick="cancelBooking(${ticket.id})">Cancel</button>
+      </div>
     `;
     bookingList.appendChild(bookingCard);
   });
+}
+
+function updateTicketStatus(id, newStatus) {
+    let ticket = tickets.find(t => t.id == id);
+    if(ticket) {
+        ticket.status = newStatus;
+        localStorage.setItem("tickets", JSON.stringify(tickets));
+        showNotification(`Ticket #${id} updated to ${newStatus}`, "success");
+        loadBookings();
+    }
+}
+
+function assignOperator(id) {
+    const op = document.getElementById(`opAssign-${id}`).value;
+    let ticket = tickets.find(t => t.id == id);
+    if(ticket) {
+        ticket.status = "ACTIVE";
+        ticket.assignedOperator = op;
+        localStorage.setItem("tickets", JSON.stringify(tickets));
+        showNotification(`Ticket assigned to ${op}`, "success");
+        loadBookings();
+    }
 }
 
 function loadActivity(){
@@ -1412,59 +1525,45 @@ function cancelBooking(ticketId){
 }
 
 /* TICKET SCANNER */
-function verifyTicket() {
-  let id = parseInt(document.getElementById('scanInput').value);
+function verifyTicket(scannedText) {
+  let id = scannedText ? parseInt(scannedText.replace('TICKET:', '')) : parseInt(document.getElementById('scanInput').value);
   let resultDiv = document.getElementById('scanResult');
   resultDiv.classList.remove('hidden');
 
-  let ticketIndex = id - 1;
-  let ticket = tickets[ticketIndex];
+  // Search for ticket by ID property rather than index
+  let ticket = tickets.find(t => t.id == id);
 
   if (!ticket) {
     resultDiv.style.background = "#fff5f5";
     resultDiv.style.color = "#c53030";
     resultDiv.innerHTML = `<h4><i class="fas fa-times-circle"></i> Invalid Ticket</h4><p>No ticket found with ID #${id}</p>`;
-  } else if (ticket.used) {
+  } else if (ticket.status === "BOARDED" || ticket.status === "USED") {
     resultDiv.style.background = "#fffaf0";
     resultDiv.style.color = "#9b2c2c";
-    resultDiv.innerHTML = `<h4><i class="fas fa-exclamation-triangle"></i> Already Used</h4><p>Ticket #${id} was scanned on ${new Date(ticket.usedAt).toLocaleString()}</p>`;
+    resultDiv.innerHTML = `<h4><i class="fas fa-exclamation-triangle"></i> Invalid State</h4><p>Ticket #${id} is already ${ticket.status}.</p>`;
+  } else if (ticket.status !== "ACTIVE") {
+    resultDiv.style.background = "#fff5f5";
+    resultDiv.style.color = "#c53030";
+    resultDiv.innerHTML = `<h4><i class="fas fa-clock"></i> Not Active</h4><p>Ticket status is ${ticket.status}. Needs Admin activation.</p>`;
   } else {
-    ticket.used = true;
-    ticket.usedAt = new Date().toISOString();
-    localStorage.setItem("tickets", JSON.stringify(tickets));
-    
     resultDiv.style.background = "#f0fff4";
     resultDiv.style.color = "#2f855a";
-    resultDiv.innerHTML = `<h4><i class="fas fa-check-circle"></i> Ticket Verified!</h4><p>Ticket #${id} for ${ticket.from} → ${ticket.to} is valid. Boarding allowed.</p>`;
-    addActivityLog(`Ticket #${id} scanned and verified.`);
+    resultDiv.innerHTML = `
+        <h4><i class="fas fa-check-circle"></i> Ticket Verified!</h4>
+        <p>Passenger: ${ticket.passenger} | Seat: #${ticket.seat}</p>
+        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="confirmBoarding(${ticket.id})">Confirm Boarding</button>
+    `;
   }
 }
 
-/* TICKET SCANNER */
-function verifyTicket() {
-  let id = parseInt(document.getElementById('scanInput').value);
-  let resultDiv = document.getElementById('scanResult');
-  resultDiv.classList.remove('hidden');
-
-  let ticketIndex = id - 1;
-  let ticket = tickets[ticketIndex];
-
-  if (!ticket) {
-    resultDiv.style.background = "#fff5f5";
-    resultDiv.style.color = "#c53030";
-    resultDiv.innerHTML = `<h4><i class="fas fa-times-circle"></i> Invalid Ticket</h4><p>No ticket found with ID #${id}</p>`;
-  } else if (ticket.used) {
-    resultDiv.style.background = "#fffaf0";
-    resultDiv.style.color = "#9b2c2c";
-    resultDiv.innerHTML = `<h4><i class="fas fa-exclamation-triangle"></i> Already Used</h4><p>Ticket #${id} was scanned on ${new Date(ticket.usedAt).toLocaleString()}</p>`;
-  } else {
-    ticket.used = true;
-    ticket.usedAt = new Date().toISOString();
-    localStorage.setItem("tickets", JSON.stringify(tickets));
-    
-    resultDiv.style.background = "#f0fff4";
-    resultDiv.style.color = "#2f855a";
-    resultDiv.innerHTML = `<h4><i class="fas fa-check-circle"></i> Ticket Verified!</h4><p>Ticket #${id} for ${ticket.from} → ${ticket.to} is valid. Boarding allowed.</p>`;
-    addActivityLog(`Ticket #${id} scanned and verified.`);
-  }
+function confirmBoarding(id) {
+    let ticket = tickets.find(t => t.id == id);
+    if(ticket) {
+        ticket.status = "BOARDED";
+        ticket.boardedAt = new Date().toISOString();
+        localStorage.setItem("tickets", JSON.stringify(tickets));
+        showNotification("Boarding Confirmed!", "success");
+        document.getElementById('scanResult').classList.add('hidden');
+        addActivityLog(`Ticket #${id} marked as BOARDED.`);
+    }
 }
