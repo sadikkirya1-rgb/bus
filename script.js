@@ -434,29 +434,27 @@ function renderUpcomingJourneys() {
     return `
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
         <div class="up-num">#${index + 1}</div>
-        <div class="up-actions-left">
-          ${isDeparted ? `<button class="quick-btn" style="background:#4299e1" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>` : ''}
-        </div>
         <div class="up-center">
-          <div class="up-terminal">Bus Terminal 1</div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="up-terminal">Bus Terminal 1</div>
+            <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">Departs: ${t.time}</div>
+          </div>
           <div class="up-route-inline">${t.from} → ${t.to}</div>
-          <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
-            <span style="color: var(--uganda-yellow);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+            <div style="font-size: 0.7rem; opacity: 0.8; color: var(--uganda-yellow);">
                 ${(amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 4px;"></i>`).join('')}
-            </span>
+            </div>
+            <div style="font-size: 0.75rem; opacity: 0.8;">${dateStr}</div>
           </div>
           <div class="progress-container">
             <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
           </div>
-          <div class="up-footer">
+          <div class="up-footer" style="display: flex; justify-content: space-between; align-items: center;">
             <span class="up-time-left">${timeLeftStr}</span>
-          </div>
-        </div>
-        <div class="up-right">
-          <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">Departs: ${t.time}</div>
-          <div style="font-size: 0.75rem; opacity: 0.8;">${dateStr}</div>
-          <div style="margin-top: 4px;">
-            ${isDeparted ? `<span class="live-dot"></span><span style="font-size:0.6rem; font-weight:bold; color:#48bb78;">LIVE</span>` : ''}
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${isDeparted ? `<span class="live-dot"></span><span style="font-size:0.6rem; font-weight:bold; color:#48bb78;">LIVE</span>` : ''}
+              ${isDeparted ? `<button class="quick-btn" style="background:#4299e1; width:22px; height:22px;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>` : ''}
+            </div>
           </div>
         </div>
       </div>
