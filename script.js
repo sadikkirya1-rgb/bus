@@ -439,20 +439,21 @@ function renderUpcomingJourneys() {
             <div class="up-terminal">Bus Terminal 1</div>
             <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">Departs: ${t.time}</div>
           </div>
-          <div class="up-route-inline">${t.from} → ${t.to}</div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
-            <div style="font-size: 0.7rem; opacity: 0.8; color: var(--uganda-yellow);">
-                ${(amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 4px;"></i>`).join('')}
-            </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="up-route-inline">${t.from} → ${t.to}</div>
             <div style="font-size: 0.75rem; opacity: 0.8;">${dateStr}</div>
           </div>
-          <div class="progress-container">
-            <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
-          </div>
-          <div class="up-footer" style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="up-time-left">${timeLeftStr}</span>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              ${isDeparted ? `<span class="live-dot"></span><span style="font-size:0.6rem; font-weight:bold; color:#48bb78;">LIVE</span>` : ''}
+          <div class="up-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; margin-right: 15px;">
+              <div style="font-size: 0.75rem; color: var(--uganda-yellow); display: flex; gap: 5px; flex-shrink: 0;">
+                ${(amenities || []).map(a => `<i class="fas fa-${a}"></i>`).join('')}
+              </div>
+              <div class="progress-container" style="flex: 1; margin: 0;">
+                <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+              <span class="up-time-left" style="white-space: nowrap; font-weight: 600;">${timeLeftStr}</span>
               ${isDeparted ? `<button class="quick-btn" style="background:#4299e1; width:22px; height:22px;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>` : ''}
             </div>
           </div>
