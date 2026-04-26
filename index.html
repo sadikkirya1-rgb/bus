@@ -167,16 +167,21 @@
     </div>
 
     <!-- USER -->
+    <div id="userHeader" class="user-header hidden fade-in">
+      <img src="https://ui-avatars.com/api/?name=Guest+User&background=007A3D&color=fff" id="headerProfilePic" class="header-avatar" alt="Profile">
+      <div class="user-welcome">Hello, <span id="welcomeName">Guest</span></div>
+      <div class="notification-bell" onclick="toggleNotificationDropdown(event)">
+        <i class="fas fa-bell"></i>
+        <span id="notifBadge" class="bell-badge hidden">0</span>
+        <div id="notifDropdown" class="notif-dropdown" onclick="event.stopPropagation()">
+          <div id="notifDropdownContent"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="userUI" class="hidden">
 
       <div id="userHome">
-        <div id="userHeader" class="user-header fade-in">
-          <img src="https://ui-avatars.com/api/?name=Guest+User&background=007A3D&color=fff" id="headerProfilePic" class="header-avatar" alt="Profile">
-          <div class="user-welcome">Hello, <span id="welcomeName">Guest</span></div>
-          <div class="notification-bell">
-            <i class="fas fa-bell"></i><span class="bell-dot"></span>
-          </div>
-        </div>
         <div class="card search-section fade-in">
           <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
             <div class="floating-label-group">

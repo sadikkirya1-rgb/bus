@@ -111,6 +111,56 @@ function reRunSearch(from, to) {
   loadTrips();
 }
 
+function updateNotificationBadge() {
+  const badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  const count = notifications.filter(n => !n.read).length;
+  if (count > 0) {
+    badge.innerText = count > 99 ? '99+' : count;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function toggleNotificationDropdown(event) {
+  event.stopPropagation();
+  const dropdown = document.getElementById('notifDropdown');
+  const isOpening = !dropdown.classList.contains('active');
+
+  if (isOpening) {
+    renderNotificationDropdown();
+    markNotificationsRead();
+  }
+  dropdown.classList.toggle('active');
+}
+
+function renderNotificationDropdown() {
+  const content = document.getElementById('notifDropdownContent');
+  if (!content) return;
+
+  const latest = [...notifications].sort((a, b) => b.id - a.id).slice(0, 3);
+
+  if (latest.length === 0) {
+    content.innerHTML = '<div class="notif-item">No notifications</div>';
+    return;
+  }
+
+  content.innerHTML = latest.map(n => `
+    <div class="notif-item">
+      <strong>${n.title}</strong>
+      <p>${n.message.substring(0, 40)}${n.message.length > 40 ? '...' : ''}</p>
+      <small>${new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+    </div>
+  `).join('') + '<div class="notif-view-all" onclick="userTab(\'support\')">View All</div>';
+}
+
+function markNotificationsRead() {
+  notifications.forEach(n => n.read = true);
+  localStorage.setItem('notifications', JSON.stringify(notifications));
+  updateNotificationBadge();
+}
+
 function renderUpcomingJourneys() {
   const container = document.getElementById('upcomingJourneyList');
   if (!container || !currentUser) return;
@@ -306,8 +356,22 @@ function init(){
   document.getElementById('sidebarToggle').classList.add('hidden'); // Hide sidebar toggle by default
   document.getElementById('adminClock').classList.add('hidden'); // Hide admin clock by default
 
-  document.querySelector('.topbar').classList.remove('hidden'); // Always show the topbar
+  if (role === 'admin') {
+    document.querySelector('.topbar').classList.remove('hidden');
+  } else {
+    document.querySelector('.topbar').classList.add('hidden');
+  }
   document.getElementById('topbarNav').classList.remove('hidden'); // Ensure topbarNav is visible
+
+  // Handle User Header visibility and content for non-admin roles
+  const userHeader = document.getElementById('userHeader');
+  if (role === 'user' || role === 'bus') {
+    userHeader.classList.remove('hidden');
+    if (document.getElementById('welcomeName')) document.getElementById('welcomeName').innerText = currentUser.name;
+    if (document.getElementById('headerProfilePic')) document.getElementById('headerProfilePic').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=007A3D&color=fff`;
+  } else {
+    userHeader.classList.add('hidden');
+  }
 
   // Back to Top functionality
   window.onscroll = function() {
@@ -325,15 +389,10 @@ function init(){
     bottomNav.classList.remove("hidden");
     renderBottomNav();
     userTab("home");
-    
-    // Update Welcome Header
-    if (document.getElementById('welcomeName')) document.getElementById('welcomeName').innerText = currentUser.name;
-    if (document.getElementById('headerProfilePic')) document.getElementById('headerProfilePic').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=007A3D&color=fff`;
-    
     renderRecentSearches();
     renderUpcomingJourneys();
+    updateNotificationBadge();
     tickets.forEach(scheduleDepartureNotification);
-    showNotification(`Welcome back, ${currentUser.name}!`, "success");
   } else if (role === "bus") {
     busUI.classList.remove("hidden");
     bottomNav.classList.remove("hidden");
@@ -1196,7 +1255,13 @@ function showLogin() {
 }
 
 // Call init() on page load to start the app in guest mode
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  window.addEventListener('click', () => {
+    const dropdown = document.getElementById('notifDropdown');
+    if (dropdown) dropdown.classList.remove('active');
+  });
+});
 
 /* SELECT PAYMENT */
 function selectPayment(method){
@@ -1656,11 +1721,13 @@ function sendNotification(){
     type: type,
     title: title,
     message: message,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    read: false
   };
   
   notifications.push(notification);
   localStorage.setItem('notifications', JSON.stringify(notifications));
+  updateNotificationBadge();
   
   alert('Notification sent successfully!');
   document.getElementById('notificationTitle').value = '';

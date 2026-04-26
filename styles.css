@@ -972,9 +972,16 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 5px;
-  margin-bottom: 15px;
+  padding: 25px 30px;
+  margin: -30px -30px 20px -30px;
   color: white;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-avatar {
@@ -993,20 +1000,88 @@ input, select, textarea {
 }
 
 .notification-bell {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   position: relative;
   cursor: pointer;
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.bell-dot {
+.notif-dropdown {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
+  top: 55px;
+  right: 0;
+  width: 260px;
+  background: rgba(45, 55, 72, 0.95);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  z-index: 1001;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.notif-dropdown.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.notif-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.notif-item strong { display: block; font-size: 0.85rem; color: var(--primary-color); margin-bottom: 2px; }
+.notif-item p { margin: 0; font-size: 0.75rem; color: white; opacity: 0.9; line-height: 1.3; }
+.notif-item small { font-size: 0.65rem; color: rgba(255, 255, 255, 0.5); display: block; margin-top: 4px; }
+
+.notif-view-all {
+  padding: 10px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  background: rgba(0,0,0,0.2);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.notif-view-all:hover {
+  background: rgba(0,0,0,0.4);
+  text-decoration: underline;
+}
+
+.bell-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
   background: var(--uganda-red);
-  border-radius: 50%;
+  color: white;
+  font-size: 0.65rem;
+  padding: 2px 4px;
+  border-radius: 10px;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid white;
+  font-weight: bold;
 }
 
 /* TICKET TABLE STYLES */
