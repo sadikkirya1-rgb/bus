@@ -368,7 +368,9 @@ function renderUpcomingJourneys() {
           ? `<span class="delayed-dot"></span> DELAYED` 
           : `<span class="live-dot"></span> LIVE`);
 
-    const dateStr = new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const dateStr = new Date(t.date).toLocaleDateString('en-GB', { 
+      weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
+    });
 
     return `
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
