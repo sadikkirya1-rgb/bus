@@ -376,6 +376,8 @@ function init(){
   // Back to Top functionality
   window.onscroll = function() {
     let btn = document.getElementById("backToTop");
+    
+    // Back to top button visibility
     if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) btn.classList.remove("hidden");
     else btn.classList.add("hidden");
   };

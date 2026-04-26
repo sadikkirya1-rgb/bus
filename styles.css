@@ -972,16 +972,9 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 35px 30px 15px 30px;
+  padding: calc(45px + env(safe-area-inset-top)) 15px 15px 15px;
   margin: -30px -30px 20px -30px;
   color: white;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-avatar {
@@ -997,6 +990,21 @@ input, select, textarea {
   font-weight: 600;
   text-align: center;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.user-prompt {
+  font-size: 0.85rem;
+  font-weight: 400;
+  opacity: 0.8;
+  animation: promptFadeIn 1.2s ease-out forwards;
+}
+
+@keyframes promptFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 0.8; transform: translateY(0); }
 }
 
 .notification-bell {
@@ -1025,7 +1033,7 @@ input, select, textarea {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-  z-index: 1001;
+  z-index: 3000;
   overflow: hidden;
   opacity: 0;
   visibility: hidden;
@@ -1521,7 +1529,7 @@ input:focus, select:focus, textarea:focus {
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 1000;
+  z-index: 6000;
   max-width: 300px;
 }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SmartSeat - Premium Bus Booking</title>
 <link rel="stylesheet" href="styles.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -169,7 +169,10 @@
     <!-- USER -->
     <div id="userHeader" class="user-header hidden fade-in">
       <img src="https://ui-avatars.com/api/?name=Guest+User&background=007A3D&color=fff" id="headerProfilePic" class="header-avatar" alt="Profile">
-      <div class="user-welcome">Hello, <span id="welcomeName">Guest</span></div>
+      <div class="user-welcome">
+        <div>Hello, <span id="welcomeName">Guest</span></div>
+        <div class="user-prompt">Where you want to Go ?</div>
+      </div>
       <div class="notification-bell" onclick="toggleNotificationDropdown(event)">
         <i class="fas fa-bell"></i>
         <span id="notifBadge" class="bell-badge hidden">0</span>
@@ -195,6 +198,7 @@
               <input id="to" placeholder=" " list="ugandaCitiesTo" required>
               <label for="to">where Are You Going ?</label>
             </div>
+            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: -5px; margin-left: 5px;">Select your destination from our wide network of cities</p>
             <div class="date-buttons" style="display: flex; gap: 10px;">
               <button type="button" class="btn date-btn active" id="btnToday" onclick="setSearchDate('today')">Today</button>
               <button type="button" class="btn date-btn" id="btnTomorrow" onclick="setSearchDate('tomorrow')">Tomorrow</button>
