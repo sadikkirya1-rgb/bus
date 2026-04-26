@@ -972,7 +972,7 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 25px 30px;
+  padding: 35px 30px 15px 30px;
   margin: -30px -30px 20px -30px;
   color: white;
   position: sticky;
