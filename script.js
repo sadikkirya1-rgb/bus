@@ -362,8 +362,13 @@ function renderUpcomingJourneys() {
     if (isDelayed) barColor = 'var(--uganda-yellow)';
     if (isDeparted && !isDelayed) barColor = '#48bb78';
 
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
     const timeLeftStr = diffMs > 0 
-      ? `${Math.floor(diffHours)}h ${Math.floor((diffMs / (1000 * 60)) % 60)}m left`
+      ? `${h > 0 ? h + 'h ' : ''}${m}m ${s}s left`
       : (isDelayed 
           ? `<span class="delayed-dot"></span> DELAYED` 
           : `<span class="live-dot"></span> LIVE`);
@@ -386,6 +391,12 @@ function renderUpcomingJourneys() {
           <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
             <span class="badge bg-primary" style="padding: 1px 4px;">${t.busType || 'Standard'}</span> 
             Seat #${t.seat}
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
+          </div>
+          <div class="up-footer">
+            <span class="up-time-left">${timeLeftStr}</span>
           </div>
         </div>
         <div class="up-right">
@@ -661,9 +672,9 @@ function init(){
     renderUpcomingJourneys();
     updateNotificationBadge();
     
-    // Auto-refresh upcoming journeys every minute
+    // Auto-refresh upcoming journeys every second for real-time countdown
     if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
-    window.upcomingRefreshInterval = setInterval(renderUpcomingJourneys, 60000);
+    window.upcomingRefreshInterval = setInterval(renderUpcomingJourneys, 1000);
 
     tickets.forEach(scheduleDepartureNotification);
   } else if (role === "bus") {
