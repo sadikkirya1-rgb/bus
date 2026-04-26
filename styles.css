@@ -1111,6 +1111,7 @@ input, select, textarea {
 .up-time-left {
   font-size: 0.75rem;
   opacity: 0.8;
+  font-variant-numeric: tabular-nums;
 }
 
 .up-right {

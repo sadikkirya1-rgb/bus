@@ -10,6 +10,7 @@ let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
 let html5QrCode = null;
+let activeSearchSchedules = null; // Tracks current search results for real-time updates
 
 // Development constants
 const TEST_USER_EMAIL = "user@smartseat.ug";
@@ -90,6 +91,55 @@ if (tickets.length === 0) {
 if (notifications.length === 0) {
   notifications = [{ id: 1, title: "Welcome to SmartSeat!", message: "Enjoy your journey with Uganda's premium bus platform.", timestamp: new Date().toISOString(), read: false }];
   localStorage.setItem("notifications", JSON.stringify(notifications));
+}
+
+if (trips.length === 0) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  trips = [
+    {
+      id: 1,
+      busName: "Swift Express",
+      from: "Kampala",
+      to: "Jinja",
+      date: tomorrowStr,
+      time: "08:00 AM",
+      price: 25000,
+      busType: "Standard",
+      amenities: ["wifi", "charging-station"],
+      totalSeats: 28,
+      availableSeats: 22
+    },
+    {
+      id: 2,
+      busName: "Swift Express",
+      from: "Kampala",
+      to: "Jinja",
+      date: tomorrowStr,
+      time: "02:00 PM",
+      price: 25000,
+      busType: "Standard",
+      amenities: ["wifi"],
+      totalSeats: 28,
+      availableSeats: 15
+    },
+    {
+      id: 3,
+      busName: "Link Coaches",
+      from: "Kampala",
+      to: "Mbarara",
+      date: tomorrowStr,
+      time: "09:00 AM",
+      price: 30000,
+      busType: "Luxury",
+      amenities: ["wifi", "snowflake", "charging-station"],
+      totalSeats: 28,
+      availableSeats: 10
+    }
+  ];
+  localStorage.setItem("trips", JSON.stringify(trips));
 }
 
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
@@ -672,9 +722,12 @@ function init(){
     renderUpcomingJourneys();
     updateNotificationBadge();
     
-    // Auto-refresh upcoming journeys every second for real-time countdown
+    // Auto-refresh UI components every second for real-time countdowns
     if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
-    window.upcomingRefreshInterval = setInterval(renderUpcomingJourneys, 1000);
+    window.upcomingRefreshInterval = setInterval(() => {
+        renderUpcomingJourneys();
+        if (activeSearchSchedules) refreshActiveSchedules();
+    }, 1000);
 
     tickets.forEach(scheduleDepartureNotification);
   } else if (role === "bus") {
@@ -1021,25 +1074,30 @@ function loadTrips(){
   }
 
   saveRecentSearch(from, to);
+  const tripsContainer = document.getElementById('trips');
+  if (!tripsContainer) return;
+  
+  activeSearchSchedules = null; // Reset drill-down view
+  tripsContainer.innerHTML = "";
 
-  document.getElementById('trips').innerHTML = "";
-
-  // Filter trips based on search
   let availableTrips = trips.filter(t => 
     t.from.toLowerCase().includes(from.toLowerCase()) && 
     t.to.toLowerCase().includes(to.toLowerCase()) &&
     t.date === date
   );
 
-  // Sort trips
-  if (sortOrder === "priceLow") availableTrips.sort((a, b) => a.price - b.price);
-  else if (sortOrder === "priceHigh") availableTrips.sort((a, b) => b.price - a.price);
-  else if (sortOrder === "time") availableTrips.sort((a, b) => a.time.localeCompare(b.time));
+  // Group results by Operator
+  const operatorGroups = availableTrips.reduce((acc, t) => {
+    if (!acc[t.busName]) acc[t.busName] = [];
+    acc[t.busName].push(t);
+    return acc;
+  }, {});
 
-  let tripsContainer = document.getElementById('trips');
+  const operatorList = Object.keys(operatorGroups);
+  const opCountText = operatorList.length > 0 ? `${operatorList.length} Operators` : 'Buses';
+
   showUserScreen('trips');
 
-  // Construct the Header Card
   const fullDate = new Date(date).toLocaleDateString('en-GB', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
@@ -1056,7 +1114,7 @@ function loadTrips(){
         </div>
         <div style="text-align: right; color: white;">
           <div style="font-weight: 800; font-size: 1rem; color: var(--uganda-yellow);">${from} → ${to}</div>
-          <div style="font-size: 0.75rem; opacity: 0.9;">${fullDate}</div>
+          <div style="font-size: 0.75rem; opacity: 0.9;">${fullDate} | ${opCountText}</div>
         </div>
       </div>
     </div>
@@ -1064,12 +1122,8 @@ function loadTrips(){
 
   tripsContainer.innerHTML = headerCard;
 
-  if(availableTrips.length === 0) {
+  if(operatorList.length === 0) {
     // Show default buses if no scheduled trips
-    // Ensure default buses also have amenities for consistent display
-    // Note: These are just examples, in a real app, default buses would also come from a data source
-    // and have their amenities defined.
-
     let defaultBuses = [
       {name: "Swift Express", route: `${from} - ${to}`, price: 25000, type: "Standard", time: "08:00", amenities: ['wifi', 'charging-station']},
       {name: "Link Coaches", route: `${from} - ${to}`, price: 30000, type: "Luxury", time: "10:00", amenities: ['wifi', 'snowflake', 'charging-station']},
@@ -1078,52 +1132,114 @@ function loadTrips(){
 
     defaultBuses.forEach(b=>{
       let d=document.createElement("div");
-      d.className="upcoming-card";
+      d.className="upcoming-card fade-in";
       d.style.marginBottom = "12px";
+      d.onclick = () => alert(`${b.name} has daily departures for this route. Please visit the terminal or call support to book manually as online schedules are not uploaded for this date.`);
       d.innerHTML=`
         <div class="up-num"><i class="fas fa-bus" style="font-size:1.2rem"></i></div>
         <div class="up-center">
           <div class="verified-badge"><i class="fas fa-check-circle"></i> Verified</div>
-          <div class="up-terminal">${b.name} | ${b.type}</div>
-          <div class="up-route-inline">${b.route}</div>
-          <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
-            ${(b.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
-          </div>
-          <button class='view-ticket-btn' style="margin:0; width:fit-content" onclick='showBusDetails("${b.name}", ${b.price}, ${JSON.stringify(b.amenities || [])})'>Book Now</button>
+          <div class="up-terminal">${b.name} | <span style="color:var(--uganda-yellow)">Available Daily</span></div>
+          <div class="up-route-inline">Contact operator at Terminal for booking.</div>
         </div>
         <div class="up-right">
-          <div class="up-label">Fare</div>
-          <div style="font-weight: 800; font-size: 0.9rem;">UGX ${b.price.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; opacity: 0.8; margin-top:5px;"><i class="far fa-clock"></i> ${b.time}</div>
+          <i class="fas fa-chevron-right" style="opacity:0.5"></i>
         </div>
       `;
       tripsContainer.appendChild(d);
     });
   } else {
-    availableTrips.forEach(t=>{
-      let d=document.createElement("div");
-      d.className="upcoming-card";
+    operatorList.forEach(name => {
+      const opTrips = operatorGroups[name];
+      let d = document.createElement("div");
+      d.className = "upcoming-card fade-in";
       d.style.marginBottom = "12px";
-      d.innerHTML=`
-        <div class="up-num"><i class="fas fa-bus" style="font-size:1.2rem"></i></div>
+      d.onclick = () => renderOperatorSchedules(name, opTrips);
+      d.innerHTML = `
+        <div class="up-num"><i class="fas fa-building" style="font-size:1.2rem"></i></div>
         <div class="up-center">
-          <div class="verified-badge"><i class="fas fa-check-circle"></i> Verified</div>
-          <div class="up-terminal">${t.busName} | ${t.busType}</div>
-          <div class="up-route-inline">${t.from} → ${t.to}</div>
-          <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
-            ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
-          </div>
-          <button class='view-ticket-btn' style="margin:0; width:fit-content" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
+          <div class="verified-badge"><i class="fas fa-check-circle"></i> Registered</div>
+          <div class="up-terminal">${name}</div>
+          <div class="up-route-inline">${opTrips.length} Schedules Found</div>
         </div>
         <div class="up-right">
-          <div class="up-label">Fare</div>
-          <div style="font-weight: 800; font-size: 0.9rem;">UGX ${t.price.toLocaleString()}</div>
-          <div style="font-size: 0.75rem; opacity: 0.8; margin-top:5px;"><i class="far fa-clock"></i> ${t.time}</div>
+          <div class="up-label">View</div>
+          <i class="fas fa-chevron-right" style="color:var(--uganda-yellow); margin-top:5px;"></i>
         </div>
       `;
       tripsContainer.appendChild(d);
     });
   }
+}
+
+/**
+ * Displays the detailed schedules for a specific operator with countdowns.
+ */
+function renderOperatorSchedules(operatorName, opTrips) {
+    activeSearchSchedules = { name: operatorName, data: opTrips };
+    const tripsContainer = document.getElementById('trips');
+    const date = document.getElementById('date').value;
+    
+    tripsContainer.innerHTML = `
+        <div class="card" style="background: rgba(255,255,255,0.05); margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.2);">
+            <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
+                <i class="fas fa-arrow-left"></i> Back to Operators
+            </button>
+            <h4 style="margin: 15px 0 0 0; color: white;">${operatorName} Schedules</h4>
+            <small style="opacity: 0.7;">Route: ${document.getElementById('from').value} → ${document.getElementById('to').value}</small>
+        </div>
+        <div id="activeSchedulesList"></div>
+    `;
+    refreshActiveSchedules();
+}
+
+/**
+ * Updates the countdown and bars on the schedule results in real-time.
+ */
+function refreshActiveSchedules() {
+    const listContainer = document.getElementById('activeSchedulesList');
+    if (!listContainer || !activeSearchSchedules) return;
+
+    const now = new Date();
+
+    listContainer.innerHTML = activeSearchSchedules.data.map((t, index) => {
+        const departure = new Date(`${t.date} ${t.time || '08:00 AM'}`);
+        const diffMs = departure - now;
+        const windowMs = 24 * 60 * 60 * 1000;
+        let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
+        
+        const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+
+        let barColor = 'var(--primary-color)';
+        if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
+
+        const timeLeftStr = diffMs > 0 
+            ? `${h > 0 ? h + 'h ' : ''}${m}m ${s}s left`
+            : `<span class="live-dot"></span> DEPARTING`;
+
+        return `
+        <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
+          <div class="up-num">#${index + 1}</div>
+          <div class="up-center">
+            <div class="up-terminal"><i class="far fa-clock"></i> ${t.time} | ${t.busType}</div>
+            <div style="font-weight:bold; font-size:1rem; margin-bottom:5px;">UGX ${t.price.toLocaleString()}</div>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                <span style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600;">${timeLeftStr}</span>
+                <button class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
+            </div>
+          <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
+            ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
+          </div>
+          </div>
+        </div>
+        `;
+    }).join('');
 }
 
 /* BUS DETAILS SCREEN */
