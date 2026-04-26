@@ -259,28 +259,87 @@ function renderUpcomingJourneys() {
     return;
   }
 
-  container.innerHTML = userTickets.map((t, index) => `
-    <div class="upcoming-card">
-      <div class="up-num">${index + 1}</div>
-      <div class="up-center">
-        <strong>Bus Terminal 1</strong>
-        <p>${t.from} → ${t.to}</p>
-        <button class="view-ticket-btn" onclick="expandTicketById(${t.id})">View Ticket</button>
-      </div>
-      <div class="up-right">
-        <div class="up-time-group">
-          <div class="up-time">${t.time || '08:00 AM'}</div>
-          <div class="up-date">${new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</div>
+  const now = new Date();
+
+  container.innerHTML = userTickets.map((t, index) => {
+    const departure = new Date(`${t.date} ${t.time || '08:00 AM'}`);
+    const diffMs = departure - now;
+    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffMins = diffMs / (1000 * 60);
+    
+    // Calculate progress: assuming a 24-hour lead-up window
+    const windowMs = 24 * 60 * 60 * 1000;
+    let progress = 0;
+    if (diffMs > 0 && diffMs < windowMs) {
+      progress = ((windowMs - diffMs) / windowMs) * 100;
+    } else if (diffMs <= 0) {
+      progress = 100;
+    }
+
+    const isUrgent = diffMs > 0 && diffMins < 30;
+    const isDeparted = diffMs <= 0;
+    const barColor = isUrgent ? 'var(--uganda-red)' : (isDeparted ? '#48bb78' : 'var(--primary-color)');
+
+    const timeLeftStr = diffMs > 0 
+      ? `${Math.floor(diffHours)}h ${Math.floor((diffMs / (1000 * 60)) % 60)}m left`
+      : `<span class="live-dot"></span> LIVE`;
+
+    const dateStr = new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+
+    return `
+      <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
+        <div class="up-num">${index + 1}</div>
+        <div class="up-center">
+          <div class="up-terminal">Bus Terminal 1</div>
+          <div class="up-route-inline">${t.from} → ${t.to}</div>
+          <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
+            <span class="badge bg-primary" style="padding: 1px 4px;">${t.busType || 'Standard'}</span> 
+            Seat #${t.seat}
+          </div>
         </div>
-        <div class="up-notify-toggle">
-          <label class="switch" title="Notify Me">
-            <input type="checkbox" ${t.notify ? 'checked' : ''} onchange="toggleJourneyNotify(this, ${t.id})">
-            <span class="slider round"></span>
-          </label>
+        <div class="up-right">
+          <div class="up-label">Departure</div>
+          <div style="font-weight: 800; font-size: 0.9rem;">${t.time}</div>
+          <div style="font-size: 0.75rem; opacity: 0.8;">${dateStr}</div>
+          <div style="margin-top: 4px;">
+            ${isDeparted ? `<span class="live-dot"></span><span style="font-size:0.6rem; font-weight:bold; color:#48bb78;">LIVE</span>` : ''}
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+function showTerminalBuses(from, to, date) {
+  // Fill the search fields to simulate a real search
+  document.getElementById('from').value = from;
+  document.getElementById('to').value = to;
+  document.getElementById('date').value = date;
+  
+  // Set the "Others" button text if necessary
+  const othersBtn = document.getElementById('btnOthers');
+  if (othersBtn) othersBtn.innerText = date;
+  
+  // Highlight the correct search parameters and trigger loadTrips
+  setSearchDate('others');
+  loadTrips();
+  
+  // Scroll to the trips results
+  document.getElementById('trips').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelJourney(id) {
+  if (confirm("Are you sure you want to cancel this trip?")) {
+    const ticketIndex = tickets.findIndex(t => t.id == id);
+    if (ticketIndex !== -1) {
+      tickets[ticketIndex].status = "CANCELLED";
+      localStorage.setItem("tickets", JSON.stringify(tickets));
+      showNotification("Trip #" + id + " cancelled.", "info");
+      addActivityLog(`User cancelled trip #${id}`);
+      renderUpcomingJourneys();
+      if (document.getElementById('userTickets').classList.contains('hidden') === false) renderTickets();
+    }
+  }
 }
 
 function expandTicketById(id) {
@@ -477,6 +536,11 @@ function init(){
     renderRecentSearches();
     renderUpcomingJourneys();
     updateNotificationBadge();
+    
+    // Auto-refresh upcoming journeys every minute
+    if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
+    window.upcomingRefreshInterval = setInterval(renderUpcomingJourneys, 60000);
+
     tickets.forEach(scheduleDepartureNotification);
   } else if (role === "bus") {
     busUI.classList.remove("hidden");
