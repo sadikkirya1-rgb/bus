@@ -701,6 +701,8 @@ body{
   margin-bottom: 30px;
   padding: 15px 25px;
   background: transparent;
+  position: relative;
+  z-index: 1000;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   border-radius: var(--border-radius);
@@ -974,6 +976,8 @@ input, select, textarea {
   justify-content: space-between;
   padding: calc(45px + env(safe-area-inset-top)) 15px 15px 15px;
   margin: -30px -30px 20px -30px;
+  position: relative;
+  z-index: 1000;
   color: white;
 }
 
@@ -1037,15 +1041,16 @@ input, select, textarea {
   overflow: hidden;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-20px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top right;
+  transform: translateY(-10px) scale(0.95);
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0.3s;
   pointer-events: none;
 }
 
 .notif-dropdown.active {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
@@ -1529,7 +1534,7 @@ input:focus, select:focus, textarea:focus {
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 6000;
+  z-index: 10000;
   max-width: 300px;
 }
 

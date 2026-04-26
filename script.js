@@ -10,6 +10,88 @@ let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
 let html5QrCode = null;
+
+// Development constants
+const TEST_USER_EMAIL = "user@smartseat.ug";
+const TEST_USER_NAME = "John Doe";
+
+// Seed sample data for development if localStorage is empty
+if (users.length === 0) {
+  users = [
+    { id: 1, name: TEST_USER_NAME, email: TEST_USER_EMAIL, phone: "+256 700 111 222", password: "1234", role: "user", photo: "https://i.pravatar.cc/150?u=john" },
+    { id: 2, name: "Sarah Namuli", email: "sarah@smartseat.ug", phone: "+256 700 333 444", password: "1234", role: "user", photo: "https://i.pravatar.cc/150?u=sarah" },
+    { id: 3, name: "Admin User", email: "admin@smartseat.ug", phone: "+256 700 999 999", password: "1234", role: "admin", photo: "https://i.pravatar.cc/150?u=admin" }
+  ];
+  localStorage.setItem("users", JSON.stringify(users));
+}
+
+if (tickets.length === 0) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  
+  const dayAfter = new Date();
+  dayAfter.setDate(dayAfter.getDate() + 2);
+  const dayAfterStr = dayAfter.toISOString().split('T')[0];
+
+  tickets = [
+    {
+      id: 102938,
+      bus: "Swift Express",
+      seat: 5,
+      price: 25000,
+      date: tomorrowStr,
+      time: "08:00 AM",
+      from: "Kampala",
+      to: "Jinja",
+      payment: "mtn",
+      passenger: TEST_USER_NAME,
+      email: TEST_USER_EMAIL,
+      status: "PAID",
+      notify: true,
+      timestamp: new Date().toISOString()
+    },
+    {
+      id: 495821,
+      bus: "Link Coaches",
+      seat: 12,
+      price: 30000,
+      date: tomorrowStr,
+      time: "10:30 AM",
+      from: "Kampala",
+      to: "Mbarara",
+      payment: "airtel",
+      passenger: TEST_USER_NAME,
+      email: TEST_USER_EMAIL,
+      status: "ACTIVE",
+      notify: false,
+      timestamp: new Date().toISOString()
+    },
+    {
+      id: 882734,
+      bus: "Global Coaches",
+      seat: 22,
+      price: 25000,
+      date: dayAfterStr,
+      time: "02:00 PM",
+      from: "Kampala",
+      to: "Masaka",
+      payment: "card",
+      passenger: TEST_USER_NAME,
+      email: TEST_USER_EMAIL,
+      status: "PAID",
+      notify: true,
+      timestamp: new Date().toISOString()
+    }
+  ];
+  localStorage.setItem("tickets", JSON.stringify(tickets));
+}
+
+if (notifications.length === 0) {
+  notifications = [{ id: 1, title: "Welcome to SmartSeat!", message: "Enjoy your journey with Uganda's premium bus platform.", timestamp: new Date().toISOString(), read: false }];
+  localStorage.setItem("notifications", JSON.stringify(notifications));
+}
+
 const ugandaCitiesList = ["Kampala", "Jinja", "Entebbe", "Mbarara", "Gulu", "Lira", "Mbale", "Masaka", "Fort Portal", "Arua", "Soroti", "Kabale", "Hoima", "Tororo"];
 let notificationTimeouts = {};
 
@@ -167,9 +249,10 @@ function renderUpcomingJourneys() {
 
   // Filter tickets for current user and future/current status
   const userTickets = tickets.filter(t => 
-    (t.passenger === currentUser.name || t.email === currentUser.email) && 
-    (t.status === "PAID" || t.status === "ACTIVE" || t.status === "VERIFIED")
-  ).slice(0, 3); // Show top 3
+    (t.email?.toLowerCase() === currentUser.email?.toLowerCase() || 
+     t.passenger === currentUser.name) && 
+    ["PAID", "ACTIVE", "VERIFIED", "BOARDED"].includes(t.status)
+  ).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 3);
 
   if (userTickets.length === 0) {
     container.innerHTML = `<p style="text-align:center; color:rgba(255,255,255,0.6); font-size:0.8rem;">No upcoming trips scheduled.</p>`;
@@ -368,7 +451,7 @@ function init(){
   if (role === 'user' || role === 'bus') {
     userHeader.classList.remove('hidden');
     if (document.getElementById('welcomeName')) document.getElementById('welcomeName').innerText = currentUser.name;
-    if (document.getElementById('headerProfilePic')) document.getElementById('headerProfilePic').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=007A3D&color=fff`;
+    if (document.getElementById('headerProfilePic')) document.getElementById('headerProfilePic').src = currentUser.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=007A3D&color=fff`;
   } else {
     userHeader.classList.add('hidden');
   }
@@ -896,6 +979,7 @@ function confirmBooking(){
     to: document.getElementById('to').value,
     payment: selectedPayment,
     passenger: document.querySelector('.p-name')?.value || currentUser.name,
+    email: currentUser.email,
     id: Math.floor(100000 + Math.random() * 900000),
     status: "PAID", // Start at PAID for demo purposes once confirmed
     timestamp: new Date().toISOString()
