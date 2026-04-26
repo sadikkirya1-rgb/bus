@@ -1096,6 +1096,11 @@ function selectSeat(busName, price){
       document.getElementById('displaySeatPrice').innerText = 'UGX ' + price.toLocaleString();
     };
     seats.appendChild(s);
+    
+    // Add aisle spacer after every 2nd seat in a row (physical 2+2 layout)
+    if (i % 2 === 0 && i % 4 !== 0) {
+      seats.appendChild(document.createElement("div"));
+    }
   }
 }
 
@@ -2073,7 +2078,7 @@ function verifyTicket(scannedText) {
         <p>Passenger: ${ticket.passenger} | Seat: <span id="opCurrentSeat">#${ticket.seat || 'N/A'}</span></p>
         <div id="opSeatMapContainer" class="hidden" style="margin-top: 15px; border-top: 1px dashed #2f855a; padding-top: 10px;">
             <p style="font-size: 0.8rem; margin-bottom: 5px; font-weight: bold;">Manual Seat Assignment:</p>
-            <div id="opSeatMap" class="seats" style="grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 0;"></div>
+            <div id="opSeatMap" class="seats" style="grid-template-columns: repeat(2, 1fr) 20px repeat(2, 1fr); gap: 5px; margin: 0;"></div>
         </div>
         <div style="display: flex; gap: 10px; margin-top: 15px;">
             <button class="btn" style="flex: 1; background: #2b6cb0;" onclick="toggleOpSeatMap(${ticket.id})">
@@ -2120,6 +2125,11 @@ function toggleOpSeatMap(ticketId) {
             addActivityLog(`Seat for Ticket #${ticket.id} changed to #${i} by Operator.`);
         };
         mapDiv.appendChild(s);
+        
+        // Add aisle spacer
+        if (i % 2 === 0 && i % 4 !== 0) {
+            mapDiv.appendChild(document.createElement("div"));
+        }
     }
 }
 
