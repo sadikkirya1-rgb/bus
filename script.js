@@ -1,7 +1,7 @@
 let currentUser = JSON.parse(localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser") || "null");
 let role = currentUser ? currentUser.role : null;
 let selectedSeat = null;
-let selectedBus = null;
+let selectedBus = null; // This will still hold bus details like name and price
 let selectedPayment = null;
 let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
 let buses = JSON.parse(localStorage.getItem("buses") || "[]");
@@ -134,6 +134,15 @@ function logAdminCall(passengerName, phone, notes) {
     const logMsg = `ADMIN CALL: Reached ${passengerName} (${phone}). Note: ${notes}`;
     addActivityLog(logMsg);
     showNotification("Call logged for " + passengerName, "info");
+}
+
+/**
+ * Validates a Ugandan phone number (starts with 07... or +2567...)
+ */
+function validateUgandaPhone(phone) {
+    const cleanPhone = phone.replace(/[\s\-()]/g, '');
+    const regex = /^(\+256|0)7[0-9]{8}$/;
+    return regex.test(cleanPhone);
 }
 
 function formatTicketSMS(t) {
@@ -405,7 +414,7 @@ function shareETA(id) {
 function showUserScreen(screenId) {
   const screens = ['search-section', 'upcomingJourneys', 'trips', 'busDetailsBox', 'seatBox', 'pointsBox', 'passengerBox', 'bookingConfirm'];
   screens.forEach(s => {
-    const el = document.getElementById(s);
+    const el = document.getElementById(s); // seatBox will now always be hidden or removed
     if (el) el.classList.add('hidden');
   });
   
@@ -1119,48 +1128,9 @@ function showBusDetails(name, price, amenities) {
     ).join('');
 }
 
-function proceedToSeats() {
-    selectSeat(selectedBus.name, selectedBus.price);
-}
-
-/* SEATS */
-function selectSeat(busName, price){
-  selectedBus = {name: busName, price: price};
-  const seatsContainer = document.getElementById('seats');
-  showUserScreen('seatBox');
-  seatsContainer.innerHTML="";
-
-  // Simulate some booked seats for a standard 28-seat bus
-  let bookedSeats = [3, 7, 12, 15, 22];
-
-  // Standard medium bus usually has around 28-32 seats
-  for(let i=1; i<=28; i++){
-    let s=document.createElement("div");
-    s.className="seat";
-    if(bookedSeats.includes(i)) s.classList.add("booked");
-    s.innerText=i;
-    s.onclick=()=>{
-      if(s.classList.contains("booked")) return;
-      selectedSeat=i;
-      document.querySelectorAll(".seat").forEach(x=>x.classList.remove("active"));
-      s.classList.add("active");
-      // Real-time price display
-      document.getElementById('seatPriceDisplay').style.display = 'block';
-      document.getElementById('displaySeatNum').innerText = '#' + i;
-      document.getElementById('displaySeatPrice').innerText = 'UGX ' + price.toLocaleString();
-    };
-    seatsContainer.appendChild(s);
-    
-    // Add aisle spacer after every 2nd seat in a row (physical 2+2 layout)
-    if (i % 2 === 0 && i % 4 !== 0) {
-      seatsContainer.appendChild(document.createElement("div"));
-    }
-  }
-}
-
 /* BOOKING FLOW ENHANCEMENTS */
 function showBoardingPoints() {
-  if (!selectedSeat) return alert("Please select a seat first");
+  // No seat selection for users, proceed directly to points
   showUserScreen('pointsBox');
 }
 
@@ -1168,31 +1138,111 @@ function showPassengerInfo() {
   const pCountEl = document.getElementById('passengerCount');
   const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
   const container = document.getElementById('passengerForms');
-  container.innerHTML = "";
-  for(let i = 1; i <= count; i++) {
-    container.innerHTML += `
-      <div class="passenger-entry">
-        <h5>Passenger ${i}</h5>
-        <input placeholder="Full Name" class="p-name" required>
-        <input placeholder="Contact Number" class="p-phone">
-        <div style="display:flex; gap:10px;">
-          <input placeholder="Age" type="number" class="p-age">
-          <select class="p-gender"><option>Male</option><option>Female</option></select>
+  // Preserve entered info: Only re-render if the passenger count has changed
+  if (container.querySelectorAll('.passenger-entry').length !== count) {
+    container.innerHTML = "";
+    for(let i = 1; i <= count; i++) {
+      container.innerHTML += `
+        <div class="passenger-entry">
+          <h5>Passenger ${i}</h5>
+          <input placeholder="Full Name" class="p-name" required>
+          <div style="position: relative;" class="phone-input-wrapper">
+            <input placeholder="Contact Number" class="p-phone">
+            <span class="phone-validation-indicator" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); pointer-events: none;"></span>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <input placeholder="Age" type="number" class="p-age">
+            <select class="p-gender"><option>Male</option><option>Female</option></select>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
   }
+
+  // Attach real-time validation listeners to phone inputs (only if they haven't been attached)
+  container.querySelectorAll('.passenger-entry .phone-input-wrapper').forEach(wrapper => {
+    const phoneInput = wrapper.querySelector('.p-phone');
+    const indicator = wrapper.querySelector('.phone-validation-indicator');
+
+    // Check if listener already exists to prevent multiple attachments on re-render
+    if (!phoneInput.dataset.listenerAttached) {
+      phoneInput.oninput = () => {
+        const val = phoneInput.value.trim();
+        if (validateUgandaPhone(val)) {
+          indicator.innerHTML = '<i class="fas fa-check-circle" style="color: #48bb78;"></i>';
+        } else {
+          indicator.innerHTML = val.length > 0 ? '<i class="fas fa-times-circle" style="color: #e53e3e; opacity: 0.7;"></i>' : '';
+        }
+      };
+      phoneInput.dataset.listenerAttached = 'true'; // Mark as attached
+    }
+  });
+
+  // Reset "Same as Account Holder" checkbox state
+  const sameAsAccountHolderCheckbox = document.getElementById('sameAsAccountHolder');
+  if (sameAsAccountHolderCheckbox) {
+    sameAsAccountHolderCheckbox.checked = false;
+  }
+
+  showUserScreen('passengerBox');
+}
+
+function clearPassengerForms() {
+  const container = document.getElementById('passengerForms');
+  container.querySelectorAll('.passenger-entry').forEach(entry => {
+    entry.querySelector('.p-name').value = '';
+    entry.querySelector('.p-phone').value = '';
+    entry.querySelector('.p-age').value = '';
+    entry.querySelector('.p-gender').value = 'Male';
+    const indicator = entry.querySelector('.phone-validation-indicator');
+    if (indicator) indicator.innerHTML = '';
+  });
+  const sameAsAccountHolderCheckbox = document.getElementById('sameAsAccountHolder');
+  if (sameAsAccountHolderCheckbox) {
+    sameAsAccountHolderCheckbox.checked = false;
+  }
+}
+
+function fillFromAccountHolder() {
+  const checkbox = document.getElementById('sameAsAccountHolder');
+  if (checkbox.checked && currentUser) {
+    const firstPassengerEntry = document.querySelector('.passenger-entry');
+    if (firstPassengerEntry) {
+      firstPassengerEntry.querySelector('.p-name').value = currentUser.name || '';
+      firstPassengerEntry.querySelector('.p-phone').value = currentUser.phone || '';
+    }
+  }
+
   showUserScreen('passengerBox');
 }
 
 function showBookingSummary() {
   const pCountEl = document.getElementById('passengerCount');
   const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
+
+  const pName = document.querySelector('.p-name')?.value.trim();
+  const pPhone = document.querySelector('.p-phone')?.value.trim();
+
+  if (!pName) {
+    alert("Please enter passenger name.");
+    return;
+  }
+
+  if (!pPhone || !validateUgandaPhone(pPhone)) {
+    alert("Please enter a valid Ugandan phone number (e.g., 07xx... or +2567xx...).");
+    return;
+  }
+
   showUserScreen('bookingConfirm');
   document.getElementById('bookingDetails').innerHTML = `
     <strong>Bus:</strong> ${selectedBus.name}<br>
     <strong>Route:</strong> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
     <strong>Points:</strong> ${document.getElementById('boardingPoint').value} → ${document.getElementById('droppingPoint').value}<br>
+    <div style="margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; border-left: 4px solid var(--uganda-yellow);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; opacity: 0.7;">Passenger Contact</div>
+        <div style="font-weight: 600;">${pName}</div>
+        <div style="font-size: 0.9rem;">${pPhone}</div>
+    </div>
     <strong>Total:</strong> UGX ${(selectedBus.price * count).toLocaleString()}
   `;
 }
@@ -1201,7 +1251,8 @@ function showBookingSummary() {
 function confirmBooking(){
   if(!selectedPayment) return alert("Select payment method");
 
-  let ticket = {
+  selectedSeat = 1; // Auto-assign a default seat as there is no user selection
+  let ticket = { 
     bus: selectedBus.name,
     seat: selectedSeat,
     price: selectedBus.price,
@@ -1409,7 +1460,7 @@ function renderSchedules(){
     d.className="card";
     d.innerHTML=`
       <h4>${t.busName}</h4>
-      <p><i class="fas fa-route"></i> ${t.from} - ${t.to}</p>
+      <p><i class="fas fa-route"></i> ${t.from} → ${t.to}</p>
       <p><i class="fas fa-calendar"></i> ${t.date} | <i class="fas fa-clock"></i> ${t.time}</p>
       <p><strong>Seats:</strong> ${t.availableSeats || 16} available out of ${t.totalSeats || 16}</p>
       <div class="seat-preview" style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 10px;">

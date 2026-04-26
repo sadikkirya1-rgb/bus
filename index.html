@@ -230,38 +230,15 @@
 
         <!-- BUS DETAILS SCREEN -->
         <div id="busDetailsBox" class="card hidden fade-in">
-            <button class="screen-back-btn" onclick="showUserScreen('trips')"><i class="fas fa-arrow-left"></i> Back to Results</button>
+            <button class="screen-back-btn" onclick="showUserScreen('trips')"><i class="fas fa-arrow-left"></i> Back to Trips</button>
             <h3 id="detailsBusName">Bus Details</h3>
             <div id="detailsAmenities" class="amenities-list"></div>
-            <div id="detailsRoute" style="margin: 15px 0; color: rgba(255,255,255,0.8);"></div>
-            <button class="btn" onclick="proceedToSeats()"><i class="fas fa-chair"></i> Select Seat</button>
-        </div>
-
-        <div id="seatBox" class="card hidden">
-          <button class="screen-back-btn" onclick="showUserScreen('busDetailsBox')"><i class="fas fa-arrow-left"></i> Back</button>
-          <h3><i class="fas fa-chair"></i> Select Your Seat</h3>
-          <div class="bus-front-indicator" style="margin-bottom: 5px;">
-            <i class="fas fa-dharmachakra"></i>
-            <span>FRONT OF BUS</span>
-          </div>
-          <div class="seat-legend" style="margin-bottom: 15px;">
-            <div class="seat-legend-item"><div class="seat-mini" style="background: #f8f9fa; border: 1px solid #cbd5e0;"></div> Available</div>
-            <div class="seat-legend-item"><div class="seat-mini active"></div> Selected</div>
-            <div class="seat-legend-item"><div class="seat-mini occupied"></div> Booked</div>
-          </div>
-          <div id="seats" class="seats"></div>
-          <div id="seatPriceDisplay" class="card" style="background: rgba(0,0,0,0.2); border: 1px dashed white; margin-top: 10px; display: none;">
-              <p style="margin: 0;">Selected Seat: <span id="displaySeatNum">#</span></p>
-              <p style="margin: 0; font-weight: bold;">Price: <span id="displaySeatPrice">UGX 0</span></p>
-          </div>
-          <div style="margin-top: 20px;">
-            <button class="btn" onclick="showBoardingPoints()"><i class="fas fa-arrow-right"></i> Select Points</button>
-          </div>
+            <div id="detailsRoute" style="margin: 15px 0; color: rgba(255,255,255,0.8);"></div>            <button class="btn" onclick="showBoardingPoints()"><i class="fas fa-arrow-right"></i> Select Points</button>
         </div>
 
         <!-- BOARDING & DROPPING POINTS -->
         <div id="pointsBox" class="card hidden">
-          <button class="screen-back-btn" onclick="showUserScreen('seatBox')"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="screen-back-btn" onclick="showUserScreen('busDetailsBox')"><i class="fas fa-arrow-left"></i> Back to Bus Details</button>
           <h3><i class="fas fa-map-marker-alt"></i> Select Points</h3>
           <label>Boarding Point</label>
           <select id="boardingPoint">
@@ -280,23 +257,24 @@
 
         <!-- PASSENGER INFO -->
         <div id="passengerBox" class="card hidden">
-          <button class="screen-back-btn" onclick="showUserScreen('pointsBox')"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="screen-back-btn" onclick="showUserScreen('pointsBox')"><i class="fas fa-arrow-left"></i> Back to Points</button>
           <h3><i class="fas fa-id-card"></i> Passenger Details</h3>
           <div id="passengerForms">
             <!-- Dynamically generated based on count -->
-            <div class="input-group">
-              <input placeholder="Full Name" class="p-name">
-              <input placeholder="Age" type="number" class="p-age">
-              <input placeholder="Contact Number" class="p-phone">
-              <select class="p-gender"><option>Male</option><option>Female</option></select>
-            </div>
           </div>
           <hr style="border: 0.5px solid rgba(255,255,255,0.2); margin: 15px 0;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <input type="checkbox" id="sameAsAccountHolder" style="width: auto;" onchange="fillFromAccountHolder()">
+            <label for="sameAsAccountHolder" style="font-size: 0.85rem;">Same as Account Holder</label>
+          </div>
           <div style="display: flex; align-items: center; gap: 10px;">
             <input type="checkbox" id="savePassenger" style="width: auto;">
             <label for="savePassenger" style="font-size: 0.85rem;">Save for future bookings</label>
           </div>
-          <button class="btn" style="margin-top:15px;" onclick="showBookingSummary()"><i class="fas fa-file-invoice-dollar"></i> Review Booking</button>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn" style="flex: 1; background: #e53e3e;" onclick="clearPassengerForms()"><i class="fas fa-eraser"></i> Clear All</button>
+            <button class="btn" style="flex: 1;" onclick="showBookingSummary()"><i class="fas fa-file-invoice-dollar"></i> Review Booking</button>
+          </div>
         </div>
 
         <div id="bookingConfirm" class="card hidden">
