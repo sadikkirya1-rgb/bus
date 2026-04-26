@@ -11,6 +11,7 @@ let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
 let html5QrCode = null;
 const ugandaCitiesList = ["Kampala", "Jinja", "Entebbe", "Mbarara", "Gulu", "Lira", "Mbale", "Masaka", "Fort Portal", "Arua", "Soroti", "Kabale", "Hoima", "Tororo"];
+let notificationTimeouts = {};
 
 /* DYNAMIC INFO TICKER */
 let currentInfoIndex = 0;
@@ -108,6 +109,106 @@ function reRunSearch(from, to) {
   document.getElementById('to').value = to;
   filterToCities();
   loadTrips();
+}
+
+function renderUpcomingJourneys() {
+  const container = document.getElementById('upcomingJourneyList');
+  if (!container || !currentUser) return;
+
+  // Filter tickets for current user and future/current status
+  const userTickets = tickets.filter(t => 
+    (t.passenger === currentUser.name || t.email === currentUser.email) && 
+    (t.status === "PAID" || t.status === "ACTIVE" || t.status === "VERIFIED")
+  ).slice(0, 3); // Show top 3
+
+  if (userTickets.length === 0) {
+    container.innerHTML = `<p style="text-align:center; color:rgba(255,255,255,0.6); font-size:0.8rem;">No upcoming trips scheduled.</p>`;
+    return;
+  }
+
+  container.innerHTML = userTickets.map((t, index) => `
+    <div class="upcoming-card">
+      <div class="up-num">${index + 1}</div>
+      <div class="up-center">
+        <strong>Bus Terminal 1</strong>
+        <p>${t.from} → ${t.to}</p>
+        <button class="view-ticket-btn" onclick="expandTicketById(${t.id})">View Ticket</button>
+      </div>
+      <div class="up-right">
+        <div class="up-time-group">
+          <div class="up-time">${t.time || '08:00 AM'}</div>
+          <div class="up-date">${new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</div>
+        </div>
+        <div class="up-notify-toggle">
+          <label class="switch" title="Notify Me">
+            <input type="checkbox" ${t.notify ? 'checked' : ''} onchange="toggleJourneyNotify(this, ${t.id})">
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function expandTicketById(id) {
+  const idx = tickets.findIndex(t => t.id == id);
+  if (idx !== -1) expandTicket(idx);
+}
+
+function scheduleDepartureNotification(ticket) {
+  if (!ticket.notify || !ticket.date) return;
+  
+  if (notificationTimeouts[ticket.id]) {
+    clearTimeout(notificationTimeouts[ticket.id]);
+  }
+
+  // Parse departure. Default to 08:00 if no time set.
+  const departureTime = ticket.time || "08:00";
+  const departureDate = new Date(`${ticket.date}T${departureTime.includes(':') ? departureTime : '08:00'}`);
+  
+  if (isNaN(departureDate.getTime())) return;
+
+  const notifyTime = departureDate.getTime() - (15 * 60 * 1000);
+  const now = new Date().getTime();
+  const delay = notifyTime - now;
+
+  if (delay > 0) {
+    notificationTimeouts[ticket.id] = setTimeout(() => {
+      if (Notification.permission === "granted") {
+        new Notification("SmartSeat Departure Alert", {
+          body: `Your bus from ${ticket.from} to ${ticket.to} departs in 15 minutes!`,
+          icon: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png'
+        });
+      }
+      delete notificationTimeouts[ticket.id];
+    }, delay);
+  }
+}
+
+async function toggleJourneyNotify(el, ticketId) {
+  const ticket = tickets.find(t => t.id == ticketId);
+  if (!ticket) return;
+
+  if (el.checked) {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      el.checked = false;
+      showNotification("Notification permission denied", "error");
+    } else {
+      ticket.notify = true;
+      localStorage.setItem("tickets", JSON.stringify(tickets));
+      scheduleDepartureNotification(ticket);
+      showNotification("Alerts enabled for trip #" + ticketId, "success");
+    }
+  } else {
+    ticket.notify = false;
+    localStorage.setItem("tickets", JSON.stringify(tickets));
+    if (notificationTimeouts[ticketId]) {
+      clearTimeout(notificationTimeouts[ticketId]);
+      delete notificationTimeouts[ticketId];
+    }
+    showNotification("Alerts disabled", "info");
+  }
 }
 
 /* AUTH METHODS */
@@ -225,6 +326,8 @@ function init(){
     renderBottomNav();
     userTab("home");
     renderRecentSearches();
+    renderUpcomingJourneys();
+    tickets.forEach(scheduleDepartureNotification);
     showNotification(`Welcome back, ${currentUser.name}!`, "success");
   } else if (role === "bus") {
     busUI.classList.remove("hidden");
@@ -363,6 +466,7 @@ function userTab(tab){
   if(tab==="home"){
     document.getElementById('userHome').classList.remove("hidden");
     document.getElementById("u1").classList.add("active-tab");
+    renderUpcomingJourneys();
   }else if(tab==="tickets"){
     if (role === null) { // If guest, tickets require login
       showAuthPage();
@@ -558,9 +662,6 @@ function loadTrips(){
   let time = document.getElementById('time') ? document.getElementById('time').value : "";
   let sortOrder = document.getElementById('sortTrips') ? document.getElementById('sortTrips').value : "time";
 
-  let searchWifi = document.getElementById('searchWifi').checked;
-  let searchAc = document.getElementById('searchAc').checked;
-  let searchUsb = document.getElementById('searchUsb').checked;
   if(!from || !to) {
     alert("Please fill in all search fields");
     return;
@@ -575,13 +676,7 @@ function loadTrips(){
     t.from.toLowerCase().includes(from.toLowerCase()) && 
     t.to.toLowerCase().includes(to.toLowerCase()) &&
     t.date === date
-  ).filter(trip => {
-    // Filter by amenities
-    if (searchWifi && (!trip.amenities || !trip.amenities.includes('wifi'))) return false;
-    if (searchAc && (!trip.amenities || !trip.amenities.includes('snowflake'))) return false;
-    if (searchUsb && (!trip.amenities || !trip.amenities.includes('charging-station'))) return false;
-    return true;
-  });
+  );
 
   // Sort trips
   if (sortOrder === "priceLow") availableTrips.sort((a, b) => a.price - b.price);
@@ -747,6 +842,7 @@ function confirmBooking(){
   bookingConfirm.classList.add("hidden");
   showNotification("Payment successful! Booking ID: #" + ticket.id, "success");
   showNotification("Booking confirmed! Check your tickets.", "success");
+  renderUpcomingJourneys();
   userTab("tickets");
 }
 
@@ -957,58 +1053,79 @@ function renderTickets(){
     return;
   }
 
-  tickets.forEach((t, index)=>{
-    // Status Lifecycle: CREATED → PAID → VERIFIED → ACTIVE → BOARDED → USED
-    let statusClass = "bg-secondary";
-    let statusLabel = t.status || "PAID";
-    
-    if(statusLabel === "ACTIVE") statusClass = "bg-active";
-    else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
-    else if(statusLabel === "USED") statusClass = "bg-used";
-    else if(statusLabel === "PAID") statusClass = "bg-paid";
-    
-    const isUsed = statusLabel === "USED";
+  let table = document.createElement('table');
+  table.className = 'ticket-table fade-in';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Ticket #</th>
+        <th>Date</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  let tbody = table.querySelector('tbody');
+  let hiddenCards = document.createElement('div');
+  hiddenCards.className = 'hidden';
 
-    let d = document.createElement("div");
-    d.className = `smart-ticket fade-in ${isUsed ? 'used-ticket' : ''}`;
-    d.id = `ticket-card-${index}`;
-    d.innerHTML = `
-      <div class="ticket-header">
-        <div style="font-weight:bold; color:var(--primary-color);">SmartSeat Boarding Pass</div>
-        <div class="badge ${statusClass}">${statusLabel}</div>
-      </div>
-      <div class="ticket-body" onclick="expandTicket(${index})">
-        <div class="ticket-route">
-          <div class="route-node"><h2>${t.from.substring(0,3).toUpperCase()}</h2><p>${t.from}</p></div>
-          <div class="route-divider"><i class="fas fa-bus"></i></div>
-          <div class="route-node" style="text-align:right;"><h2>${t.to.substring(0,3).toUpperCase()}</h2><p>${t.to}</p></div>
+  tickets.forEach((t, index) => {
+      let statusClass = "bg-secondary";
+      let statusLabel = t.status || "PAID";
+      if(statusLabel === "ACTIVE") statusClass = "bg-active";
+      else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
+      else if(statusLabel === "USED") statusClass = "bg-used";
+      else if(statusLabel === "PAID") statusClass = "bg-paid";
+      
+      const isUsed = statusLabel === "USED";
+
+      let tr = document.createElement('tr');
+      tr.onclick = () => expandTicket(index);
+      tr.innerHTML = `
+        <td>#${t.id}</td>
+        <td>${t.date}</td>
+        <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+      `;
+      tbody.appendChild(tr);
+
+      let d = document.createElement("div");
+      d.id = `ticket-card-${index}`;
+      d.innerHTML = `
+        <div class="smart-ticket ${isUsed ? 'used-ticket' : ''}">
+          <div class="ticket-header">
+            <div style="font-weight:bold; color:var(--primary-color);">SmartSeat Boarding Pass</div>
+            <div class="badge ${statusClass}">${statusLabel}</div>
+          </div>
+          <div class="ticket-body">
+            <div class="ticket-route">
+              <div class="route-node"><h2>${t.from.substring(0,3).toUpperCase()}</h2><p>${t.from}</p></div>
+              <div class="route-divider"><i class="fas fa-bus"></i></div>
+              <div class="route-node" style="text-align:right;"><h2>${t.to.substring(0,3).toUpperCase()}</h2><p>${t.to}</p></div>
+            </div>
+            <div class="ticket-info-grid">
+              <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
+              <div class="info-item"><label>Seat</label><span>#${t.seat}</span></div>
+              <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
+              <div class="info-item"><label>Booking ID</label><span>#${t.id}</span></div>
+            </div>
+            <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''}">
+              <div class="qr-container"></div>
+              <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
+            </div>
+          </div>
+          <div class="ticket-footer">
+            <div>Total Fare: UGX ${t.price.toLocaleString()}</div>
+            <div style="display:flex; gap:5px;">
+              <button class="icon-btn" onclick="downloadTicketAsImage(${index}, event)" title="Download"><i class="fas fa-download"></i></button>
+              <button class="icon-btn" onclick="shareTicket(${index})" title="Share"><i class="fas fa-share-alt"></i></button>
+            </div>
+          </div>
         </div>
-        <div class="ticket-info-grid">
-          <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
-          <div class="info-item"><label>Seat</label><span>#${t.seat}</span></div>
-          <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
-          <div class="info-item"><label>Booking ID</label><span>#${t.id}</span></div>
-        </div>
-        <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''}">
-          <div class="qr-container" id="qr-${t.id}"></div>
-          <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">
-            ${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}
-          </p>
-        </div>
-      </div>
-      <div class="ticket-footer">
-        <div>Total Fare: UGX ${t.price.toLocaleString()}</div>
-        <div style="display:flex; gap:5px;">
-          <button class="icon-btn" onclick="downloadTicketAsImage(${index}, event)" title="Download"><i class="fas fa-download"></i></button>
-          <button class="icon-btn" onclick="shareTicket(${index})" title="Share"><i class="fas fa-share-alt"></i></button>
-        </div>
-      </div>
-    `;
-    ticketsDiv.appendChild(d);
-    if (!isUsed) {
-        new QRCode(document.getElementById(`qr-${t.id}`), { text: `TICKET:${t.id}`, width: 80, height: 80 });
-    }
+      `;
+      hiddenCards.appendChild(d);
   });
+  ticketsDiv.appendChild(table);
+  ticketsDiv.appendChild(hiddenCards);
 }
 
 function expandTicket(index) {

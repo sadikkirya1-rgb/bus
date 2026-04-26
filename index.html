@@ -171,7 +171,6 @@
 
       <div id="userHome">
         <div class="card search-section fade-in">
-          <h3><i class="fas fa-search"></i> Search Trips</h3>
           <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
             <div class="floating-label-group">
               <input id="from" placeholder=" " list="ugandaCitiesFrom" required oninput="filterToCities()">
@@ -193,20 +192,6 @@
             <datalist id="ugandaCitiesFrom"></datalist>
             <datalist id="ugandaCitiesTo"></datalist>
           </div>
-          <div style="margin: 10px 0; text-align: left;">
-            <label style="font-size: 0.9rem; color: #ffffff; display: block; margin-bottom: 5px;">Amenities</label>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; color: #ffffff;">
-              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                <input type="checkbox" id="searchWifi" style="width: auto; margin: 0;"> <i class="fas fa-wifi"></i> WiFi
-              </label>
-              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                <input type="checkbox" id="searchAc" style="width: auto; margin: 0;"> <i class="fas fa-snowflake"></i> AC
-              </label>
-              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                <input type="checkbox" id="searchUsb" style="width: auto; margin: 0;"> <i class="fas fa-charging-station"></i> USB
-              </label>
-            </div>
-          </div>
           <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
           
           <div id="recentSearches" class="recent-searches-container hidden">
@@ -216,22 +201,8 @@
         </div>
 
         <div id="upcomingJourneys" style="margin-top: -10px;">
-          <h4 style="color: white; margin: 0 0 10px 10px; font-size: 0.9rem; opacity: 0.9;">Upcoming Journeys</h4>
-          <div class="upcoming-journey-list">
-            <!-- Static Cards as requested -->
-            <div class="upcoming-card">
-              <div class="up-left"><strong>Bus terminal 1</strong><p>Kampala → Jinja</p></div>
-              <div class="up-right"><span>1</span><small>08:00 AM | 24 Oct</small></div>
-            </div>
-            <div class="upcoming-card">
-              <div class="up-left"><strong>Bus terminal 1</strong><p>Kampala → Gulu</p></div>
-              <div class="up-right"><span>2</span><small>10:30 AM | 25 Oct</small></div>
-            </div>
-            <div class="upcoming-card">
-              <div class="up-left"><strong>Bus terminal 1</strong><p>Entebbe → Mbale</p></div>
-              <div class="up-right"><span>3</span><small>02:15 PM | 26 Oct</small></div>
-            </div>
-          </div>
+          <h4 style="color: white; text-align: center; margin: 0 0 15px 0; font-size: 1.1rem; opacity: 0.9;">Upcoming Journeys</h4>
+          <div id="upcomingJourneyList" class="upcoming-journey-list"></div>
         </div>
 
         <div id="trips" class="grid"></div>
@@ -336,24 +307,9 @@
         </div>
         <div class="card fade-in" style="background: transparent; box-shadow: none; border: none;">
           <h3 style="color: white;"><i class="fas fa-ticket-alt"></i> My Boarding Passes</h3>
-          <div id="tickets" class="grid"></div>
+          <div id="tickets"></div>
         </div>
 
-        <div class="card" style="margin-top: 30px;">
-          <h3><i class="fas fa-star"></i> Recent Reviews</h3>
-          <div class="reviews">
-            <div class="review">
-              <div class="stars">★★★★★</div>
-              <p>"Excellent service! Bus was on time and clean."</p>
-              <small>- Sarah from Kampala</small>
-            </div>
-            <div class="review">
-              <div class="stars">★★★★☆</div>
-              <p>"Good experience overall. Would recommend."</p>
-              <small>- John from Gulu</small>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ADMIN SUPPORT TICKETS -->
@@ -790,6 +746,7 @@
 <!-- FULLSCREEN TICKET MODAL -->
 <div id="ticketFullscreen" class="modal hidden" onclick="closeFullscreenTicket()">
   <div class="modal-content-ticket" id="fullscreenTicketContent" onclick="event.stopPropagation()"></div>
+  <button class="close-fullscreen" onclick="closeFullscreenTicket()" title="Close"><i class="fas fa-times"></i></button>
 </div>
 
 <script src="script.js"></script>
