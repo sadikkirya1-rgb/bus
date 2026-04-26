@@ -74,6 +74,42 @@ function closeOnboarding() {
   document.getElementById('onboardingModal').classList.add('hidden');
 }
 
+function saveRecentSearch(from, to) {
+  let searches = JSON.parse(localStorage.getItem("recentSearches") || "[]");
+  // Remove duplicate if it exists
+  searches = searches.filter(s => !(s.from === from && s.to === to));
+  // Add to front
+  searches.unshift({ from, to });
+  // Keep last 3
+  localStorage.setItem("recentSearches", JSON.stringify(searches.slice(0, 3)));
+  renderRecentSearches();
+}
+
+function renderRecentSearches() {
+  const searches = JSON.parse(localStorage.getItem("recentSearches") || "[]");
+  const container = document.getElementById('recentSearchChips');
+  const wrapper = document.getElementById('recentSearches');
+  
+  if (searches.length === 0) {
+    wrapper.classList.add('hidden');
+    return;
+  }
+  
+  wrapper.classList.remove('hidden');
+  container.innerHTML = searches.map(s => `
+    <div class="search-chip" onclick="reRunSearch('${s.from}', '${s.to}')">
+      <i class="fas fa-history"></i> ${s.from} → ${s.to}
+    </div>
+  `).join('');
+}
+
+function reRunSearch(from, to) {
+  document.getElementById('from').value = from;
+  document.getElementById('to').value = to;
+  filterToCities();
+  loadTrips();
+}
+
 /* AUTH METHODS */
 function toggleAuthMethod(method) {
   if (method === 'phone') {
@@ -188,7 +224,7 @@ function init(){
     bottomNav.classList.remove("hidden");
     renderBottomNav();
     userTab("home");
-    startInfoTicker();
+    renderRecentSearches();
     showNotification(`Welcome back, ${currentUser.name}!`, "success");
   } else if (role === "bus") {
     busUI.classList.remove("hidden");
@@ -529,6 +565,8 @@ function loadTrips(){
     alert("Please fill in all search fields");
     return;
   }
+
+  saveRecentSearch(from, to);
 
   document.getElementById('trips').innerHTML = "";
 

@@ -173,11 +173,17 @@
         <div class="card search-section fade-in">
           <h3><i class="fas fa-search"></i> Search Trips</h3>
           <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
-            <input id="from" placeholder="Boarding From" list="ugandaCitiesFrom" required oninput="filterToCities()">
+            <div class="floating-label-group">
+              <input id="from" placeholder=" " list="ugandaCitiesFrom" required oninput="filterToCities()">
+              <label for="from">Boarding From</label>
+            </div>
             <button type="button" class="swap-btn" onclick="swapLocations()">
               <i class="fas fa-exchange-alt fa-rotate-90"></i>
             </button>
-            <input id="to" placeholder="where Are You Going ?" list="ugandaCitiesTo" required>
+            <div class="floating-label-group">
+              <input id="to" placeholder=" " list="ugandaCitiesTo" required>
+              <label for="to">where Are You Going ?</label>
+            </div>
             <div class="date-buttons" style="display: flex; gap: 10px;">
               <button type="button" class="btn date-btn active" id="btnToday" onclick="setSearchDate('today')">Today</button>
               <button type="button" class="btn date-btn" id="btnTomorrow" onclick="setSearchDate('tomorrow')">Tomorrow</button>
@@ -202,11 +208,29 @@
             </div>
           </div>
           <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
+          
+          <div id="recentSearches" class="recent-searches-container hidden">
+            <p style="font-size: 0.8rem; opacity: 0.8; margin: 10px 0 5px 0;">Recent Searches</p>
+            <div id="recentSearchChips" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+          </div>
         </div>
 
-        <div id="dynamicInfoCard" class="card" style="text-align: center; min-height: 110px; display: flex; align-items: center; justify-content: center; margin-top: -10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-          <div id="tickerContent" style="transition: opacity 0.5s ease-in-out; opacity: 1;">
-            <!-- Content will be injected via JS -->
+        <div id="upcomingJourneys" style="margin-top: -10px;">
+          <h4 style="color: white; margin: 0 0 10px 10px; font-size: 0.9rem; opacity: 0.9;">Upcoming Journeys</h4>
+          <div class="upcoming-journey-list">
+            <!-- Static Cards as requested -->
+            <div class="upcoming-card">
+              <div class="up-left"><strong>Bus terminal 1</strong><p>Kampala → Jinja</p></div>
+              <div class="up-right"><span>1</span><small>08:00 AM | 24 Oct</small></div>
+            </div>
+            <div class="upcoming-card">
+              <div class="up-left"><strong>Bus terminal 1</strong><p>Kampala → Gulu</p></div>
+              <div class="up-right"><span>2</span><small>10:30 AM | 25 Oct</small></div>
+            </div>
+            <div class="upcoming-card">
+              <div class="up-left"><strong>Bus terminal 1</strong><p>Entebbe → Mbale</p></div>
+              <div class="up-right"><span>3</span><small>02:15 PM | 26 Oct</small></div>
+            </div>
           </div>
         </div>
 

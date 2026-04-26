@@ -862,6 +862,77 @@ input, select, textarea {
   transition: var(--transition);
 }
 
+/* FLOATING LABELS */
+.floating-label-group {
+  position: relative;
+  width: 100%;
+}
+
+.floating-label-group label {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.floating-label-group input:focus ~ label,
+.floating-label-group input:not(:placeholder-shown) ~ label {
+  top: -8px;
+  left: 10px;
+  font-size: 0.7rem;
+  color: white;
+  background: var(--primary-color);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* RECENT SEARCHES */
+.search-chip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.search-chip:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* UPCOMING JOURNEY CARDS */
+.upcoming-journey-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upcoming-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+
+.up-left strong { font-size: 0.9rem; display: block; }
+.up-left p { margin: 0; font-size: 0.8rem; opacity: 0.8; }
+.up-right { text-align: right; }
+.up-right span { 
+  display: block; font-size: 1.2rem; font-weight: 800; 
+  opacity: 0.3; line-height: 1; margin-bottom: 2px;
+}
+.up-right small { font-size: 0.7rem; opacity: 0.9; display: block; }
+
 /* SEARCH SECTION GLASSMORPHISM */
 .search-section input {
   background: rgba(255, 255, 255, 0.1) !important;
