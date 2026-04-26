@@ -1205,8 +1205,10 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
         <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
             <div class="up-num">#${index + 1}</div>
             <div class="up-center">
-                <div class="up-terminal"><i class="far fa-clock"></i> ${t.time} | ${t.busType}</div>
-                <div style="font-weight:bold; font-size:1rem; margin-bottom:5px;">UGX ${t.price.toLocaleString()}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <div class="up-terminal" style="margin:0;"><i class="far fa-clock"></i> ${t.time} | ${t.busType}</div>
+                    <div style="font-weight:bold; font-size:1rem;">UGX ${t.price.toLocaleString()}</div>
+                </div>
                 
                 <div class="progress-container">
                     <div id="bar-${t.id}" class="progress-bar" style="width: 0%; transition: width 1s linear;"></div>
