@@ -1279,12 +1279,16 @@ function showBusDetails(name, price, amenities) {
     showUserScreen('busDetailsBox');
     
     document.getElementById('detailsBusName').innerText = name;
+    
+    const from = document.getElementById('from').value;
+    const to = document.getElementById('to').value;
+    
     document.getElementById('detailsRoute').innerHTML = `
-        <i class="fas fa-route"></i> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
-        <i class="fas fa-tag"></i> Base Fare: UGX ${price.toLocaleString()}
+        <i class="fas fa-route"></i> ${from} → ${to} | UGX ${price.toLocaleString()}
     `;
+    
     document.getElementById('detailsAmenities').innerHTML = amenities.map(a => 
-        `<div class="prominent-amenity"><i class="fas fa-${a}"></i> ${a.charAt(0).toUpperCase() + a.slice(1)}</div>`
+        `<i class="fas fa-${a}" title="${a}"></i>`
     ).join('');
 }
 
