@@ -325,6 +325,11 @@ function init(){
     bottomNav.classList.remove("hidden");
     renderBottomNav();
     userTab("home");
+    
+    // Update Welcome Header
+    if (document.getElementById('welcomeName')) document.getElementById('welcomeName').innerText = currentUser.name;
+    if (document.getElementById('headerProfilePic')) document.getElementById('headerProfilePic').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=007A3D&color=fff`;
+    
     renderRecentSearches();
     renderUpcomingJourneys();
     tickets.forEach(scheduleDepartureNotification);
@@ -1105,6 +1110,8 @@ function renderTickets(){
             <div class="ticket-info-grid">
               <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
               <div class="info-item"><label>Seat</label><span>#${t.seat}</span></div>
+              <div class="info-item"><label>Bus</label><span>${t.bus}</span></div>
+              <div class="info-item"><label>Plate</label><span>${t.plate || 'UAX 456Z'}</span></div>
               <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
               <div class="info-item"><label>Booking ID</label><span>#${t.id}</span></div>
             </div>

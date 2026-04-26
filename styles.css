@@ -967,6 +967,48 @@ input, select, textarea {
   border-color: var(--primary-color);
 }
 
+/* USER HEADER */
+.user-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 5px;
+  margin-bottom: 15px;
+  color: white;
+}
+
+.header-avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  object-fit: cover;
+}
+
+.user-welcome {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+.notification-bell {
+  font-size: 1.3rem;
+  position: relative;
+  cursor: pointer;
+}
+
+.bell-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: var(--uganda-red);
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
 /* TICKET TABLE STYLES */
 .ticket-table {
   width: 100%;
