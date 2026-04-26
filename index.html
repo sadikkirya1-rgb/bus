@@ -121,13 +121,6 @@
       </p>
     </div>
 
-    <div class="login-info">
-      <div id="loginAdBanner" class="ad-banner-card">
-        <a href="#" id="adLink" target="_blank">
-          <img id="adImage" src="https://via.placeholder.com/400x200?text=Your+Ad+Here" alt="Advertisement">
-        </a>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -152,7 +145,6 @@
     <button onclick="adminTab('notifications')" id="a8" title="Notifications"><i class="fas fa-bell"></i> <span>Notifications</span></button>
     <button onclick="adminTab('settings')" id="a9" title="System Settings"><i class="fas fa-cogs"></i> <span>System Settings</span></button>
     <button onclick="adminTab('activity')" id="a10" title="Activity Log"><i class="fas fa-history"></i> <span>Activity Log</span></button>
-    <button onclick="adminTab('ads')" id="a11" title="Ads Management"><i class="fas fa-ad"></i> <span>Ads Management</span></button>
     <button onclick="adminTab('supportTickets')" id="a12" title="Support Tickets"><i class="fas fa-headset"></i> <span>Support Tickets</span></button>
     <button onclick="toggleDarkMode()" title="Toggle Dark Mode"><i class="fas fa-moon"></i> <span>Toggle Theme</span></button>
   </div>
@@ -180,55 +172,20 @@
       <div id="userHome">
         <div class="card search-section fade-in">
           <h3><i class="fas fa-search"></i> Search Trips</h3>
-          <div style="display: flex; align-items: flex-end; gap: 10px; margin-bottom: 10px;">
-            <div style="flex: 1;">
-              <label style="font-size: 0.9rem; color: #ffffff;">From</label>
-              <select id="from" required>
-                <option value="Kampala">Kampala</option>
-                <option value="Jinja">Jinja</option>
-                <option value="Gulu">Gulu</option>
-                <option value="Mbarara">Mbarara</option>
-              </select>
-            </div>
-            <button class="icon-btn" onclick="swapLocations()" style="margin-bottom: 8px; background: rgba(255,255,255,0.2); border: none; color: white; height: 40px; width: 40px; border-radius: 50%;">
-                <i class="fas fa-exchange-alt"></i>
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+            <input id="from" placeholder="Boarding From" list="ugandaCitiesFrom" required oninput="filterToCities()">
+            <button type="button" class="swap-btn" onclick="swapLocations()">
+              <i class="fas fa-exchange-alt fa-rotate-90"></i>
             </button>
-            <div style="flex: 1;">
-              <label style="font-size: 0.9rem; color: #ffffff;">To</label>
-              <select id="to" required>
-                <option value="Jinja">Jinja</option>
-                <option value="Kampala">Kampala</option>
-                <option value="Gulu">Gulu</option>
-                <option value="Mbarara">Mbarara</option>
-              </select>
+            <input id="to" placeholder="where Are You Going ?" list="ugandaCitiesTo" required>
+            <div class="date-buttons" style="display: flex; gap: 10px;">
+              <button type="button" class="btn date-btn active" id="btnToday" onclick="setSearchDate('today')">Today</button>
+              <button type="button" class="btn date-btn" id="btnTomorrow" onclick="setSearchDate('tomorrow')">Tomorrow</button>
+              <button type="button" class="btn date-btn" id="btnOthers" onclick="setSearchDate('others')">Others</button>
             </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
-              <label style="font-size: 0.9rem; color: #ffffff;">Passengers</label>
-              <input id="passengerCount" type="number" value="1" min="1" max="5">
-            </div>
-            <div>
-              <label style="font-size: 0.9rem; color: #ffffff;">Date</label>
-              <input id="date" type="date" required>
-            </div>
-            <div>
-              <label style="font-size: 0.9rem; color: #ffffff;">Time Preference</label>
-              <select id="time">
-                <option value="">Any Time</option>
-                <option value="morning">Morning (6AM-12PM)</option>
-                <option value="afternoon">Afternoon (12PM-6PM)</option>
-                <option value="evening">Evening (6PM-12AM)</option>
-              </select>
-            </div>
-          </div>
-          <div style="margin-top: 10px;">
-            <label style="font-size: 0.9rem; color: #ffffff;">Sort Results By</label>
-            <select id="sortTrips" onchange="loadTrips()">
-              <option value="time">Departure Time</option>
-              <option value="priceLow">Price: Low to High</option>
-              <option value="priceHigh">Price: High to Low</option>
-            </select>
+            <input id="date" type="date" class="hidden" onchange="updateOthersText()">
+            <datalist id="ugandaCitiesFrom"></datalist>
+            <datalist id="ugandaCitiesTo"></datalist>
           </div>
           <div style="margin: 10px 0; text-align: left;">
             <label style="font-size: 0.9rem; color: #ffffff; display: block; margin-bottom: 5px;">Amenities</label>
@@ -748,20 +705,6 @@
           <h3><i class="fas fa-history"></i> Recent Activity</h3>
           <div id="fullActivityLog" class="activity-log">
             <!-- Activity log entries will be populated here -->
-          </div>
-        </div>
-      </div>
-
-      <!-- ADS MANAGEMENT -->
-      <div id="adminAds" class="hidden">
-        <div class="card">
-          <h3><i class="fas fa-ad"></i> Ads Management</h3>
-          <div style="display: flex; flex-direction: column; gap: 15px;">
-            <label>Banner Image URL</label>
-            <input id="adImageUrl" placeholder="https://example.com/banner.jpg">
-            <label>Redirect Link</label>
-            <input id="adRedirectUrl" placeholder="https://example.com">
-            <button class="btn" onclick="saveAdSettings()"><i class="fas fa-save"></i> Save Ad Settings</button>
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@ let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
 let html5QrCode = null;
+const ugandaCitiesList = ["Kampala", "Jinja", "Entebbe", "Mbarara", "Gulu", "Lira", "Mbale", "Masaka", "Fort Portal", "Arua", "Soroti", "Kabale", "Hoima", "Tororo"];
 
 /* DYNAMIC INFO TICKER */
 let currentInfoIndex = 0;
@@ -152,7 +153,7 @@ function init(){
   if (document.getElementById('date')) document.getElementById('date').value = today;
   if (document.getElementById('tripDate')) document.getElementById('tripDate').value = today;
 
-  loadAds();
+  populateCityLists();
 
   // Ensure app is visible and login page is hidden
   app.classList.remove("hidden");
@@ -352,7 +353,60 @@ function userTab(tab){
 function swapLocations() {
     const from = document.getElementById('from');
     const to = document.getElementById('to');
-    [from.value, to.value] = [to.value, from.value];
+    const temp = from.value;
+    from.value = to.value;
+    to.value = temp;
+    filterToCities();
+}
+
+function populateCityLists() {
+    const fromList = document.getElementById('ugandaCitiesFrom');
+    if (fromList) {
+        fromList.innerHTML = ugandaCitiesList.map(city => `<option value="${city}">`).join('');
+    }
+    filterToCities();
+}
+
+function filterToCities() {
+    const fromVal = document.getElementById('from').value;
+    const toList = document.getElementById('ugandaCitiesTo');
+    if (toList) {
+        toList.innerHTML = ugandaCitiesList
+            .filter(city => city !== fromVal)
+            .map(city => `<option value="${city}">`)
+            .join('');
+    }
+}
+
+function setSearchDate(mode) {
+  const dateInput = document.getElementById('date');
+  const btns = document.querySelectorAll('.date-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  
+  const today = new Date();
+  if (mode === 'today') {
+    document.getElementById('btnToday').classList.add('active');
+    dateInput.value = today.toISOString().split('T')[0];
+    dateInput.classList.add('hidden');
+    document.getElementById('btnOthers').innerText = 'Others';
+  } else if (mode === 'tomorrow') {
+    document.getElementById('btnTomorrow').classList.add('active');
+    today.setDate(today.getDate() + 1);
+    dateInput.value = today.toISOString().split('T')[0];
+    dateInput.classList.add('hidden');
+    document.getElementById('btnOthers').innerText = 'Others';
+  } else if (mode === 'others') {
+    document.getElementById('btnOthers').classList.add('active');
+    dateInput.classList.remove('hidden');
+    dateInput.focus();
+  }
+}
+
+function updateOthersText() {
+  const dateInput = document.getElementById('date');
+  if (dateInput.value) {
+    document.getElementById('btnOthers').innerText = dateInput.value;
+  }
 }
 
 /* BUS NAV */
@@ -464,14 +518,14 @@ function loadHeatmap() {
 function loadTrips(){
   let from = document.getElementById('from').value;
   let to = document.getElementById('to').value;
-  let date = document.getElementById('date').value;
-  let time = document.getElementById('time').value;
-  let sortOrder = document.getElementById('sortTrips').value;
+  let date = document.getElementById('date') ? document.getElementById('date').value : new Date().toISOString().split('T')[0];
+  let time = document.getElementById('time') ? document.getElementById('time').value : "";
+  let sortOrder = document.getElementById('sortTrips') ? document.getElementById('sortTrips').value : "time";
 
   let searchWifi = document.getElementById('searchWifi').checked;
   let searchAc = document.getElementById('searchAc').checked;
   let searchUsb = document.getElementById('searchUsb').checked;
-  if(!from || !to || !date) {
+  if(!from || !to) {
     alert("Please fill in all search fields");
     return;
   }
@@ -597,7 +651,8 @@ function showBoardingPoints() {
 }
 
 function showPassengerInfo() {
-  const count = parseInt(document.getElementById('passengerCount').value) || 1;
+  const pCountEl = document.getElementById('passengerCount');
+  const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
   const container = document.getElementById('passengerForms');
   container.innerHTML = "";
   for(let i = 1; i <= count; i++) {
@@ -617,13 +672,15 @@ function showPassengerInfo() {
 }
 
 function showBookingSummary() {
+  const pCountEl = document.getElementById('passengerCount');
+  const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
   document.getElementById('passengerBox').classList.add("hidden");
   document.getElementById('bookingConfirm').classList.remove("hidden");
   document.getElementById('bookingDetails').innerHTML = `
     <strong>Bus:</strong> ${selectedBus.name}<br>
     <strong>Route:</strong> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
     <strong>Points:</strong> ${document.getElementById('boardingPoint').value} → ${document.getElementById('droppingPoint').value}<br>
-    <strong>Total:</strong> UGX ${(selectedBus.price * parseInt(document.getElementById('passengerCount').value)).toLocaleString()}
+    <strong>Total:</strong> UGX ${(selectedBus.price * count).toLocaleString()}
   `;
 }
 
@@ -635,7 +692,7 @@ function confirmBooking(){
     bus: selectedBus.name,
     seat: selectedSeat,
     price: selectedBus.price,
-    date: document.getElementById('date').value,
+    date: document.getElementById('date') ? document.getElementById('date').value : new Date().toISOString().split('T')[0],
     from: document.getElementById('from').value,
     to: document.getElementById('to').value,
     payment: selectedPayment,
@@ -1082,7 +1139,6 @@ function adminTab(section){
   document.getElementById('adminNotifications').classList.add('hidden');
   document.getElementById('adminSettings').classList.add('hidden');
   document.getElementById('adminActivity').classList.add('hidden');
-  document.getElementById('adminAds').classList.add('hidden');
   document.getElementById('adminSupportTickets').classList.add('hidden');
 
   // Remove active class from all admin nav buttons
@@ -1105,7 +1161,6 @@ function adminTab(section){
     'notifications': 'Notifications',
     'settings': 'System Settings',
     'activity': 'Activity Log',
-    'ads': 'Ads Management',
     'supportTickets': 'Support Tickets'
   };
   title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
@@ -1115,7 +1170,7 @@ function adminTab(section){
     let target = event.target.closest('button');
     if(target) target.classList.add('active-tab');
   } else {
-    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10', 'ads': 'a11' }[section];
+    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10' }[section];
     if(btnId) document.getElementById(btnId).classList.add('active-tab');
   }
 
@@ -1130,7 +1185,6 @@ function adminTab(section){
   else if(section === 'notifications') loadNotifications();
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
-  else if(section === 'ads') loadAdSettings();
   else if(section === 'supportTickets') loadSupportTickets();
 }
 
@@ -1463,28 +1517,6 @@ function saveSettings(){
   alert('Settings saved successfully!');
 }
 
-function loadAdSettings(){
-  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://placehold.co/400x200?text=Promotion+Banner", "link": "#"}');
-  document.getElementById('adImageUrl').value = ads.img;
-  document.getElementById('adRedirectUrl').value = ads.link;
-}
-
-function saveAdSettings(){
-  let settings = {
-    img: document.getElementById('adImageUrl').value,
-    link: document.getElementById('adRedirectUrl').value
-  };
-  localStorage.setItem('adSettings', JSON.stringify(settings));
-  loadAds();
-  alert('Ad settings updated!');
-}
-
-function loadAds(){
-  let ads = JSON.parse(localStorage.getItem('adSettings') || '{"img": "https://placehold.co/400x200?text=Promotion+Banner", "link": "#"}');
-  document.getElementById('adImage').src = ads.img;
-  document.getElementById('adLink').href = ads.link;
-}
-
 function deleteUser(userId){
   if(confirm('Are you sure you want to delete this user?')) {
     users = users.filter(u => u.id !== userId);
@@ -1550,10 +1582,57 @@ function verifyTicket(scannedText) {
     resultDiv.style.color = "#2f855a";
     resultDiv.innerHTML = `
         <h4><i class="fas fa-check-circle"></i> Ticket Verified!</h4>
-        <p>Passenger: ${ticket.passenger} | Seat: #${ticket.seat}</p>
-        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="confirmBoarding(${ticket.id})">Confirm Boarding</button>
+        <p>Passenger: ${ticket.passenger} | Seat: <span id="opCurrentSeat">#${ticket.seat || 'N/A'}</span></p>
+        <div id="opSeatMapContainer" class="hidden" style="margin-top: 15px; border-top: 1px dashed #2f855a; padding-top: 10px;">
+            <p style="font-size: 0.8rem; margin-bottom: 5px; font-weight: bold;">Manual Seat Assignment:</p>
+            <div id="opSeatMap" class="seats" style="grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 0;"></div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn" style="flex: 1; background: #2b6cb0;" onclick="toggleOpSeatMap(${ticket.id})">
+                <i class="fas fa-chair"></i> ${ticket.seat ? 'Change Seat' : 'Assign Seat'}
+            </button>
+            <button class="btn" style="flex: 1;" onclick="confirmBoarding(${ticket.id})">
+                <i class="fas fa-user-check"></i> Boarding
+            </button>
+        </div>
     `;
   }
+}
+
+function toggleOpSeatMap(ticketId) {
+    const container = document.getElementById('opSeatMapContainer');
+    const mapDiv = document.getElementById('opSeatMap');
+    if (!container.classList.contains('hidden')) {
+        container.classList.add('hidden');
+        return;
+    }
+    container.classList.remove('hidden');
+    mapDiv.innerHTML = "";
+    const ticket = tickets.find(t => t.id == ticketId);
+    const occupiedSeats = tickets
+        .filter(t => t.bus === ticket.bus && t.date === ticket.date && t.id !== ticketId && t.status !== 'CANCELLED')
+        .map(t => t.seat);
+    for(let i=1; i<=16; i++) {
+        let s = document.createElement("div");
+        s.className = "seat";
+        s.style.padding = "8px";
+        s.style.fontSize = "0.75rem";
+        if(occupiedSeats.includes(i)) s.classList.add("booked");
+        if(ticket.seat == i) s.classList.add("active");
+        s.innerText = i;
+        s.onclick = (e) => {
+            e.stopPropagation();
+            if(s.classList.contains("booked")) return;
+            ticket.seat = i;
+            localStorage.setItem("tickets", JSON.stringify(tickets));
+            document.getElementById('opCurrentSeat').innerText = '#' + i;
+            document.querySelectorAll("#opSeatMap .seat").forEach(x => x.classList.remove("active"));
+            s.classList.add("active");
+            showNotification("Seat updated to #" + i, "success");
+            addActivityLog(`Seat for Ticket #${ticket.id} changed to #${i} by Operator.`);
+        };
+        mapDiv.appendChild(s);
+    }
 }
 
 function confirmBoarding(id) {
