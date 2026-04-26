@@ -21,6 +21,7 @@
       <span class="uganda-flag"></span>
       <h1 style="color: white;">SmartSeat</h1>
     </div>
+    <div id="splashWelcome" style="color: white; margin-top: 15px; font-weight: 600; font-size: 1.1rem; min-height: 1.5rem;"></div>
     <div class="loader"></div>
   </div>
 </div>
@@ -78,6 +79,10 @@
           <button type="button" class="password-toggle" onclick="togglePassword('password', 'loginEye')">
             <i id="loginEye" class="fas fa-eye"></i>
           </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin: -5px 0 5px 0;">
+          <input type="checkbox" id="rememberMe" style="width: auto; margin: 0;">
+          <label for="rememberMe" style="font-size: 0.85rem; color: white; cursor: pointer;">Remember Me</label>
         </div>
         <button type="submit" class="btn login-btn">
           <i class="fas fa-sign-in-alt"></i> Login
@@ -185,7 +190,7 @@
     <div id="userUI" class="hidden">
 
       <div id="userHome">
-        <div class="card search-section fade-in">
+        <div id="search-section" class="card search-section fade-in">
           <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
             <div class="floating-label-group">
               <input id="from" placeholder=" " list="ugandaCitiesFrom" required oninput="filterToCities()">
@@ -225,6 +230,7 @@
 
         <!-- BUS DETAILS SCREEN -->
         <div id="busDetailsBox" class="card hidden fade-in">
+            <button class="screen-back-btn" onclick="showUserScreen('trips')"><i class="fas fa-arrow-left"></i> Back to Results</button>
             <h3 id="detailsBusName">Bus Details</h3>
             <div id="detailsAmenities" class="amenities-list"></div>
             <div id="detailsRoute" style="margin: 15px 0; color: rgba(255,255,255,0.8);"></div>
@@ -232,6 +238,7 @@
         </div>
 
         <div id="seatBox" class="card hidden">
+          <button class="screen-back-btn" onclick="showUserScreen('busDetailsBox')"><i class="fas fa-arrow-left"></i> Back</button>
           <h3><i class="fas fa-chair"></i> Select Your Seat</h3>
           <div class="bus-front-indicator">
             <i class="fas fa-steering-wheel"></i>
@@ -249,6 +256,7 @@
 
         <!-- BOARDING & DROPPING POINTS -->
         <div id="pointsBox" class="card hidden">
+          <button class="screen-back-btn" onclick="showUserScreen('seatBox')"><i class="fas fa-arrow-left"></i> Back</button>
           <h3><i class="fas fa-map-marker-alt"></i> Select Points</h3>
           <label>Boarding Point</label>
           <select id="boardingPoint">
@@ -267,6 +275,7 @@
 
         <!-- PASSENGER INFO -->
         <div id="passengerBox" class="card hidden">
+          <button class="screen-back-btn" onclick="showUserScreen('pointsBox')"><i class="fas fa-arrow-left"></i> Back</button>
           <h3><i class="fas fa-id-card"></i> Passenger Details</h3>
           <div id="passengerForms">
             <!-- Dynamically generated based on count -->
@@ -285,6 +294,7 @@
         </div>
 
         <div id="bookingConfirm" class="card hidden">
+          <button class="screen-back-btn" onclick="showUserScreen('passengerBox')"><i class="fas fa-arrow-left"></i> Back</button>
           <h3><i class="fas fa-check-circle"></i> Booking Confirmation</h3>
           <p id="bookingDetails"></p>
             <div id="bookingStatus" class="badge bg-secondary" style="margin-bottom: 10px; display: inline-block;">Status: CREATED</div>

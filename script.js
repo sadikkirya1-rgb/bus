@@ -1,8 +1,8 @@
-let role = null; // Initialize role to null for guest
+let currentUser = JSON.parse(localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser") || "null");
+let role = currentUser ? currentUser.role : null;
 let selectedSeat = null;
 let selectedBus = null;
 let selectedPayment = null;
-let currentUser = null;
 let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
 let buses = JSON.parse(localStorage.getItem("buses") || "[]");
 let trips = JSON.parse(localStorage.getItem("trips") || "[]");
@@ -135,6 +135,12 @@ function startInfoTicker() {
 
 /* ONBOARDING & SPLASH */
 function checkFirstVisit() {
+  const welcomeEl = document.getElementById('splashWelcome');
+  if (currentUser && welcomeEl) {
+    welcomeEl.innerText = `Welcome back, ${currentUser.name.split(' ')[0]}!`;
+    welcomeEl.classList.add('fade-in');
+  }
+
   setTimeout(() => {
     document.getElementById('splashScreen').style.opacity = '0';
     setTimeout(() => document.getElementById('splashScreen').classList.add('hidden'), 500);
@@ -143,6 +149,14 @@ function checkFirstVisit() {
       document.getElementById('onboardingModal').classList.remove('hidden');
     }
   }, 2000);
+}
+
+function hideSplashScreen() {
+  const splash = document.getElementById('splashScreen');
+  if (splash && !splash.classList.contains('hidden')) {
+    splash.style.opacity = '0';
+    setTimeout(() => splash.classList.add('hidden'), 500);
+  }
 }
 
 function nextOnboarding(step) {
@@ -278,17 +292,31 @@ function renderUpcomingJourneys() {
 
     const isUrgent = diffMs > 0 && diffMins < 30;
     const isDeparted = diffMs <= 0;
-    const barColor = isUrgent ? 'var(--uganda-red)' : (isDeparted ? '#48bb78' : 'var(--primary-color)');
+    const isDelayed = t.status === "DELAYED";
+    
+    const canCancel = diffHours > 2 && !isDeparted;
+
+    let barColor = 'var(--primary-color)';
+    if (isUrgent) barColor = 'var(--uganda-red)';
+    if (isDelayed) barColor = 'var(--uganda-yellow)';
+    if (isDeparted && !isDelayed) barColor = '#48bb78';
 
     const timeLeftStr = diffMs > 0 
       ? `${Math.floor(diffHours)}h ${Math.floor((diffMs / (1000 * 60)) % 60)}m left`
-      : `<span class="live-dot"></span> LIVE`;
+      : (isDelayed 
+          ? `<span class="delayed-dot"></span> DELAYED` 
+          : `<span class="live-dot"></span> LIVE`);
 
     const dateStr = new Date(t.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
     return `
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
-        <div class="up-num">${index + 1}</div>
+        <div class="up-num">#${index + 1}</div>
+        <div class="up-actions-left">
+          <button class="quick-btn" onclick="event.stopPropagation(); expandTicketById(${t.id})" title="View"><i class="fas fa-eye"></i></button>
+          ${canCancel ? `<button class="quick-btn" style="background:rgba(229,62,62,0.3)" onclick="event.stopPropagation(); cancelJourney(${t.id})" title="Cancel"><i class="fas fa-times"></i></button>` : ''}
+          ${isDeparted ? `<button class="quick-btn" style="background:#4299e1" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>` : ''}
+        </div>
         <div class="up-center">
           <div class="up-terminal">Bus Terminal 1</div>
           <div class="up-route-inline">${t.from} → ${t.to}</div>
@@ -310,6 +338,30 @@ function renderUpcomingJourneys() {
   }).join('');
 }
 
+function shareETA(id) {
+  const t = tickets.find(ticket => ticket.id == id);
+  if (!t) return;
+  const shareText = `I'm on the ${t.bus} bus from ${t.from} to ${t.to}. Follow my journey! Ticket #${t.id}`;
+  if (navigator.share) {
+    navigator.share({ title: 'My Journey ETA', text: shareText, url: window.location.href });
+  } else {
+    navigator.clipboard.writeText(shareText);
+    showNotification("ETA details copied to clipboard!", "success");
+  }
+}
+
+function showUserScreen(screenId) {
+  const screens = ['search-section', 'upcomingJourneys', 'trips', 'busDetailsBox', 'seatBox', 'pointsBox', 'passengerBox', 'bookingConfirm'];
+  screens.forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.classList.add('hidden');
+  });
+  
+  const active = document.getElementById(screenId);
+  if (active) active.classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+
 function showTerminalBuses(from, to, date) {
   // Fill the search fields to simulate a real search
   document.getElementById('from').value = from;
@@ -323,9 +375,6 @@ function showTerminalBuses(from, to, date) {
   // Highlight the correct search parameters and trigger loadTrips
   setSearchDate('others');
   loadTrips();
-  
-  // Scroll to the trips results
-  document.getElementById('trips').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function cancelJourney(id) {
@@ -437,6 +486,13 @@ function login(){
   if (foundUser) {
     role = foundUser.role;
     currentUser = foundUser;
+    
+    const remember = document.getElementById('rememberMe').checked;
+    if (remember) {
+      localStorage.setItem("currentUser", JSON.stringify(foundUser));
+    } else {
+      sessionStorage.setItem("currentUser", JSON.stringify(foundUser));
+    }
   } else if (e === "user@smartseat.ug" && p === "1234") {
     role = "user";
     currentUser = { name: "Guest User", email: e, role: "user" };
@@ -477,6 +533,11 @@ function togglePassword(inputId, iconId) {
 
 /* INIT */
 function init(){
+  // If we have a role, we are logged in - hide splash immediately
+  if (role !== null) {
+    hideSplashScreen();
+  }
+
   // Set default date to today
   const today = new Date().toISOString().split('T')[0];
   if (document.getElementById('date')) document.getElementById('date').value = today;
@@ -680,6 +741,11 @@ function userTab(tab){
     document.getElementById('userHome').classList.remove("hidden");
     document.getElementById("u1").classList.add("active-tab");
     renderUpcomingJourneys();
+    // Reset to initial search screen
+    document.getElementById('search-section').classList.remove('hidden');
+    document.getElementById('upcomingJourneys').classList.remove('hidden');
+    document.getElementById('trips').classList.add('hidden');
+    document.getElementById('busDetailsBox').classList.add('hidden');
   }else if(tab==="tickets"){
     if (role === null) { // If guest, tickets require login
       showAuthPage();
@@ -897,6 +963,32 @@ function loadTrips(){
   else if (sortOrder === "time") availableTrips.sort((a, b) => a.time.localeCompare(b.time));
 
   let tripsContainer = document.getElementById('trips');
+  showUserScreen('trips');
+
+  // Construct the Header Card
+  const fullDate = new Date(date).toLocaleDateString('en-GB', { 
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+  });
+
+  const headerCard = `
+    <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 20px;">
+      <button class="screen-back-btn" onclick="userTab('home')" style="color: white; margin-bottom: 15px;">
+        <i class="fas fa-arrow-left"></i> Back to Search
+      </button>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="logo" style="margin: 0;">
+          <span class="uganda-flag"></span>
+          <h1 style="color: white; font-size: 1.2rem; margin: 0;">SmartSeat</h1>
+        </div>
+        <div style="text-align: right; color: white;">
+          <div style="font-weight: 800; font-size: 1rem; color: var(--uganda-yellow);">${from} → ${to}</div>
+          <div style="font-size: 0.75rem; opacity: 0.9;">${fullDate}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  tripsContainer.innerHTML = headerCard;
 
   if(availableTrips.length === 0) {
     // Show default buses if no scheduled trips
@@ -912,28 +1004,48 @@ function loadTrips(){
 
     defaultBuses.forEach(b=>{
       let d=document.createElement("div");
-      d.className="card";
+      d.className="upcoming-card";
+      d.style.marginBottom = "12px";
       d.innerHTML=`
-        <h4>${b.name}</h4>
-        <p><i class="fas fa-route"></i> ${b.route}</p>
-        <p><i class="fas fa-clock"></i> ${b.time} | <i class="fas fa-star"></i> ${b.type}</p>
-        <div style="margin: 8px 0; color: var(--text-light);">${(b.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
-        <p><strong>UGX ${b.price.toLocaleString()}</strong></p>
-        <button class='btn' onclick='showBusDetails("${b.name}", ${b.price}, ${JSON.stringify(b.amenities || [])})'><i class="fas fa-info-circle"></i> View Details</button>
+        <div class="up-num"><i class="fas fa-bus" style="font-size:1.2rem"></i></div>
+        <div class="up-center">
+          <div class="verified-badge"><i class="fas fa-check-circle"></i> Verified</div>
+          <div class="up-terminal">${b.name} | ${b.type}</div>
+          <div class="up-route-inline">${b.route}</div>
+          <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
+            ${(b.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
+          </div>
+          <button class='view-ticket-btn' style="margin:0; width:fit-content" onclick='showBusDetails("${b.name}", ${b.price}, ${JSON.stringify(b.amenities || [])})'>Book Now</button>
+        </div>
+        <div class="up-right">
+          <div class="up-label">Fare</div>
+          <div style="font-weight: 800; font-size: 0.9rem;">UGX ${b.price.toLocaleString()}</div>
+          <div style="font-size: 0.75rem; opacity: 0.8; margin-top:5px;"><i class="far fa-clock"></i> ${b.time}</div>
+        </div>
       `;
       tripsContainer.appendChild(d);
     });
   } else {
     availableTrips.forEach(t=>{
       let d=document.createElement("div");
-      d.className="card";
+      d.className="upcoming-card";
+      d.style.marginBottom = "12px";
       d.innerHTML=`
-        <h4>${t.busName}</h4>
-        <p><i class="fas fa-route"></i> ${t.from} - ${t.to}</p>
-        <p><i class="fas fa-clock"></i> ${t.time} | <i class="fas fa-star"></i> ${t.busType}</p>
-        <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
-        <p><strong>UGX ${t.price.toLocaleString()}</strong></p>
-        <button class='btn' onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'><i class="fas fa-info-circle"></i> View Details</button>
+        <div class="up-num"><i class="fas fa-bus" style="font-size:1.2rem"></i></div>
+        <div class="up-center">
+          <div class="verified-badge"><i class="fas fa-check-circle"></i> Verified</div>
+          <div class="up-terminal">${t.busName} | ${t.busType}</div>
+          <div class="up-route-inline">${t.from} → ${t.to}</div>
+          <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
+            ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
+          </div>
+          <button class='view-ticket-btn' style="margin:0; width:fit-content" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
+        </div>
+        <div class="up-right">
+          <div class="up-label">Fare</div>
+          <div style="font-weight: 800; font-size: 0.9rem;">UGX ${t.price.toLocaleString()}</div>
+          <div style="font-size: 0.75rem; opacity: 0.8; margin-top:5px;"><i class="far fa-clock"></i> ${t.time}</div>
+        </div>
       `;
       tripsContainer.appendChild(d);
     });
@@ -943,9 +1055,8 @@ function loadTrips(){
 /* BUS DETAILS SCREEN */
 function showBusDetails(name, price, amenities) {
     selectedBus = { name, price, amenities };
-    document.getElementById('trips').classList.add('hidden');
-    const box = document.getElementById('busDetailsBox');
-    box.classList.remove('hidden');
+    showUserScreen('busDetailsBox');
+    
     document.getElementById('detailsBusName').innerText = name;
     document.getElementById('detailsRoute').innerHTML = `
         <i class="fas fa-route"></i> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
@@ -957,14 +1068,13 @@ function showBusDetails(name, price, amenities) {
 }
 
 function proceedToSeats() {
-    document.getElementById('busDetailsBox').classList.add('hidden');
     selectSeat(selectedBus.name, selectedBus.price);
 }
 
 /* SEATS */
 function selectSeat(busName, price){
   selectedBus = {name: busName, price: price};
-  seatBox.classList.remove("hidden");
+  showUserScreen('seatBox');
   seats.innerHTML="";
 
   // Simulate some booked seats
@@ -992,8 +1102,7 @@ function selectSeat(busName, price){
 /* BOOKING FLOW ENHANCEMENTS */
 function showBoardingPoints() {
   if (!selectedSeat) return alert("Please select a seat first");
-  document.getElementById('seatBox').classList.add("hidden");
-  document.getElementById('pointsBox').classList.remove("hidden");
+  showUserScreen('pointsBox');
 }
 
 function showPassengerInfo() {
@@ -1013,15 +1122,13 @@ function showPassengerInfo() {
       </div>
     `;
   }
-  document.getElementById('pointsBox').classList.add("hidden");
-  document.getElementById('passengerBox').classList.remove("hidden");
+  showUserScreen('passengerBox');
 }
 
 function showBookingSummary() {
   const pCountEl = document.getElementById('passengerCount');
   const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
-  document.getElementById('passengerBox').classList.add("hidden");
-  document.getElementById('bookingConfirm').classList.remove("hidden");
+  showUserScreen('bookingConfirm');
   document.getElementById('bookingDetails').innerHTML = `
     <strong>Bus:</strong> ${selectedBus.name}<br>
     <strong>Route:</strong> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
@@ -1500,6 +1607,8 @@ function rebook(from, to){
 function logout(){
   role = null;
   currentUser = null;
+  localStorage.removeItem("currentUser");
+  sessionStorage.removeItem("currentUser");
   init(); // Re-initialize the app to the guest view
 }
 
