@@ -1175,21 +1175,54 @@ function loadTrips(){
 /**
  * Displays the detailed schedules for a specific operator with countdowns.
  */
-function renderOperatorSchedules(operatorName, opTrips) {
+function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
     activeSearchSchedules = { name: operatorName, data: opTrips };
     const tripsContainer = document.getElementById('trips');
-    const date = document.getElementById('date').value;
+    
+    // Apply sorting
+    if (sortOrder === 'time') {
+        opTrips.sort((a, b) => a.time.localeCompare(b.time));
+    } else if (sortOrder === 'price') {
+        opTrips.sort((a, b) => a.price - b.price);
+    }
     
     tripsContainer.innerHTML = `
         <div class="card" style="background: rgba(255,255,255,0.05); margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.2);">
-            <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
-                <i class="fas fa-arrow-left"></i> Back to Operators
-            </button>
-            <h4 style="margin: 15px 0 0 0; color: white;">${operatorName} Schedules</h4>
-            <small style="opacity: 0.7;">Route: ${document.getElementById('from').value} → ${document.getElementById('to').value}</small>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+            </div>
+            <h4 style="margin: 5px 0 0 0; color: white;">${operatorName}</h4>
+            <small style="opacity: 0.7;">${document.getElementById('from').value} → ${document.getElementById('to').value}</small>
         </div>
         <div id="activeSchedulesList"></div>
     `;
+
+    // Initial render of static card skeletons
+    const listContainer = document.getElementById('activeSchedulesList');
+    listContainer.innerHTML = opTrips.map((t, index) => `
+        <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
+            <div class="up-num">#${index + 1}</div>
+            <div class="up-center">
+                <div class="up-terminal"><i class="far fa-clock"></i> ${t.time} | ${t.busType}</div>
+                <div style="font-weight:bold; font-size:1rem; margin-bottom:5px;">UGX ${t.price.toLocaleString()}</div>
+                
+                <div class="progress-container">
+                    <div id="bar-${t.id}" class="progress-bar" style="width: 0%; transition: width 1s linear;"></div>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                    <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums;">--m --s left</span>
+                    <button class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
+                </div>
+                <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
+                    ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
+                </div>
+            </div>
+        </div>
+    `).join('');
+
     refreshActiveSchedules();
 }
 
@@ -1201,13 +1234,17 @@ function refreshActiveSchedules() {
     if (!listContainer || !activeSearchSchedules) return;
 
     const now = new Date();
+    const windowMs = 24 * 60 * 60 * 1000;
 
-    listContainer.innerHTML = activeSearchSchedules.data.map((t, index) => {
+    activeSearchSchedules.data.forEach((t) => {
         const departure = new Date(`${t.date} ${t.time || '08:00 AM'}`);
         const diffMs = departure - now;
-        const windowMs = 24 * 60 * 60 * 1000;
-        let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
         
+        const timerEl = document.getElementById(`timer-${t.id}`);
+        const barEl = document.getElementById(`bar-${t.id}`);
+        if (!timerEl || !barEl) return;
+
+        let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
         const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
         const h = Math.floor(totalSeconds / 3600);
         const m = Math.floor((totalSeconds % 3600) / 60);
@@ -1216,30 +1253,13 @@ function refreshActiveSchedules() {
         let barColor = 'var(--primary-color)';
         if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
 
-        const timeLeftStr = diffMs > 0 
+        timerEl.innerHTML = diffMs > 0 
             ? `${h > 0 ? h + 'h ' : ''}${m}m ${s}s left`
             : `<span class="live-dot"></span> DEPARTING`;
-
-        return `
-        <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
-          <div class="up-num">#${index + 1}</div>
-          <div class="up-center">
-            <div class="up-terminal"><i class="far fa-clock"></i> ${t.time} | ${t.busType}</div>
-            <div style="font-weight:bold; font-size:1rem; margin-bottom:5px;">UGX ${t.price.toLocaleString()}</div>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                <span style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600;">${timeLeftStr}</span>
-                <button class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
-            </div>
-          <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
-            ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
-          </div>
-          </div>
-        </div>
-        `;
-    }).join('');
+            
+        barEl.style.width = progress + '%';
+        barEl.style.background = barColor;
+    });
 }
 
 /* BUS DETAILS SCREEN */
