@@ -1206,7 +1206,12 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
             <div class="up-num">#${index + 1}</div>
             <div class="up-center">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div class="up-terminal" style="margin:0;"><i class="far fa-clock"></i> ${t.time} | ${t.busType}</div>
+                    <div class="up-terminal" style="margin:0;">
+                        <i class="far fa-clock"></i> ${t.time} | ${t.busType}
+                        <span style="margin-left: 8px; color: var(--uganda-yellow);">
+                            ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 5px;"></i>`).join('')}
+                        </span>
+                    </div>
                     <div style="font-weight:bold; font-size:1rem;">UGX ${t.price.toLocaleString()}</div>
                 </div>
                 
@@ -1217,9 +1222,6 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                     <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums;">--m --s left</span>
                     <button class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
-                </div>
-                <div style="margin: 4px 0; color: var(--uganda-yellow); font-size: 0.75rem;">
-                    ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}
                 </div>
             </div>
         </div>
