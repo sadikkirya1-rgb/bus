@@ -92,6 +92,58 @@ if (notifications.length === 0) {
   localStorage.setItem("notifications", JSON.stringify(notifications));
 }
 
+// --- SMS GATEWAY INTEGRATION (MOCK) ---
+/**
+ * In a production environment, this would call a service like Africa's Talking or Twilio.
+ * For Uganda, local gateways like Yo! Payments or Infobip are common.
+ */
+async function sendSMS(phoneNumber, message) {
+  console.log(`[SMS GATEWAY] Sending to ${phoneNumber}: ${message}`);
+  
+  // Simulate API call
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      showNotification(`SMS Sent to ${phoneNumber}`, "info");
+      addActivityLog(`SMS sent to ${phoneNumber}: ${message.substring(0, 20)}...`);
+      resolve({ success: true });
+    }, 800);
+  });
+}
+
+/**
+ * Universal notification dispatcher for SMS, WhatsApp, and Email.
+ */
+async function dispatchMultiChannel(contact, message, channels = ['sms', 'whatsapp', 'email']) {
+    console.log(`[DISPATCH] Target: ${contact}`);
+    if (channels.includes('sms')) await sendSMS(contact, message);
+    
+    if (channels.includes('whatsapp')) {
+        console.log(`[WHATSAPP] Sending to ${contact}: ${message}`);
+        addActivityLog(`WhatsApp sent to ${contact}`);
+    }
+    
+    if (channels.includes('email')) {
+        console.log(`[EMAIL] Sending to ${contact}: ${message}`);
+    }
+}
+
+/**
+ * Log a manual call made by the Admin to a customer.
+ */
+function logAdminCall(passengerName, phone, notes) {
+    const logMsg = `ADMIN CALL: Reached ${passengerName} (${phone}). Note: ${notes}`;
+    addActivityLog(logMsg);
+    showNotification("Call logged for " + passengerName, "info");
+}
+
+function formatTicketSMS(t) {
+  return `SmartSeat TICKET #${t.id}\n` +
+         `Bus: ${t.bus}\n` +
+         `Route: ${t.from} to ${t.to}\n` +
+         `Date: ${t.date} @ ${t.time || '08:00'}\n` +
+         `Seat: ${t.seat}. Safe journey!`;
+}
+
 const ugandaCitiesList = ["Kampala", "Jinja", "Entebbe", "Mbarara", "Gulu", "Lira", "Mbale", "Masaka", "Fort Portal", "Arua", "Soroti", "Kabale", "Hoima", "Tororo"];
 let notificationTimeouts = {};
 
@@ -1074,13 +1126,15 @@ function proceedToSeats() {
 /* SEATS */
 function selectSeat(busName, price){
   selectedBus = {name: busName, price: price};
+  const seatsContainer = document.getElementById('seats');
   showUserScreen('seatBox');
-  seats.innerHTML="";
+  seatsContainer.innerHTML="";
 
-  // Simulate some booked seats
-  let bookedSeats = [3, 7, 12, 15];
+  // Simulate some booked seats for a standard 28-seat bus
+  let bookedSeats = [3, 7, 12, 15, 22];
 
-  for(let i=1;i<=16;i++){
+  // Standard medium bus usually has around 28-32 seats
+  for(let i=1; i<=28; i++){
     let s=document.createElement("div");
     s.className="seat";
     if(bookedSeats.includes(i)) s.classList.add("booked");
@@ -1095,11 +1149,11 @@ function selectSeat(busName, price){
       document.getElementById('displaySeatNum').innerText = '#' + i;
       document.getElementById('displaySeatPrice').innerText = 'UGX ' + price.toLocaleString();
     };
-    seats.appendChild(s);
+    seatsContainer.appendChild(s);
     
     // Add aisle spacer after every 2nd seat in a row (physical 2+2 layout)
     if (i % 2 === 0 && i % 4 !== 0) {
-      seats.appendChild(document.createElement("div"));
+      seatsContainer.appendChild(document.createElement("div"));
     }
   }
 }
@@ -1119,7 +1173,8 @@ function showPassengerInfo() {
     container.innerHTML += `
       <div class="passenger-entry">
         <h5>Passenger ${i}</h5>
-        <input placeholder="Full Name" class="p-name">
+        <input placeholder="Full Name" class="p-name" required>
+        <input placeholder="Contact Number" class="p-phone">
         <div style="display:flex; gap:10px;">
           <input placeholder="Age" type="number" class="p-age">
           <select class="p-gender"><option>Male</option><option>Female</option></select>
@@ -1155,7 +1210,9 @@ function confirmBooking(){
     to: document.getElementById('to').value,
     payment: selectedPayment,
     passenger: document.querySelector('.p-name')?.value || currentUser.name,
+    passengerPhone: document.querySelector('.p-phone')?.value || "",
     email: currentUser.email,
+    phone: currentUser.phone,
     id: Math.floor(100000 + Math.random() * 900000),
     status: "PAID", // Start at PAID for demo purposes once confirmed
     timestamp: new Date().toISOString()
@@ -1164,11 +1221,20 @@ function confirmBooking(){
   tickets.push(ticket);
   localStorage.setItem("tickets", JSON.stringify(tickets));
 
-  addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser.name}`);
-  bookingConfirm.classList.add("hidden");
+  addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser?.name || 'Guest'}`);
+  
+  const confirmBox = document.getElementById('bookingConfirm');
+  if (confirmBox) confirmBox.classList.add("hidden");
+  
   showNotification("Payment successful! Booking ID: #" + ticket.id, "success");
   showNotification("Booking confirmed! Check your tickets.", "success");
   renderUpcomingJourneys();
+
+  const targetPhone = ticket.phone || currentUser.phone;
+  if (targetPhone) {
+      dispatchMultiChannel(targetPhone, formatTicketSMS(ticket));
+  }
+
   userTab("tickets");
 }
 
@@ -1330,10 +1396,11 @@ function scheduleTrip(){
 
 /* RENDER SCHEDULES */
 function renderSchedules(){
-  schedules.innerHTML="";
+  const schedulesContainer = document.getElementById('schedules');
+  schedulesContainer.innerHTML="";
 
   if(trips.length === 0) {
-    schedules.innerHTML = "<p>No trips scheduled yet.</p>";
+    schedulesContainer.innerHTML = "<p>No trips scheduled yet.</p>";
     return;
   }
 
@@ -1351,7 +1418,7 @@ function renderSchedules(){
       <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
       <p><i class="fas fa-dollar-sign"></i> UGX ${t.price.toLocaleString()}</p>
     `;
-    schedules.appendChild(d);
+    schedulesContainer.appendChild(d);
   });
 }
 
@@ -1491,10 +1558,12 @@ function register(){
   let password = regPassword.value;
   let role = regRole.value;
 
-  if(!name || !email || !phone || !password || !role) {
-    alert("Please fill all fields");
+  if(!name || !phone || !password || !role) {
+    alert("Please fill in Phone, Name and Password");
     return;
   }
+
+  if(users.find(u => u.phone === phone)) return alert("Phone number already registered.");
 
   let user = {name, email, phone, password, role, id: Date.now()};
   users.push(user);
@@ -1679,6 +1748,16 @@ function adminTab(section){
   else if(section === 'supportTickets') loadSupportTickets();
 }
 
+function toggleBulkTripSelect() {
+    const type = document.getElementById('notificationType').value;
+    const group = document.getElementById('bulkTripSelectGroup');
+    group.classList.toggle('hidden', type !== 'trip');
+    if (type === 'trip') {
+        const select = document.getElementById('targetTripSelect');
+        select.innerHTML = trips.map(t => `<option value="${t.id}">${t.busName}: ${t.from}-${t.to} (${t.date})</option>`).join('');
+    }
+}
+
 function loadDashboard(){
   // Update dashboard stats
   document.getElementById('statUsers').textContent = users.length.toLocaleString();
@@ -1805,6 +1884,25 @@ function updateRefundStatus(id, status) {
     }
 }
 
+/**
+ * Sends the entire passenger list to the bus operator via SMS.
+ * Critical for operators without smartphones.
+ */
+async function sendManifestToOperator(busName, date) {
+    const busTickets = tickets.filter(t => t.bus === busName && t.date === date && t.status !== 'CANCELLED');
+    const operatorPhone = "+256700000000"; // This should be fetched from the bus operator's profile
+    
+    if (busTickets.length === 0) return alert("No passengers booked for this trip.");
+
+    let manifest = `MANIFEST: ${busName} (${date})\n`;
+    busTickets.forEach(t => {
+        manifest += `S:${t.seat}-ID:${t.id}\n`;
+    });
+
+    await sendSMS(operatorPhone, manifest);
+    alert("Manifest sent to operator's phone via SMS!");
+}
+
 function loadBookings(){
   let bookingList = document.getElementById('bookingList');
   bookingList.innerHTML = '';
@@ -1819,8 +1917,12 @@ function loadBookings(){
       <p><i class="fas fa-route"></i> ${ticket.from} → ${ticket.to}</p>
       <p><i class="fas fa-calendar"></i> ${ticket.date} ${ticket.time}</p>
       <p><i class="fas fa-dollar-sign"></i> UGX ${ticket.price.toLocaleString()}</p>
+      <p><i class="fas fa-phone"></i> ${ticket.phone || 'No phone'}</p>
+      <p><i class="fas fa-phone-alt"></i> Passenger Phone: ${ticket.passengerPhone || 'N/A'}</p>
       <p><i class="fas fa-info-circle"></i> Status: <strong>${status}</strong></p>
       <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+        <button class="btn btn-sm" style="background:var(--uganda-yellow); color:black;" onclick="resendTicketSMS(${ticket.id})"><i class="fas fa-share-nodes"></i> Resend All</button>
+        <button class="btn btn-sm" style="background:#4299e1;" onclick="logAdminCall('${ticket.passenger}', '${ticket.phone}', 'Confirmed trip details')"><i class="fas fa-phone"></i> Log Call</button>
         ${status === 'PAID' ? `<button class="btn btn-sm" style="background:#48bb78;" onclick="updateTicketStatus(${ticket.id}, 'VERIFIED')">Approve Payment</button>` : ''}
         ${status === 'VERIFIED' ? `
             <select id="opAssign-${ticket.id}" style="width: auto; padding: 5px;">
@@ -1835,6 +1937,11 @@ function loadBookings(){
     `;
     bookingList.appendChild(bookingCard);
   });
+}
+
+function resendTicketSMS(ticketId) {
+    const t = tickets.find(ticket => ticket.id == ticketId);
+    if (t) dispatchMultiChannel(t.phone || currentUser.phone, formatTicketSMS(t));
 }
 
 function updateTicketStatus(id, newStatus) {
@@ -1974,6 +2081,23 @@ function sendNotification(){
   let type = document.getElementById('notificationType').value;
   let title = document.getElementById('notificationTitle').value;
   let message = document.getElementById('notificationMessage').value;
+
+  if(type === 'trip') {
+      const tripId = document.getElementById('targetTripSelect').value;
+      const trip = trips.find(t => t.id == tripId);
+      if(!trip) return alert("Select a valid trip");
+      
+      const tripTickets = tickets.filter(t => t.bus === trip.busName && t.date === trip.date && t.status !== 'CANCELLED');
+      
+      if(confirm(`Send this update to ${tripTickets.length} passengers via SMS/WhatsApp?`)) {
+          tripTickets.forEach(t => {
+              dispatchMultiChannel(t.phone || t.email, `URGENT: ${title} - ${message}`);
+          });
+          showNotification(`Bulk update sent to ${tripTickets.length} passengers`, "success");
+          addActivityLog(`Bulk notification sent for trip ${trip.busName} on ${trip.date}`);
+      }
+      return;
+  }
   
   if(!title || !message) {
     alert('Please fill all fields');
@@ -2102,10 +2226,11 @@ function toggleOpSeatMap(ticketId) {
     container.classList.remove('hidden');
     mapDiv.innerHTML = "";
     const ticket = tickets.find(t => t.id == ticketId);
+    const totalBusSeats = 28;
     const occupiedSeats = tickets
         .filter(t => t.bus === ticket.bus && t.date === ticket.date && t.id !== ticketId && t.status !== 'CANCELLED')
         .map(t => t.seat);
-    for(let i=1; i<=16; i++) {
+    for(let i=1; i<=totalBusSeats; i++) {
         let s = document.createElement("div");
         s.className = "seat";
         s.style.padding = "8px";

@@ -106,9 +106,9 @@
     <!-- REGISTER FORM CARD -->
     <div id="registerFormCard" class="login-card hidden">
       <h2><span class="uganda-flag"></span> Create Account</h2>
-      <input id="regName" placeholder="Full Name" required>
-      <input id="regEmail" type="email" placeholder="Email Address" required>
       <input id="regPhone" placeholder="Phone Number (+256)" required>
+      <input id="regName" placeholder="Full Name" required>
+      <input id="regEmail" type="email" placeholder="Email Address (Optional)">
       <div class="password-wrapper">
         <input id="regPassword" type="password" placeholder="Password" required>
         <button type="button" class="password-toggle" onclick="togglePassword('regPassword', 'regEye')">
@@ -240,9 +240,14 @@
         <div id="seatBox" class="card hidden">
           <button class="screen-back-btn" onclick="showUserScreen('busDetailsBox')"><i class="fas fa-arrow-left"></i> Back</button>
           <h3><i class="fas fa-chair"></i> Select Your Seat</h3>
-          <div class="bus-front-indicator">
-            <i class="fas fa-steering-wheel"></i>
+          <div class="bus-front-indicator" style="margin-bottom: 5px;">
+            <i class="fas fa-dharmachakra"></i>
             <span>FRONT OF BUS</span>
+          </div>
+          <div class="seat-legend" style="margin-bottom: 15px;">
+            <div class="seat-legend-item"><div class="seat-mini" style="background: #f8f9fa; border: 1px solid #cbd5e0;"></div> Available</div>
+            <div class="seat-legend-item"><div class="seat-mini active"></div> Selected</div>
+            <div class="seat-legend-item"><div class="seat-mini occupied"></div> Booked</div>
           </div>
           <div id="seats" class="seats"></div>
           <div id="seatPriceDisplay" class="card" style="background: rgba(0,0,0,0.2); border: 1px dashed white; margin-top: 10px; display: none;">
@@ -282,6 +287,7 @@
             <div class="input-group">
               <input placeholder="Full Name" class="p-name">
               <input placeholder="Age" type="number" class="p-age">
+              <input placeholder="Contact Number" class="p-phone">
               <select class="p-gender"><option>Male</option><option>Female</option></select>
             </div>
           </div>
@@ -719,11 +725,17 @@
       <div id="adminNotifications" class="hidden">
         <div class="card">
           <h3><i class="fas fa-bell"></i> Send Notification</h3>
-          <select id="notificationType">
+          <select id="notificationType" onchange="toggleBulkTripSelect()">
             <option value="all">All Users</option>
             <option value="users">Passengers Only</option>
             <option value="operators">Bus Operators Only</option>
+            <option value="trip">Specific Trip (Bulk SMS/WhatsApp)</option>
           </select>
+          
+          <div id="bulkTripSelectGroup" class="hidden" style="margin-top:10px;">
+            <select id="targetTripSelect"></select>
+          </div>
+
           <input id="notificationTitle" placeholder="Notification Title">
           <textarea id="notificationMessage" placeholder="Notification Message" rows="4"></textarea>
           <button class="btn" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Send Notification</button>
