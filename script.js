@@ -435,17 +435,13 @@ function renderUpcomingJourneys() {
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
         <div class="up-num">#${index + 1}</div>
         <div class="up-actions-left">
-          <button class="quick-btn" onclick="event.stopPropagation(); expandTicketById(${t.id})" title="View"><i class="fas fa-eye"></i></button>
-          ${canCancel ? `<button class="quick-btn" style="background:rgba(229,62,62,0.3)" onclick="event.stopPropagation(); cancelJourney(${t.id})" title="Cancel"><i class="fas fa-times"></i></button>` : ''}
           ${isDeparted ? `<button class="quick-btn" style="background:#4299e1" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>` : ''}
         </div>
         <div class="up-center">
           <div class="up-terminal">Bus Terminal 1</div>
           <div class="up-route-inline">${t.from} → ${t.to}</div>
           <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
-            <span class="badge bg-primary" style="padding: 1px 4px;">${t.busType || 'Standard'}</span> 
-            Seat #${t.seat}
-            <span style="margin-left: 8px; color: var(--uganda-yellow);">
+            <span style="color: var(--uganda-yellow);">
                 ${(amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 4px;"></i>`).join('')}
             </span>
           </div>
@@ -457,8 +453,7 @@ function renderUpcomingJourneys() {
           </div>
         </div>
         <div class="up-right">
-          <div class="up-label">Departure</div>
-          <div style="font-weight: 800; font-size: 0.9rem;">${t.time}</div>
+          <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">Departs: ${t.time}</div>
           <div style="font-size: 0.75rem; opacity: 0.8;">${dateStr}</div>
           <div style="margin-top: 4px;">
             ${isDeparted ? `<span class="live-dot"></span><span style="font-size:0.6rem; font-weight:bold; color:#48bb78;">LIVE</span>` : ''}
@@ -1170,7 +1165,6 @@ function loadTrips(){
           <div class="up-route-inline">${opTrips.length} Schedules Found</div>
         </div>
         <div class="up-right">
-          <div class="up-label">View</div>
           <i class="fas fa-chevron-right" style="color:var(--uganda-yellow); margin-top:5px;"></i>
         </div>
       `;
@@ -1283,8 +1277,11 @@ function showBusDetails(name, price, amenities) {
     const from = document.getElementById('from').value;
     const to = document.getElementById('to').value;
     
+    // Simulated duration - in a real application, this would be part of the trip data
+    const duration = "Est. 3h 45m";
+
     document.getElementById('detailsRoute').innerHTML = `
-        <i class="fas fa-route"></i> ${from} → ${to} | UGX ${price.toLocaleString()}
+        <i class="fas fa-route"></i> ${from} → ${to} | <i class="far fa-clock" style="font-size: 0.85rem; opacity: 0.8;"></i> ${duration} | UGX ${price.toLocaleString()}
     `;
     
     document.getElementById('detailsAmenities').innerHTML = amenities.map(a => 

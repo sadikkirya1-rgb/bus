@@ -938,7 +938,7 @@ input, select, textarea {
   padding: 15px;
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   color: white;
   gap: 15px;
   position: relative;
