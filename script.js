@@ -405,6 +405,10 @@ function renderUpcomingJourneys() {
     const isDeparted = diffMs <= 0;
     const isDelayed = t.status === "DELAYED";
     
+    // Look up amenities from trip data to maintain visual consistency
+    const tripData = trips.find(trip => trip.busName === t.bus);
+    const amenities = tripData ? tripData.amenities : [];
+
     const canCancel = diffHours > 2 && !isDeparted;
 
     let barColor = 'var(--primary-color)';
@@ -441,6 +445,9 @@ function renderUpcomingJourneys() {
           <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 2px;">
             <span class="badge bg-primary" style="padding: 1px 4px;">${t.busType || 'Standard'}</span> 
             Seat #${t.seat}
+            <span style="margin-left: 8px; color: var(--uganda-yellow);">
+                ${(amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 4px;"></i>`).join('')}
+            </span>
           </div>
           <div class="progress-container">
             <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
@@ -1277,7 +1284,7 @@ function showBusDetails(name, price, amenities) {
         <i class="fas fa-tag"></i> Base Fare: UGX ${price.toLocaleString()}
     `;
     document.getElementById('detailsAmenities').innerHTML = amenities.map(a => 
-        `<span class="badge bg-primary" style="margin-right:5px;"><i class="fas fa-${a}"></i> ${a}</span>`
+        `<div class="prominent-amenity"><i class="fas fa-${a}"></i> ${a.charAt(0).toUpperCase() + a.slice(1)}</div>`
     ).join('');
 }
 
@@ -1288,6 +1295,14 @@ function showBoardingPoints() {
 }
 
 function showPassengerInfo() {
+  const bPoint = document.getElementById('boardingPoint').value;
+  const dPoint = document.getElementById('droppingPoint').value;
+  
+  if (!bPoint || !dPoint) {
+      alert("Please select both Boarding and Dropping points.");
+      return;
+  }
+
   const pCountEl = document.getElementById('passengerCount');
   const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
   const container = document.getElementById('passengerForms');
