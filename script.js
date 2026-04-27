@@ -681,39 +681,42 @@ function sendOTP() {
 }
 
 /* LOGIN */
-function login(){
-  let e = email.value, p = password.value;
+async function login(){
+  let e = document.getElementById('email').value;
+  let p = document.getElementById('password').value;
 
-  let foundUser = users.find(u => u.email === e && u.password === p);
+  try {
+      await auth.signInWithEmailAndPassword(e, p);
+      showNotification("Login Successful!", "success");
+      document.getElementById('loginPage').classList.add("hidden");
+  } catch (error) {
+      alert("Error: " + error.message);
+  }
+}
 
-  if (foundUser) {
-    role = foundUser.role;
-    currentUser = foundUser;
-    
-    const remember = document.getElementById('rememberMe').checked;
-    if (remember) {
-      localStorage.setItem("currentUser", JSON.stringify(foundUser));
-    } else {
-      sessionStorage.setItem("currentUser", JSON.stringify(foundUser));
-    }
-  } else if (e === "user@smartseat.ug" && p === "1234") {
-    role = "user";
-    currentUser = { name: "Guest User", email: e, role: "user" };
-  } else if (e === "bus@smartseat.ug" && p === "1234") {
-    role = "bus";
-    currentUser = { name: "Guest Bus Operator", email: e, role: "bus" };
-  } else if (e === "admin@smartseat.ug" && p === "1234") {
-    role = "admin";
-    currentUser = { name: "Guest Admin", email: e, role: "admin" };
-  } else {
-    return alert("Invalid email or password");
+async function register(){
+  let name = regName.value;
+  let email = regEmail.value;
+  let phone = regPhone.value;
+  let password = regPassword.value;
+  let userRole = regRole.value;
+
+  if(!name || !phone || !password || !userRole) {
+    alert("Please fill in Phone, Name and Password");
+    return;
   }
 
-  // After successful login, hide the login page and re-initialize the app
-  document.getElementById('loginPage').classList.add("hidden");
-  document.getElementById('loginPage').classList.remove("login"); // Remove login styling
-  app.classList.remove("hidden");
-  init();
+  try {
+      const cred = await auth.createUserWithEmailAndPassword(email || `${phone}@smartseat.ug`, password);
+      // Store user role in Firestore
+      await db.collection('users').doc(cred.user.uid).set({
+          name, email, phone, role: userRole, id: cred.user.uid, timestamp: new Date().toISOString()
+      });
+      showNotification("Registration successful!", "success");
+      showLogin();
+  } catch (error) {
+      alert("Registration failed: " + error.message);
+  }
 }
 
 function quickFill(type){
@@ -1613,10 +1616,11 @@ function showBookingSummary() {
 }
 
 /* CONFIRM BOOKING */
-function confirmBooking(){
+async function confirmBooking(){
   if(!selectedPayment) return alert("Select payment method");
 
   selectedSeat = 1; // Auto-assign a default seat as there is no user selection
+  const ticketId = Math.floor(100000 + Math.random() * 900000);
   let ticket = { 
     bus: selectedBus.name,
     seat: selectedSeat,
@@ -1629,29 +1633,27 @@ function confirmBooking(){
     passengerPhone: document.querySelector('.p-phone')?.value || "",
     email: currentUser.email,
     phone: currentUser.phone,
-    id: Math.floor(100000 + Math.random() * 900000),
+    uid: currentUser ? (currentUser.uid || currentUser.id) : null,
+    id: ticketId,
     status: "PAID", // Start at PAID for demo purposes once confirmed
     timestamp: new Date().toISOString()
   };
 
-  tickets.push(ticket);
-  localStorage.setItem("tickets", JSON.stringify(tickets));
-
-  addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser?.name || 'Guest'}`);
-  
-  const confirmBox = document.getElementById('bookingConfirm');
-  if (confirmBox) confirmBox.classList.add("hidden");
-  
-  showNotification("Payment successful! Booking ID: #" + ticket.id, "success");
-  showNotification("Booking confirmed! Check your tickets.", "success");
-  renderUpcomingJourneys();
-
-  const targetPhone = ticket.phone || currentUser.phone;
-  if (targetPhone) {
-      dispatchMultiChannel(targetPhone, formatTicketSMS(ticket));
+  try {
+    await db.collection('tickets').doc(ticketId.toString()).set(ticket);
+    addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser?.name || 'Guest'}`);
+    
+    const confirmBox = document.getElementById('bookingConfirm');
+    if (confirmBox) confirmBox.classList.add("hidden");
+    
+    showNotification("Payment successful! Booking ID: #" + ticket.id, "success");
+    showNotification("Booking confirmed! Check your tickets.", "success");
+    
+    userTab("tickets");
+  } catch (error) {
+    console.error("Booking error:", error);
+    alert("Failed to confirm booking. Please try again.");
   }
-
-  userTab("tickets");
 }
 
 /* REFUND SYSTEM */
@@ -2788,7 +2790,7 @@ async function printTicketReceipt(id) {
 /**
  * Updates all filtered tickets with 'PAID' status to 'VERIFIED' at once.
  */
-function bulkVerifyPayments() {
+async function bulkVerifyPayments() {
   let filter = document.getElementById('bookingFilter')?.value || 'all';
   let targetTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
   let paidTickets = targetTickets.filter(t => t.status === 'PAID');
@@ -2799,11 +2801,14 @@ function bulkVerifyPayments() {
   }
 
   if (confirm(`Are you sure you want to verify all ${paidTickets.length} pending payments?`)) {
-    paidTickets.forEach(t => { t.status = 'VERIFIED'; });
-    localStorage.setItem("tickets", JSON.stringify(tickets));
+    const batch = db.batch();
+    paidTickets.forEach(t => {
+        const ref = db.collection('tickets').doc(t.id.toString());
+        batch.update(ref, { status: 'VERIFIED', updatedAt: new Date().toISOString() });
+    });
+    
+    await batch.commit();
     showNotification(`Successfully verified ${paidTickets.length} tickets!`, "success");
-    addActivityLog(`Admin bulk verified ${paidTickets.length} payments.`);
-    loadBookings();
   }
 }
 
@@ -2891,13 +2896,16 @@ function resendTicketSMS(ticketId) {
     if (t) dispatchMultiChannel(t.phone || currentUser.phone, formatTicketSMS(t));
 }
 
-function updateTicketStatus(id, newStatus) {
-    let ticket = tickets.find(t => t.id == id);
-    if(ticket) {
-        ticket.status = newStatus;
-        localStorage.setItem("tickets", JSON.stringify(tickets));
+async function updateTicketStatus(id, newStatus) {
+    try {
+        await db.collection('tickets').doc(id.toString()).update({
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+        });
         showNotification(`Ticket #${id} updated to ${newStatus}`, "success");
-        loadBookings();
+    } catch (error) {
+        console.error("Error updating ticket:", error);
+        showNotification("Failed to update ticket status", "error");
     }
 }
 
@@ -3137,13 +3145,15 @@ function editRoute(routeKey){
   }
 }
 
-function cancelBooking(ticketId){
-  if(confirm('Are you sure you want to cancel this booking?')) {
-    tickets = tickets.filter(t => t.id !== ticketId);
-    localStorage.setItem('tickets', JSON.stringify(tickets));
-    loadBookings();
-    alert('Booking cancelled successfully!');
-  }
+async function cancelBooking(ticketId){
+    if(confirm('Are you sure you want to delete this booking record?')) {
+        try {
+            await db.collection('tickets').doc(ticketId.toString()).delete();
+            showNotification("Booking deleted successfully", "success");
+        } catch (error) {
+            alert("Error deleting booking: " + error.message);
+        }
+    }
 }
 
 /* TICKET SCANNER */
