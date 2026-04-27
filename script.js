@@ -27,13 +27,9 @@ if (users.length === 0) {
 }
 
 if (tickets.length === 0) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-  
-  const dayAfter = new Date();
-  dayAfter.setDate(dayAfter.getDate() + 2);
-  const dayAfterStr = dayAfter.toISOString().split('T')[0];
+  // Set all mock tickets to TODAY to align with the terminal schedule focus
+  const todayStr = new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}).split(',')[0];
+  const todayISO = new Date(todayStr).toISOString().split('T')[0];
 
   tickets = [
     {
@@ -41,7 +37,7 @@ if (tickets.length === 0) {
       bus: "Swift Express",
       seat: 5,
       price: 25000,
-      date: tomorrowStr,
+      date: todayISO,
       time: "08:00 AM",
       from: "Kampala",
       to: "Jinja",
@@ -57,7 +53,7 @@ if (tickets.length === 0) {
       bus: "Link Coaches",
       seat: 12,
       price: 30000,
-      date: tomorrowStr,
+      date: todayISO,
       time: "10:30 AM",
       from: "Kampala",
       to: "Mbarara",
@@ -73,7 +69,7 @@ if (tickets.length === 0) {
       bus: "Global Coaches",
       seat: 22,
       price: 25000,
-      date: dayAfterStr,
+      date: todayISO,
       time: "02:00 PM",
       from: "Kampala",
       to: "Masaka",
@@ -94,9 +90,8 @@ if (notifications.length === 0) {
 }
 
 if (trips.length === 0) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}).split(',')[0];
+  const todayISO = new Date(todayStr).toISOString().split('T')[0];
 
   const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
   const operators = [
@@ -112,7 +107,7 @@ if (trips.length === 0) {
         busName: op.name,
         from: op.from,
         to: op.to,
-        date: new Date().toISOString().split('T')[0], // Set for today to see "Finished" logic
+        date: todayISO,
         time: time,
         price: op.price,
         busType: op.type,
@@ -377,34 +372,74 @@ function renderUpcomingJourneys() {
     });
 
     const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+    
+    // Find the "Next" available bus to set as current focus
+    let focusFound = false;
+
     const tripData = trips.find(trip => trip.busName === t.bus);
     const amenities = tripData ? tripData.amenities : [];
 
     const schedulesHtml = standardTimes.map(slotTime => {
-        const departure = new Date(`${t.date} ${slotTime}`);
+        // Parse slot time correctly for comparison against Kampala 'now'
+        const [hPart, mFull] = slotTime.split(':');
+        const [mPart, ampm] = mFull.split(' ');
+        let hrs = parseInt(hPart);
+        if (ampm === 'PM' && hrs < 12) hrs += 12;
+        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        
+        const departure = new Date(now);
+        departure.setHours(hrs, parseInt(mPart), 0, 0);
+
         const diff = departure - now;
-        const isLive = diff <= 0 && diff > -15 * 60 * 1000;
-        const finished = diff <= -15 * 60 * 1000;
+
+        // 1. Auto-hide: Remove from UI if finished for more than 30 minutes
+        if (diff <= -30 * 60 * 1000) return "";
+
+        const isLive = diff <= 0 && diff > -10 * 60 * 1000; // 10 min window
+        const finished = diff <= -10 * 60 * 1000;
+        const isUrgent = diff > 0 && diff < 5 * 60 * 1000;   // < 5 mins
+        const isBoarding = diff > 0 && diff < 30 * 60 * 1000; // < 30 mins
         const isUserSlot = slotTime === t.time;
         
         let statusText = "";
         let statusClass = "";
+        let focusClass = "";
+
+        // 2. Current Focus: Highlight the first upcoming bus
+        if (!finished && !isLive && !focusFound) {
+            focusClass = "focus-schedule";
+            focusFound = true;
+        }
+
         let barWidth = "0%";
         let barColor = "var(--primary-color)";
         const windowMs = 24 * 60 * 60 * 1000;
 
-        if (isLive) {
-            statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
-            barWidth = "100%";
-            barColor = "var(--uganda-red)";
-        } else if (finished) {
+        if (finished) {
             statusText = `<span class="status-finished" style="font-size: 0.85rem;"><i class="fas fa-times-circle"></i> FINISHED</span>`;
             statusClass = "finished-schedule";
             barWidth = "100%";
             barColor = "var(--uganda-red)";
+        } else if (isLive) {
+            statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
+            barWidth = "100%";
+            barColor = "var(--uganda-red)";
+        } else if (isUrgent) {
+            statusText = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
+            const totalSec = Math.floor(diff / 1000);
+            const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+            const ss = String(totalSec % 60).padStart(2, '0');
+            statusText += ` <small>${mm}:${ss}</small>`;
+            barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+            barColor = "var(--uganda-red)";
+        } else if (isBoarding) {
+            statusText = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
+            barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+            barColor = "var(--uganda-yellow)";
         } else {
             const totalSec = Math.floor(diff / 1000);
-            const hh = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+            // Use modulo 24 to ensure timers don't show "too many hours" and stay within a day
+            const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
             const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
             const ss = String(totalSec % 60).padStart(2, '0');
             statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
@@ -413,7 +448,8 @@ function renderUpcomingJourneys() {
         }
 
         return `
-          <div style="margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;">
+          <div class="${focusClass}" style="margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 8px; border-radius: 8px;">
+            ${focusClass ? '<div style="font-size: 0.55rem; color: var(--uganda-yellow); font-weight: bold; margin-bottom: 4px;"><i class="fas fa-star"></i> NEXT AVAILABLE</div>' : ''}
             <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.75rem;">
               <div style="display: flex; flex-direction: column;">
                 <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Departure</span>
@@ -1237,7 +1273,14 @@ function refreshActiveSchedules() {
     const windowMs = 24 * 60 * 60 * 1000;
 
     activeSearchSchedules.data.forEach((t) => {
-        const departure = new Date(`${t.date} ${t.time || '08:00 AM'}`);
+        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+        const [mPart, ampm] = mFull.split(' ');
+        let hrs = parseInt(hPart);
+        if (ampm === 'PM' && hrs < 12) hrs += 12;
+        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        
+        const departure = new Date(now);
+        departure.setHours(hrs, parseInt(mPart), 0, 0);
         const diffMs = departure - now;
         
         const timerEl = document.getElementById(`timer-${t.id}`);
@@ -1255,18 +1298,28 @@ function refreshActiveSchedules() {
         if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
 
         const isLive = diffMs <= 0 && diffMs > -15 * 60 * 1000;
-        const finished = diffMs <= -15 * 60 * 1000;
+        const finished = diffMs <= -10 * 60 * 1000;
+        const isUrgent = diffMs > 0 && diffMs < 5 * 60 * 1000;
+        const isBoarding = diffMs > 0 && diffMs < 30 * 60 * 1000;
 
-        if (isLive) {
-            timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
-            barEl.style.width = '100%';
-            barEl.style.background = 'var(--uganda-red)';
-            timeTextEl.classList.remove('finished-schedule');
-        } else if (finished) {
+        if (finished) {
             timerEl.innerHTML = `<span class="status-finished" style="font-size: 0.85rem;"><i class="fas fa-times-circle"></i> FINISHED</span>`;
             timeTextEl.classList.add('finished-schedule');
             barEl.style.width = '100%';
             barEl.style.background = 'var(--uganda-red)';
+        } else if (isLive) {
+            timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
+            barEl.style.width = '100%';
+            barEl.style.background = 'var(--uganda-red)';
+            timeTextEl.classList.remove('finished-schedule');
+        } else if (isUrgent) {
+            timerEl.innerHTML = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
+            barEl.style.width = '95%';
+            barEl.style.background = 'var(--uganda-red)';
+        } else if (isBoarding) {
+            timerEl.innerHTML = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
+            barEl.style.width = '80%';
+            barEl.style.background = 'var(--uganda-yellow)';
         } else {
             const hh = String(h).padStart(2, '0');
             const mm = String(m).padStart(2, '0');

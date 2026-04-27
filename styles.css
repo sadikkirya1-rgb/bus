@@ -471,9 +471,32 @@ body{
   align-items: center;
 }
 
+.status-urgent {
+  color: var(--uganda-red);
+  font-weight: bold;
+  animation: flash-red 1s infinite;
+}
+
+.status-boarding {
+  color: var(--uganda-yellow);
+  font-weight: bold;
+}
+
+.focus-schedule {
+  border: 1px solid var(--uganda-yellow) !important;
+  box-shadow: 0 0 10px rgba(252, 209, 22, 0.2);
+  background: rgba(252, 209, 22, 0.05) !important;
+}
+
 .status-finished {
   color: var(--uganda-red);
   font-weight: bold;
+}
+
+@keyframes flash-red {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
 }
 
 .icon-btn {
