@@ -458,6 +458,24 @@ body{
   transform: rotate(90deg);
 }
 
+.finished-schedule {
+  color: var(--uganda-red) !important;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.status-live {
+  color: var(--uganda-red);
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+}
+
+.status-finished {
+  color: var(--uganda-red);
+  font-weight: bold;
+}
+
 .icon-btn {
   width: 42px;
   height: 42px;

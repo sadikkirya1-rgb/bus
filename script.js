@@ -98,47 +98,31 @@ if (trips.length === 0) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-  trips = [
-    {
-      id: 1,
-      busName: "Swift Express",
-      from: "Kampala",
-      to: "Jinja",
-      date: tomorrowStr,
-      time: "08:00 AM",
-      price: 25000,
-      busType: "Standard",
-      amenities: ["wifi", "charging-station"],
-      totalSeats: 28,
-      availableSeats: 22
-    },
-    {
-      id: 2,
-      busName: "Swift Express",
-      from: "Kampala",
-      to: "Jinja",
-      date: tomorrowStr,
-      time: "02:00 PM",
-      price: 25000,
-      busType: "Standard",
-      amenities: ["wifi"],
-      totalSeats: 28,
-      availableSeats: 15
-    },
-    {
-      id: 3,
-      busName: "Link Coaches",
-      from: "Kampala",
-      to: "Mbarara",
-      date: tomorrowStr,
-      time: "09:00 AM",
-      price: 30000,
-      busType: "Luxury",
-      amenities: ["wifi", "snowflake", "charging-station"],
-      totalSeats: 28,
-      availableSeats: 10
-    }
+  const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+  const operators = [
+    { name: "Swift Express", from: "Kampala", to: "Jinja", price: 25000, type: "Standard", am: ["wifi", "charging-station"] },
+    { name: "Link Coaches", from: "Kampala", to: "Mbarara", price: 30000, type: "Luxury", am: ["wifi", "snowflake"] }
   ];
+
+  let idCounter = 1;
+  operators.forEach(op => {
+    standardTimes.forEach(time => {
+      trips.push({
+        id: idCounter++,
+        busName: op.name,
+        from: op.from,
+        to: op.to,
+        date: new Date().toISOString().split('T')[0], // Set for today to see "Finished" logic
+        time: time,
+        price: op.price,
+        busType: op.type,
+        amenities: op.am,
+        totalSeats: 28,
+        availableSeats: Math.floor(Math.random() * 20)
+      });
+    });
+  });
+
   localStorage.setItem("trips", JSON.stringify(trips));
 }
 
@@ -384,52 +368,70 @@ function renderUpcomingJourneys() {
     return;
   }
 
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+  const todayLabelStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
   container.innerHTML = userTickets.map((t, index) => {
-    const departure = new Date(`${t.date} ${t.time || '08:00 AM'}`);
-    const diffMs = departure - now;
-    const diffHours = diffMs / (1000 * 60 * 60);
-    const diffMins = diffMs / (1000 * 60);
-    
-    // Calculate progress: assuming a 24-hour lead-up window
-    const windowMs = 24 * 60 * 60 * 1000;
-    let progress = 0;
-    if (diffMs > 0 && diffMs < windowMs) {
-      progress = ((windowMs - diffMs) / windowMs) * 100;
-    } else if (diffMs <= 0) {
-      progress = 100;
-    }
-
-    const isUrgent = diffMs > 0 && diffMins < 30;
-    const isDeparted = diffMs <= 0;
-    const isDelayed = t.status === "DELAYED";
-    
-    // Look up amenities from trip data to maintain visual consistency
-    const tripData = trips.find(trip => trip.busName === t.bus);
-    const amenities = tripData ? tripData.amenities : [];
-
-    const canCancel = diffHours > 2 && !isDeparted;
-
-    let barColor = 'var(--primary-color)';
-    if (isUrgent) barColor = 'var(--uganda-red)';
-    if (isDelayed) barColor = 'var(--uganda-yellow)';
-    if (isDeparted && !isDelayed) barColor = '#48bb78';
-
-    const totalSeconds = Math.floor(diffMs / 1000);
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-
-    const timeLeftStr = diffMs > 0 
-      ? `${h > 0 ? h + 'h ' : ''}${m}m ${s}s left`
-      : (isDelayed 
-          ? `<span class="delayed-dot"></span> DELAYED` 
-          : `<span class="live-dot"></span> LIVE`);
-
     const dateStr = new Date(t.date).toLocaleDateString('en-GB', { 
       weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
     });
+
+    const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+    const tripData = trips.find(trip => trip.busName === t.bus);
+    const amenities = tripData ? tripData.amenities : [];
+
+    const schedulesHtml = standardTimes.map(slotTime => {
+        const departure = new Date(`${t.date} ${slotTime}`);
+        const diff = departure - now;
+        const isLive = diff <= 0 && diff > -15 * 60 * 1000;
+        const finished = diff <= -15 * 60 * 1000;
+        const isUserSlot = slotTime === t.time;
+        
+        let statusText = "";
+        let statusClass = "";
+        let barWidth = "0%";
+        let barColor = "var(--primary-color)";
+        const windowMs = 24 * 60 * 60 * 1000;
+
+        if (isLive) {
+            statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
+            barWidth = "100%";
+            barColor = "var(--uganda-red)";
+        } else if (finished) {
+            statusText = `<span class="status-finished" style="font-size: 0.85rem;"><i class="fas fa-times-circle"></i> FINISHED</span>`;
+            statusClass = "finished-schedule";
+            barWidth = "100%";
+            barColor = "var(--uganda-red)";
+        } else {
+            const totalSec = Math.floor(diff / 1000);
+            const hh = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+            const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+            const ss = String(totalSec % 60).padStart(2, '0');
+            statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
+            barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+            if (diff / (1000 * 60) < 30) barColor = "var(--uganda-red)";
+        }
+
+        return `
+          <div style="margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.75rem;">
+              <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Departure</span>
+                <span class="${statusClass}" style="font-weight: 700; font-size: 0.9rem; ${isUserSlot ? 'color: var(--uganda-yellow);' : ''}">
+                  <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${slotTime} ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
+                </span>
+              </div>
+              <div style="text-align: right; display: flex; flex-direction: column;">
+                <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Timer Status</span>
+                <span style="font-variant-numeric: tabular-nums;">${statusText}</span>
+              </div>
+            </div>
+            <div class="progress-container" style="height: 4px; margin: 4px 0;">
+              <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
+            </div>
+          </div>
+        `;
+    }).join('');
 
     return `
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
@@ -437,25 +439,19 @@ function renderUpcomingJourneys() {
         <div class="up-center">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="up-terminal">Bus Terminal 1</div>
-            <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">Departs: ${t.time}</div>
+            <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">${t.from} → ${t.to}</div>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="up-route-inline">${t.from} → ${t.to}</div>
-            <div style="font-size: 0.75rem; opacity: 0.8;">${dateStr}</div>
+          <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
+            ${dateStr} | ${(amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 5px;"></i>`).join('')}
           </div>
-          <div class="up-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-            <div style="display: flex; align-items: center; gap: 10px; flex: 1; margin-right: 15px;">
-              <div style="font-size: 0.75rem; color: var(--uganda-yellow); display: flex; gap: 5px; flex-shrink: 0;">
-                ${(amenities || []).map(a => `<i class="fas fa-${a}"></i>`).join('')}
-              </div>
-              <div class="progress-container" style="flex: 1; margin: 0;">
-                <div class="progress-bar" style="width: ${progress}%; background: ${barColor};"></div>
-              </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-              <span class="up-time-left" style="white-space: nowrap; font-weight: 600;">${timeLeftStr}</span>
-              ${isDeparted ? `<button class="quick-btn" style="background:#4299e1; width:22px; height:22px;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>` : ''}
-            </div>
+          
+          <div style="margin-top: 10px;">
+            <p style="font-size: 0.65rem; text-transform: uppercase; color: var(--uganda-yellow); margin: 0; opacity: 0.8;">Terminal Schedule Today (${todayLabelStr})</p>
+            ${schedulesHtml}
+          </div>
+
+          <div class="up-footer" style="display: flex; justify-content: flex-end; margin-top: 5px;">
+             <button class="quick-btn" style="background:#4299e1; width:22px; height:22px;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>
           </div>
         </div>
       </div>
@@ -1206,7 +1202,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
             <div class="up-num">#${index + 1}</div>
             <div class="up-center">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <div class="up-terminal" style="margin:0;">
+                    <div id="time-text-${t.id}" class="up-terminal" style="margin:0;">
                         <i class="far fa-clock"></i> ${t.time} | ${t.busType}
                         <span style="margin-left: 8px; color: var(--uganda-yellow);">
                             ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 5px;"></i>`).join('')}
@@ -1237,7 +1233,7 @@ function refreshActiveSchedules() {
     const listContainer = document.getElementById('activeSchedulesList');
     if (!listContainer || !activeSearchSchedules) return;
 
-    const now = new Date();
+    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
     const windowMs = 24 * 60 * 60 * 1000;
 
     activeSearchSchedules.data.forEach((t) => {
@@ -1246,7 +1242,8 @@ function refreshActiveSchedules() {
         
         const timerEl = document.getElementById(`timer-${t.id}`);
         const barEl = document.getElementById(`bar-${t.id}`);
-        if (!timerEl || !barEl) return;
+        const timeTextEl = document.getElementById(`time-text-${t.id}`);
+        if (!timerEl || !barEl || !timeTextEl) return;
 
         let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
         const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
@@ -1257,12 +1254,28 @@ function refreshActiveSchedules() {
         let barColor = 'var(--primary-color)';
         if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
 
-        timerEl.innerHTML = diffMs > 0 
-            ? `${h > 0 ? h + 'h ' : ''}${m}m ${s}s left`
-            : `<span class="live-dot"></span> DEPARTING`;
-            
-        barEl.style.width = progress + '%';
-        barEl.style.background = barColor;
+        const isLive = diffMs <= 0 && diffMs > -15 * 60 * 1000;
+        const finished = diffMs <= -15 * 60 * 1000;
+
+        if (isLive) {
+            timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
+            barEl.style.width = '100%';
+            barEl.style.background = 'var(--uganda-red)';
+            timeTextEl.classList.remove('finished-schedule');
+        } else if (finished) {
+            timerEl.innerHTML = `<span class="status-finished" style="font-size: 0.85rem;"><i class="fas fa-times-circle"></i> FINISHED</span>`;
+            timeTextEl.classList.add('finished-schedule');
+            barEl.style.width = '100%';
+            barEl.style.background = 'var(--uganda-red)';
+        } else {
+            const hh = String(h).padStart(2, '0');
+            const mm = String(m).padStart(2, '0');
+            const ss = String(s).padStart(2, '0');
+            timerEl.innerHTML = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
+            barEl.style.width = progress + '%';
+            barEl.style.background = barColor;
+            timeTextEl.classList.remove('finished-schedule');
+        }
     });
 }
 
