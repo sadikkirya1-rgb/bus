@@ -417,12 +417,17 @@ function renderUpcomingJourneys() {
         departure.setHours(hrs, parseInt(mPart), 0, 0);
 
         const diff = departure - now;
+        
+        // Lookup the specific trip to check for manual status overrides
+        const tripEntry = trips.find(tr => tr.busName === t.bus && tr.time === slotTime && tr.date === t.date);
+        const manualFinished = tripEntry ? tripEntry.manualFinished : false;
+        const manualLive = tripEntry ? tripEntry.manualLive : false;
 
         // 1. Auto-hide: Remove from UI if finished for more than 30 minutes
-        if (diff <= -30 * 60 * 1000) return "";
+        if (diff <= -30 * 60 * 1000 || manualFinished) return "";
 
-        const isLive = diff <= 0 && diff > -10 * 60 * 1000; // 10 min window
-        const finished = diff <= -10 * 60 * 1000;
+        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || manualLive; // 10 min window
+        const finished = diff <= -10 * 60 * 1000 || manualFinished;
         const isUrgent = diff > 0 && diff < 5 * 60 * 1000;   // < 5 mins
         const isBoarding = diff > 0 && diff < 30 * 60 * 1000; // < 30 mins
         const isUserSlot = slotTime === t.time;
@@ -1261,6 +1266,10 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
         opTrips.sort((a, b) => a.price - b.price);
     }
     
+    const todayISO = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+    }).format(new Date());
+
     tripsContainer.innerHTML = `
         <div class="card" style="background: rgba(255,255,255,0.05); margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
@@ -1276,7 +1285,10 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
 
     // Initial render of static card skeletons
     const listContainer = document.getElementById('activeSchedulesList');
-    listContainer.innerHTML = opTrips.map((t, index) => `
+    listContainer.innerHTML = opTrips.map((t, index) => {
+        let bTxt = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+        
+        return `
         <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
             <div class="up-num">#${index + 1}</div>
             <div class="up-center">
@@ -1296,11 +1308,12 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                     <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums;">--m --s left</span>
-                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Today</button>
+                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>${bTxt}</button>
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     refreshActiveSchedules();
 }
@@ -1347,7 +1360,7 @@ function refreshActiveSchedules() {
 
         // Check for manual live override from operator
         const isLive = (diffMs <= 0 && diffMs > -15 * 60 * 1000) || t.manualLive;
-        const finished = diffMs <= -10 * 60 * 1000;
+        const finished = diffMs <= -10 * 60 * 1000 || t.manualFinished;
         const isUrgent = diffMs > 0 && diffMs < 5 * 60 * 1000;
         const isBoarding = diffMs > 0 && diffMs < 30 * 60 * 1000;
 
@@ -1374,10 +1387,16 @@ function refreshActiveSchedules() {
             timerEl.innerHTML = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
             barEl.style.width = '95%';
             barEl.style.background = 'var(--uganda-red)';
+            if (bookBtn) {
+                bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+            }
         } else if (isBoarding) {
             timerEl.innerHTML = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
             barEl.style.width = '80%';
             barEl.style.background = 'var(--uganda-yellow)';
+            if (bookBtn) {
+                bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+            }
         } else {
             const hh = String(h).padStart(2, '0');
             const mm = String(m).padStart(2, '0');
@@ -1386,6 +1405,9 @@ function refreshActiveSchedules() {
             barEl.style.width = progress + '%';
             barEl.style.background = barColor;
             timeTextEl.classList.remove('finished-schedule');
+            if (bookBtn) {
+                bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+            }
         }
     });
 }
@@ -1764,7 +1786,7 @@ function renderSchedules(){
     const diff = departure - now;
 
     const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
-    const finished = diff <= -10 * 60 * 1000;
+    const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
     const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
     const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
     // Alert if 5 minutes past departure and not yet "Finished" or manually started
@@ -1828,6 +1850,7 @@ function renderSchedules(){
         <div style="font-weight:bold;">UGX ${t.price.toLocaleString()}</div>
         <div style="display:flex; gap:5px;">
             ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start Boarding</button>` : ''}
+            ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Departure Confirmed</button>` : ''}
             <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
         </div>
       </div>
@@ -1836,12 +1859,36 @@ function renderSchedules(){
   });
 }
 
-function startBoarding(tripId) {
+async function startBoarding(tripId) {
     const trip = trips.find(t => t.id == tripId);
     if (trip) {
         trip.manualLive = true;
         localStorage.setItem("trips", JSON.stringify(trips));
         showNotification("Boarding started manually for " + trip.busName, "success");
+        
+        // Send Automated WhatsApp to passengers
+        const tripTickets = tickets.filter(t => t.bus === trip.busName && t.date === trip.date && t.status !== 'CANCELLED');
+        for (const t of tripTickets) {
+            const contact = t.passengerPhone || t.phone;
+            if (contact) {
+                await dispatchMultiChannel(contact, 
+                    `SmartSeat Boarding Alert: Boarding for your ${trip.busName} bus from ${trip.from} to ${trip.to} has started. Please proceed to the boarding area immediately. Ticket #${t.id}`, 
+                    ['whatsapp']
+                );
+            }
+        }
+        
+        renderSchedules();
+    }
+}
+
+function confirmDeparture(tripId) {
+    const trip = trips.find(t => t.id == tripId);
+    if (trip) {
+        trip.manualFinished = true;
+        trip.manualLive = false;
+        localStorage.setItem("trips", JSON.stringify(trips));
+        showNotification("Departure confirmed for " + trip.busName, "success");
         renderSchedules();
     }
 }
