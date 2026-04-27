@@ -16,6 +16,15 @@ let activeSearchSchedules = null; // Tracks current search results for real-time
 const TEST_USER_EMAIL = "user@smartseat.ug";
 const TEST_USER_NAME = "John Doe";
 
+// Global Terminal Schedule Logic
+const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+const standardOperators = [
+  { name: "Swift Express", from: "Kampala", to: "Jinja", price: 25000, type: "Standard", am: ["wifi", "charging-station"] },
+  { name: "Link Coaches", from: "Kampala", to: "Mbarara", price: 30000, type: "Luxury", am: ["wifi", "snowflake"] },
+  { name: "Global Coaches", from: "Kampala", to: "Masaka", price: 25000, type: "Standard", am: ["wifi"] },
+  { name: "Gateway Bus", from: "Kampala", to: "Gulu", price: 35000, type: "Standard", am: ["charging-station"] }
+];
+
 // Seed sample data for development if localStorage is empty
 if (users.length === 0) {
   users = [
@@ -27,10 +36,11 @@ if (users.length === 0) {
 }
 
 if (tickets.length === 0) {
-  // Set all mock tickets to TODAY to align with the terminal schedule focus
-  const todayStr = new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}).split(',')[0];
-  const todayISO = new Date(todayStr).toISOString().split('T')[0];
-
+  // Robust way to get YYYY-MM-DD for Uganda timezone
+  const todayISO = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+  }).format(new Date());
+  
   tickets = [
     {
       id: 102938,
@@ -90,17 +100,12 @@ if (notifications.length === 0) {
 }
 
 if (trips.length === 0) {
-  const todayStr = new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}).split(',')[0];
-  const todayISO = new Date(todayStr).toISOString().split('T')[0];
-
-  const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
-  const operators = [
-    { name: "Swift Express", from: "Kampala", to: "Jinja", price: 25000, type: "Standard", am: ["wifi", "charging-station"] },
-    { name: "Link Coaches", from: "Kampala", to: "Mbarara", price: 30000, type: "Luxury", am: ["wifi", "snowflake"] }
-  ];
+  const todayISO = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+  }).format(new Date());
 
   let idCounter = 1;
-  operators.forEach(op => {
+  standardOperators.forEach(op => {
     standardTimes.forEach(time => {
       trips.push({
         id: idCounter++,
@@ -787,7 +792,8 @@ function init(){
     // Auto-refresh UI components every second for real-time countdowns
     if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
     window.upcomingRefreshInterval = setInterval(() => {
-        renderUpcomingJourneys();
+        if (role === 'user' || role === null) renderUpcomingJourneys();
+        if (role === 'bus') renderSchedules();
         if (activeSearchSchedules) refreshActiveSchedules();
     }, 1000);
 
@@ -1148,6 +1154,32 @@ function loadTrips(){
     t.date === date
   );
 
+  // If no specific trips in DB, generate from Terminal Schedule Logic for the selected date
+  if (availableTrips.length === 0) {
+    const operatorsForRoute = standardOperators.filter(op => 
+      op.from.toLowerCase() === from.toLowerCase() && 
+      op.to.toLowerCase() === to.toLowerCase()
+    );
+
+    operatorsForRoute.forEach(op => {
+      standardTimes.forEach(time => {
+        availableTrips.push({
+          id: Math.floor(Math.random() * 100000),
+          busName: op.name,
+          from: op.from,
+          to: op.to,
+          date: date,
+          time: time,
+          price: op.price,
+          busType: op.type,
+          amenities: op.am,
+          totalSeats: 28,
+          availableSeats: Math.floor(Math.random() * 15) + 5
+        });
+      });
+    });
+  }
+
   // Group results by Operator
   const operatorGroups = availableTrips.reduce((acc, t) => {
     if (!acc[t.busName]) acc[t.busName] = [];
@@ -1185,31 +1217,7 @@ function loadTrips(){
   tripsContainer.innerHTML = headerCard;
 
   if(operatorList.length === 0) {
-    // Show default buses if no scheduled trips
-    let defaultBuses = [
-      {name: "Swift Express", route: `${from} - ${to}`, price: 25000, type: "Standard", time: "08:00", amenities: ['wifi', 'charging-station']},
-      {name: "Link Coaches", route: `${from} - ${to}`, price: 30000, type: "Luxury", time: "10:00", amenities: ['wifi', 'snowflake', 'charging-station']},
-      {name: "Post Bus", route: `${from} - ${to}`, price: 20000, type: "Standard", time: "14:00", amenities: ['charging-station']}
-    ];
-
-    defaultBuses.forEach(b=>{
-      let d=document.createElement("div");
-      d.className="upcoming-card fade-in";
-      d.style.marginBottom = "12px";
-      d.onclick = () => alert(`${b.name} has daily departures for this route. Please visit the terminal or call support to book manually as online schedules are not uploaded for this date.`);
-      d.innerHTML=`
-        <div class="up-num"><i class="fas fa-bus" style="font-size:1.2rem"></i></div>
-        <div class="up-center">
-          <div class="verified-badge"><i class="fas fa-check-circle"></i> Verified</div>
-          <div class="up-terminal">${b.name} | <span style="color:var(--uganda-yellow)">Available Daily</span></div>
-          <div class="up-route-inline">Contact operator at Terminal for booking.</div>
-        </div>
-        <div class="up-right">
-          <i class="fas fa-chevron-right" style="opacity:0.5"></i>
-        </div>
-      `;
-      tripsContainer.appendChild(d);
-    });
+      tripsContainer.innerHTML += `<div class="card" style="text-align:center; padding: 40px;"><p style="opacity:0.7;">No terminal operators found for this route yet.</p></div>`;
   } else {
     operatorList.forEach(name => {
       const opTrips = operatorGroups[name];
@@ -1308,8 +1316,8 @@ function refreshActiveSchedules() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        const departure = new Date(now);
-        departure.setHours(hrs, parseInt(mPart), 0, 0);
+        const [y, m_val, d] = t.date.split('-').map(Number);
+        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
         const diffMs = departure - now;
         
         const timerEl = document.getElementById(`timer-${t.id}`);
@@ -1720,28 +1728,90 @@ function scheduleTrip(){
 /* RENDER SCHEDULES */
 function renderSchedules(){
   const schedulesContainer = document.getElementById('schedules');
-  schedulesContainer.innerHTML="";
+  if (!schedulesContainer) return;
+  schedulesContainer.innerHTML = "";
 
   if(trips.length === 0) {
     schedulesContainer.innerHTML = "<p>No trips scheduled yet.</p>";
     return;
   }
 
-  trips.forEach(t=>{
-    let d=document.createElement("div");
-    d.className="card";
-    d.innerHTML=`
-      <h4>${t.busName}</h4>
-      <p><i class="fas fa-route"></i> ${t.from} → ${t.to}</p>
-      <p><i class="fas fa-calendar"></i> ${t.date} | <i class="fas fa-clock"></i> ${t.time}</p>
-      <p><strong>Seats:</strong> ${t.availableSeats || 16} available out of ${t.totalSeats || 16}</p>
+  const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+  const windowMs = 24 * 60 * 60 * 1000;
+
+  trips.forEach(t => {
+    // Consistent time parsing logic
+    const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+    const [mPart, ampm] = mFull.split(' ');
+    let hrs = parseInt(hPart);
+    if (ampm === 'PM' && hrs < 12) hrs += 12;
+    if (ampm === 'AM' && hrs === 12) hrs = 0;
+    
+    const [y, m_val, d] = t.date.split('-').map(Number);
+    const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
+    const diff = departure - now;
+
+    const isLive = diff <= 0 && diff > -10 * 60 * 1000;
+    const finished = diff <= -10 * 60 * 1000;
+    const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
+    const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
+
+    let statusHtml = "";
+    let barWidth = "0%";
+    let barColor = "var(--primary-color)";
+    let textClass = "";
+
+    if (finished) {
+        statusHtml = `<span class="status-finished"><i class="fas fa-times-circle"></i> FINISHED</span>`;
+        barWidth = "100%";
+        barColor = "var(--uganda-red)";
+        textClass = "finished-schedule";
+    } else if (isLive) {
+        statusHtml = `<span class="status-live"><span class="live-dot"></span> LIVE</span>`;
+        barWidth = "100%";
+        barColor = "var(--uganda-red)";
+    } else if (isUrgent) {
+        statusHtml = `<span class="status-urgent"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
+        barColor = "var(--uganda-red)";
+        barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+    } else if (isBoarding) {
+        statusHtml = `<span class="status-boarding"><i class="fas fa-door-open"></i> BOARDING</span>`;
+        barColor = "var(--uganda-yellow)";
+        barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+    } else {
+        const totalSec = Math.floor(diff / 1000);
+        const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
+        const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+        const ss = String(totalSec % 60).padStart(2, '0');
+        statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
+        barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+    }
+
+    let d_el = document.createElement("div");
+    d_el.className = "card fade-in";
+    d_el.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <h4 class="${textClass}" style="margin:0;">${t.busName}</h4>
+        <div style="text-align:right;">${statusHtml}</div>
+      </div>
+      <p style="margin:5px 0;"><i class="fas fa-route"></i> ${t.from} → ${t.to}</p>
+      <p style="margin:5px 0;"><i class="fas fa-calendar"></i> ${t.date} | <i class="fas fa-clock"></i> ${t.time}</p>
+      
+      <div class="progress-container" style="height:6px; margin: 10px 0;">
+        <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
+      </div>
+
+      <p><strong>Seats:</strong> ${t.availableSeats || 0} / ${t.totalSeats || 28}</p>
       <div class="seat-preview" style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 10px;">
-        ${generateSeatPreview(t.totalSeats || 16, t.availableSeats || 16)}
+        ${generateSeatPreview(t.totalSeats || 28, t.availableSeats || 0)}
       </div>
       <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
-      <p><i class="fas fa-dollar-sign"></i> UGX ${t.price.toLocaleString()}</p>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
+        <div style="font-weight:bold;">UGX ${t.price.toLocaleString()}</div>
+        <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
+      </div>
     `;
-    schedulesContainer.appendChild(d);
+    schedulesContainer.appendChild(d_el);
   });
 }
 
