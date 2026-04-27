@@ -2575,13 +2575,20 @@ function loadBookings(){
   let bookingList = document.getElementById('bookingList');
   if(!bookingList) return;
   let filter = document.getElementById('bookingFilter')?.value || 'all';
+  let searchQuery = document.getElementById('bookingSearch')?.value.toLowerCase() || '';
+
   bookingList.innerHTML = '';
   
   let filteredTickets = tickets.filter(t => {
     const statusMatch = (filter === 'all' || t.status === filter);
     const dateMatch = isWithinDateRange(t.date);
-    return statusMatch && dateMatch;
+    const searchMatch = t.id.toString().includes(searchQuery) || 
+                        t.passenger.toLowerCase().includes(searchQuery);
+    return statusMatch && dateMatch && searchMatch;
   });
+
+  // Update the visual chart
+  renderRevenueChart(filteredTickets);
 
   bookingList.innerHTML = `
     <table class="ticket-table">
@@ -2594,13 +2601,12 @@ function loadBookings(){
             <td>#${t.id}</td><td>${t.passenger}</td><td>${t.from} → ${t.to}</td>
             <td>${t.price.toLocaleString()}</td>
             <td>
-              <select onchange="updateTicketStatus(${t.id}, this.value)" style="padding:2px; font-size:0.7rem; width:auto;">
-                <option value="PAID" ${t.status === 'PAID' ? 'selected' : ''}>PAID</option>
-                <option value="VERIFIED" ${t.status === 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
-                <option value="USED" ${t.status === 'USED' ? 'selected' : ''}>USED</option>
-              </select>
+              <span class="badge ${t.status === 'PAID' ? 'bg-paid' : t.status === 'VERIFIED' ? 'bg-active' : 'bg-used'}">${t.status}</span>
             </td>
             <td style="display:flex; gap:5px;">
+              ${t.status === 'PAID' ? `<button class="btn btn-sm" style="background:#48bb78" onclick="updateTicketStatus(${t.id}, 'VERIFIED')" title="Verify Payment"><i class="fas fa-check"></i></button>` : ''}
+              ${t.status === 'VERIFIED' ? `<button class="btn btn-sm" style="background:#4299e1" onclick="updateTicketStatus(${t.id}, 'USED')" title="Mark as Used"><i class="fas fa-bus"></i></button>` : ''}
+              ${t.status === 'USED' ? `<button class="btn btn-sm" style="background:#718096" onclick="updateTicketStatus(${t.id}, 'PAID')" title="Reset to Paid"><i class="fas fa-undo"></i></button>` : ''}
               <button class="btn btn-sm" style="background:var(--uganda-black)" onclick="printTicketReceipt(${t.id})"><i class="fas fa-print"></i></button>
               <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="cancelBooking(${t.id})"><i class="fas fa-trash"></i></button>
             </td>
@@ -2609,6 +2615,40 @@ function loadBookings(){
       </tbody>
     </table>
   `;
+}
+
+/**
+ * Renders a visual bar chart of daily revenue
+ */
+function renderRevenueChart(filteredData) {
+  const chartContainer = document.getElementById('bookingRevenueChart');
+  if (!chartContainer) return;
+
+  // Group revenue by date
+  const dailyData = filteredData.reduce((acc, t) => {
+    acc[t.date] = (acc[t.date] || 0) + (t.price || 0);
+    return acc;
+  }, {});
+
+  const dates = Object.keys(dailyData).sort();
+  const maxRev = Math.max(...Object.values(dailyData), 1);
+
+  if (dates.length === 0) {
+    chartContainer.innerHTML = '<p style="font-size: 0.8rem; opacity: 0.5;">No revenue data for selected filters.</p>';
+    return;
+  }
+
+  chartContainer.innerHTML = dates.map(date => {
+    const amount = dailyData[date];
+    const height = (amount / maxRev) * 100;
+    const displayDate = date.split('-').slice(1).join('/'); // MM/DD
+    return `
+      <div style="display: flex; flex-direction: column; align-items: center; min-width: 40px;">
+        <div class="bar" style="height: ${height}%; width: 25px;" title="UGX ${amount.toLocaleString()} on ${date}"></div>
+        <span style="font-size: 0.6rem; margin-top: 5px; opacity: 0.7; color: white;">${displayDate}</span>
+      </div>
+    `;
+  }).join('');
 }
 
 /**

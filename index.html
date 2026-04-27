@@ -646,6 +646,19 @@
               </div>
             </div>
           </div>
+          <!-- REVENUE SUMMARY CHART -->
+          <div id="revenueChartSection" class="card" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--uganda-yellow);">Daily Revenue Summary</h4>
+            <div id="bookingRevenueChart" class="chart-container" style="justify-content: flex-start; gap: 10px; overflow-x: auto; padding-bottom: 10px;">
+              <!-- Dynamic bars will be injected here -->
+            </div>
+          </div>
+
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="bookingSearch" placeholder="Search by Ticket ID or Passenger Name..." onkeyup="loadBookings()">
+          </div>
+
           <div id="bookingList" style="overflow-x: auto;">
             <!-- Bookings will be populated here -->
           </div>
