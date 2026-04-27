@@ -482,6 +482,15 @@ body{
   font-weight: bold;
 }
 
+.status-delayed-alert {
+  color: #ffffff;
+  background: var(--uganda-red);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  animation: flash-red 0.8s infinite;
+}
+
 .focus-schedule {
   border: 1px solid var(--uganda-yellow) !important;
   box-shadow: 0 0 10px rgba(252, 209, 22, 0.2);

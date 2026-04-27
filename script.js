@@ -437,7 +437,13 @@ function renderUpcomingJourneys() {
             focusFound = true;
         }
 
-        const btnText = finished ? "Book Tomorrow" : "Book Today";
+        const todayISO = new Intl.DateTimeFormat('en-CA', { 
+            timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+        }).format(new Date());
+        
+        let btnText = finished ? "Book Tomorrow" : "Book Today";
+        if (!finished && t.date > todayISO) btnText = "Book For Tomorrow";
+
         const btnOnClick = finished 
             ? `event.stopPropagation(); rebookTomorrow('${t.from}', '${t.to}')` 
             : `event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')`;
@@ -1326,6 +1332,10 @@ function refreshActiveSchedules() {
         const bookBtn = document.getElementById(`book-btn-${t.id}`);
         if (!timerEl || !barEl || !timeTextEl) return;
 
+        const todayISO = new Intl.DateTimeFormat('en-CA', { 
+            timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+        }).format(new Date());
+
         let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
         const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
         const h = Math.floor(totalSeconds / 3600);
@@ -1335,7 +1345,8 @@ function refreshActiveSchedules() {
         let barColor = 'var(--primary-color)';
         if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
 
-        const isLive = diffMs <= 0 && diffMs > -15 * 60 * 1000;
+        // Check for manual live override from operator
+        const isLive = (diffMs <= 0 && diffMs > -15 * 60 * 1000) || t.manualLive;
         const finished = diffMs <= -10 * 60 * 1000;
         const isUrgent = diffMs > 0 && diffMs < 5 * 60 * 1000;
         const isBoarding = diffMs > 0 && diffMs < 30 * 60 * 1000;
@@ -1355,7 +1366,8 @@ function refreshActiveSchedules() {
             barEl.style.background = 'var(--uganda-red)';
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
-                bookBtn.innerText = "Book Today";
+                let bTxt = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+                bookBtn.innerText = bTxt;
                 bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
             }
         } else if (isUrgent) {
@@ -1751,10 +1763,12 @@ function renderSchedules(){
     const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
     const diff = departure - now;
 
-    const isLive = diff <= 0 && diff > -10 * 60 * 1000;
+    const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
     const finished = diff <= -10 * 60 * 1000;
     const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
     const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
+    // Alert if 5 minutes past departure and not yet "Finished" or manually started
+    const showLateAlert = diff < -5 * 60 * 1000 && !finished && !t.manualLive;
 
     let statusHtml = "";
     let barWidth = "0%";
@@ -1787,6 +1801,10 @@ function renderSchedules(){
         barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
     }
 
+    if (showLateAlert) {
+        statusHtml = `<span class="status-delayed-alert"><i class="fas fa-clock"></i> 5M LATE</span>`;
+    }
+
     let d_el = document.createElement("div");
     d_el.className = "card fade-in";
     d_el.innerHTML = `
@@ -1808,11 +1826,24 @@ function renderSchedules(){
       <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
         <div style="font-weight:bold;">UGX ${t.price.toLocaleString()}</div>
-        <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
+        <div style="display:flex; gap:5px;">
+            ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start Boarding</button>` : ''}
+            <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
+        </div>
       </div>
     `;
     schedulesContainer.appendChild(d_el);
   });
+}
+
+function startBoarding(tripId) {
+    const trip = trips.find(t => t.id == tripId);
+    if (trip) {
+        trip.manualLive = true;
+        localStorage.setItem("trips", JSON.stringify(trips));
+        showNotification("Boarding started manually for " + trip.busName, "success");
+        renderSchedules();
+    }
 }
 
 /* GENERATE SEAT PREVIEW */
