@@ -376,27 +376,6 @@ function renderUpcomingJourneys() {
       weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
     });
 
-    /**
-     * Helper to quickly set search for tomorrow's date
-     */
-    window.rebookTomorrow = function(from, to) {
-        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
-        const tomorrow = new Date(now);
-        tomorrow.setDate(now.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        
-        document.getElementById('from').value = from;
-        document.getElementById('to').value = to;
-        document.getElementById('date').value = tomorrowStr;
-        
-        const btns = document.querySelectorAll('.date-btn');
-        btns.forEach(b => b.classList.remove('active'));
-        document.getElementById('btnOthers').classList.add('active');
-        document.getElementById('btnOthers').innerText = tomorrowStr;
-        document.getElementById('date').classList.remove('hidden');
-        loadTrips();
-    };
-
     const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
     
     // Find the "Next" available bus to set as current focus
@@ -539,6 +518,27 @@ function renderUpcomingJourneys() {
     `;
   }).join('');
 }
+
+/**
+ * Helper to quickly set search for tomorrow's date
+ */
+window.rebookTomorrow = function(from, to) {
+    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    document.getElementById('from').value = from;
+    document.getElementById('to').value = to;
+    document.getElementById('date').value = tomorrowStr;
+    
+    const btns = document.querySelectorAll('.date-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    document.getElementById('btnOthers').classList.add('active');
+    document.getElementById('btnOthers').innerText = tomorrowStr;
+    document.getElementById('date').classList.remove('hidden');
+    loadTrips();
+};
 
 function shareETA(id) {
   const t = tickets.find(ticket => ticket.id == id);
@@ -1285,7 +1285,8 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                 </button>
                 <div style="text-align: right; display: flex; flex-direction: column;">
                     <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Tomorrow Date</span>
-                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${tomorrowDateStr}</span>
+                        <span id="headerTomorrowDate" style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${tomorrowDateStr}</span>
+                        <button class="view-ticket-btn" style="margin-top: 5px; padding: 2px 8px; font-size: 0.6rem;" onclick="rebookTomorrow('${document.getElementById('from').value}', '${document.getElementById('to').value}')">Switch to Tomorrow</button>
                 </div>
             </div>
             <h4 style="margin: 5px 0 0 0; color: white;">${operatorName}</h4>
@@ -1338,6 +1339,14 @@ function refreshActiveSchedules() {
 
     const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
     const windowMs = 24 * 60 * 60 * 1000;
+
+    // Auto-update the "Tomorrow Date" header if it exists
+    const headerTomorrow = document.getElementById('headerTomorrowDate');
+    if (headerTomorrow) {
+        const tomorrowDate = new Date(now);
+        tomorrowDate.setDate(now.getDate() + 1);
+        headerTomorrow.innerText = tomorrowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
 
     activeSearchSchedules.data.forEach((t) => {
         const [hPart, mFull] = (t.time || "08:00 AM").split(':');
