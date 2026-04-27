@@ -1,14 +1,34 @@
-let currentUser = JSON.parse(localStorage.getItem("currentUser") || sessionStorage.getItem("currentUser") || "null");
-let role = currentUser ? currentUser.role : null;
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCn0Ixqy8VMzzGmlo9i_z91jpHGKtHSNiE",
+  authDomain: "ugbus-518c8.firebaseapp.com",
+  projectId: "ugbus-518c8",
+  storageBucket: "ugbus-518c8.firebasestorage.app",
+  messagingSenderId: "1095576782736",
+  appId: "1:1095576782736:web:10296a39d485b1afe01515",
+  measurementId: "G-DNG142TNRW"
+};
+
+// Initialize Firebase (Compat mode for global script usage)
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const analytics = firebase.analytics();
+
+// Global State
+let currentUser = null;
+let role = null;
 let selectedSeat = null;
 let selectedBus = null; // This will still hold bus details like name and price
 let selectedPayment = null;
-let tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
-let buses = JSON.parse(localStorage.getItem("buses") || "[]");
-let trips = JSON.parse(localStorage.getItem("trips") || "[]");
-let users = JSON.parse(localStorage.getItem("users") || "[]");
-let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
-let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
+
+let tickets = [];
+let buses = [];
+let trips = [];
+let users = [];
+let notifications = [];
+let refunds = [];
+
 let html5QrCode = null;
 let adminRefreshInterval = null;
 let activeSearchSchedules = null; // Tracks current search results for real-time updates
@@ -26,105 +46,45 @@ const standardOperators = [
   { name: "Gateway Bus", from: "Kampala", to: "Gulu", price: 35000, type: "Standard", am: ["charging-station"] }
 ];
 
-// Seed sample data for development if localStorage is empty
-if (users.length === 0) {
-  users = [
-    { id: 1, name: TEST_USER_NAME, email: TEST_USER_EMAIL, phone: "+256 700 111 222", password: "1234", role: "user", photo: "https://i.pravatar.cc/150?u=john" },
-    { id: 2, name: "Sarah Namuli", email: "sarah@smartseat.ug", phone: "+256 700 333 444", password: "1234", role: "user", photo: "https://i.pravatar.cc/150?u=sarah" },
-    { id: 3, name: "Admin User", email: "admin@smartseat.ug", phone: "+256 700 999 999", password: "1234", role: "admin", photo: "https://i.pravatar.cc/150?u=admin" }
-  ];
-  localStorage.setItem("users", JSON.stringify(users));
-}
-
-if (tickets.length === 0) {
-  // Robust way to get YYYY-MM-DD for Uganda timezone
-  const todayISO = new Intl.DateTimeFormat('en-CA', { 
-    timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-  }).format(new Date());
-  
-  tickets = [
-    {
-      id: 102938,
-      bus: "Swift Express",
-      seat: 5,
-      price: 25000,
-      date: todayISO,
-      time: "08:00 AM",
-      from: "Kampala",
-      to: "Jinja",
-      payment: "mtn",
-      passenger: TEST_USER_NAME,
-      email: TEST_USER_EMAIL,
-      status: "PAID",
-      notify: true,
-      timestamp: new Date().toISOString()
-    },
-    {
-      id: 495821,
-      bus: "Link Coaches",
-      seat: 12,
-      price: 30000,
-      date: todayISO,
-      time: "10:30 AM",
-      from: "Kampala",
-      to: "Mbarara",
-      payment: "airtel",
-      passenger: TEST_USER_NAME,
-      email: TEST_USER_EMAIL,
-      status: "ACTIVE",
-      notify: false,
-      timestamp: new Date().toISOString()
-    },
-    {
-      id: 882734,
-      bus: "Global Coaches",
-      seat: 22,
-      price: 25000,
-      date: todayISO,
-      time: "02:00 PM",
-      from: "Kampala",
-      to: "Masaka",
-      payment: "card",
-      passenger: TEST_USER_NAME,
-      email: TEST_USER_EMAIL,
-      status: "PAID",
-      notify: true,
-      timestamp: new Date().toISOString()
+// --- FIREBASE AUTH LISTENER ---
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        // Fetch detailed user profile from Firestore
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+            currentUser = { ...userDoc.data(), uid: user.uid };
+            role = currentUser.role;
+            
+            // Start Real-time Listeners for Production Data
+            setupRealtimeData();
+            init();
+        } else {
+            console.warn("User authenticated but no profile found in Firestore.");
+            logout();
+        }
+    } else {
+        currentUser = null;
+        role = null;
+        init();
     }
-  ];
-  localStorage.setItem("tickets", JSON.stringify(tickets));
-}
+});
 
-if (notifications.length === 0) {
-  notifications = [{ id: 1, title: "Welcome to SmartSeat!", message: "Enjoy your journey with Uganda's premium bus platform.", timestamp: new Date().toISOString(), read: false }];
-  localStorage.setItem("notifications", JSON.stringify(notifications));
-}
-
-if (trips.length === 0) {
-  const todayISO = new Intl.DateTimeFormat('en-CA', { 
-    timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-  }).format(new Date());
-
-  let idCounter = 1;
-  standardOperators.forEach(op => {
-    standardTimes.forEach(time => {
-      trips.push({
-        id: idCounter++,
-        busName: op.name,
-        from: op.from,
-        to: op.to,
-        date: todayISO,
-        time: time,
-        price: op.price,
-        busType: op.type,
-        amenities: op.am,
-        totalSeats: 28,
-        availableSeats: Math.floor(Math.random() * 20)
-      });
+function setupRealtimeData() {
+    // Sync Firestore collections to local arrays in real-time
+    db.collection('tickets').onSnapshot(snap => {
+        tickets = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        if (role === 'user') renderUpcomingJourneys();
     });
-  });
-
-  localStorage.setItem("trips", JSON.stringify(trips));
+    db.collection('trips').onSnapshot(snap => {
+        trips = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    });
+    db.collection('users').onSnapshot(snap => {
+        users = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    });
+    db.collection('notifications').onSnapshot(snap => {
+        notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        updateNotificationBadge();
+    });
 }
 
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
