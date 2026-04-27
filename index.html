@@ -145,6 +145,8 @@
     <button onclick="adminTab('operators')" id="a3" title="Bus Operators"><i class="fas fa-bus"></i> <span>Bus Operators</span></button>
     <button onclick="adminTab('routes')" id="a4" title="Route Management"><i class="fas fa-route"></i> <span>Route Management</span></button>
     <button onclick="adminTab('bookings')" id="a5" title="Booking Management"><i class="fas fa-ticket-alt"></i> <span>Booking Management</span></button>
+    <button onclick="adminTab('ticketingDesk')" id="a11" title="Ticketing Desk"><i class="fas fa-search-dollar"></i> <span>Ticketing Desk</span></button>
+    <button onclick="adminTab('fleetControl')" id="a13" title="Fleet Control"><i class="fas fa-bus-alt"></i> <span>Fleet & Schedules</span></button>
     <button onclick="adminTab('analytics')" id="a6" title="Analytics"><i class="fas fa-chart-bar"></i> <span>Analytics</span></button>
     <button onclick="adminTab('payments')" id="a7" title="Payment Settings"><i class="fas fa-credit-card"></i> <span>Payment Settings</span></button>
     <button onclick="adminTab('notifications')" id="a8" title="Notifications"><i class="fas fa-bell"></i> <span>Notifications</span></button>
@@ -373,35 +375,21 @@
             <i class="fas fa-user"></i>
           </div>
           <h2 id="userGreeting" style="margin-bottom: 5px; color: var(--text);"></h2>
-          <h3>Profile Settings</h3>
           <input placeholder="Full Name" id="profileName">
           <input placeholder="Phone Number" id="profilePhone">
           <input placeholder="Email" id="profileEmail">
-          <button class="btn" onclick="updateProfile()"><i class="fas fa-save"></i> Update Profile</button>
           
           <div style="text-align: left; margin-top: 20px;">
             <h4 style="color:white; margin-bottom: 10px;"><i class="fas fa-phone-alt"></i> Emergency Contacts</h4>
             <input placeholder="Contact Name" id="iceName">
             <input placeholder="Contact Phone" id="icePhone">
           </div>
+          <button class="btn" onclick="updateProfile()" style="width: 100%; margin-top: 10px;"><i class="fas fa-save"></i> Update Profile</button>
           
           <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
             <button class="theme-btn" onclick="toggleDarkMode()" style="flex: 1;"><i class="fas fa-moon"></i> Theme</button>
             <button class="logout-btn" onclick="logout()" style="flex: 1;"><i class="fas fa-sign-out-alt"></i> Logout</button>
           </div>
-        </div>
-
-        <div class="card">
-          <h3><i class="fas fa-bell"></i> Notification Preferences</h3>
-          <label style="display: block; margin: 10px 0;">
-            <input type="checkbox" checked> Booking confirmations
-          </label>
-          <label style="display: block; margin: 10px 0;">
-            <input type="checkbox" checked> Trip reminders
-          </label>
-          <label style="display: block; margin: 10px 0;">
-            <input type="checkbox"> Promotional offers
-          </label>
         </div>
       </div>
 
@@ -644,6 +632,42 @@
             <!-- Bookings will be populated here -->
           </div>
         </div>
+      </div>
+
+      <!-- ADMIN TICKETING DESK (PASSENGER SIDE TASKS) -->
+      <div id="adminTicketingDesk" class="hidden">
+         <div class="card" style="background: var(--primary-color);">
+            <h3 style="color: white;"><i class="fas fa-search"></i> Terminal Search</h3>
+            <p style="color: rgba(255,255,255,0.8);">Search and book tickets on behalf of passengers.</p>
+         </div>
+         <!-- This replicates the user search section but inside admin -->
+         <div id="adminSearchWrap">
+            <!-- The JS loadTrips function will render results to the global 'trips' div if we provide a target -->
+            <button class="btn" onclick="userTab('home')">Go to Interactive Booking Map</button>
+         </div>
+      </div>
+
+      <!-- ADMIN FLEET CONTROL (OPERATOR SIDE TASKS) -->
+      <div id="adminFleetControl" class="hidden">
+          <div class="grid">
+              <div class="card">
+                <h3><i class="fas fa-calendar-plus"></i> Master Scheduler</h3>
+                <select id="selectBusAdmin" onfocus="loadBusSelect()">
+                  <option value="">Select Any Registered Bus</option>
+                </select>
+                <input id="tripDateAdmin" type="date">
+                <input id="departureTimeAdmin" type="time">
+                <button class="btn" onclick="scheduleTrip()"><i class="fas fa-plus"></i> Create Global Schedule</button>
+              </div>
+              <div class="card">
+                <h3><i class="fas fa-bus"></i> Global Fleet Status</h3>
+                <div id="fleet" class="grid" style="max-height: 300px; overflow-y: auto;"></div>
+              </div>
+          </div>
+          <div class="card" style="margin-top: 20px;">
+             <h3><i class="fas fa-clock"></i> Live Terminal Monitor</h3>
+             <div id="schedules" class="grid"></div>
+          </div>
       </div>
 
       <!-- ANALYTICS -->

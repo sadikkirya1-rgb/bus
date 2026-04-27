@@ -2197,10 +2197,16 @@ function selectPayment(method){
 function loadProfile(){
   let user = currentUser || users.find(u => u.email === "user@bus.ug");
   if(user) {
+    // Ensure mandatory notification preferences are set
+    user.notifyBookingConfirmations = true;
+    user.notifyTripReminders = true;
+    user.notifyPromotionalOffers = user.notifyPromotionalOffers !== false; // Default to true if not explicitly false
+
     document.getElementById('userGreeting').innerText = `Hello, ${user.name}!`;
     profileName.value = user.name;
     profileEmail.value = user.email;
     profilePhone.value = user.phone;
+    localStorage.setItem("users", JSON.stringify(users)); // Save updated user preferences
   }
 }
 
@@ -2208,7 +2214,17 @@ function loadProfile(){
 function updateProfile(){
   alert("Profile updated successfully!");
 }
-
+ 
+ // Function to update user notification preferences (if they were not mandatory)
+ function updateNotificationPreferences(type, value) {
+  if (currentUser) {
+    currentUser[type] = value;
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    const userIndex = users.findIndex(u => u.id === currentUser.id);
+    if (userIndex !== -1) users[userIndex] = currentUser;
+    localStorage.setItem("users", JSON.stringify(users));
+  }
+}
 /* TOGGLE DARK MODE */
 function toggleDarkMode(){
   document.body.classList.toggle('dark-mode');
@@ -2291,6 +2307,8 @@ function adminTab(section){
   document.getElementById('adminSettings').classList.add('hidden');
   document.getElementById('adminActivity').classList.add('hidden');
   document.getElementById('adminSupportTickets').classList.add('hidden');
+  document.getElementById('adminTicketingDesk').classList.add('hidden');
+  document.getElementById('adminFleetControl').classList.add('hidden');
 
   // Remove active class from all admin nav buttons
   document.querySelectorAll('.sidebar button, .topbar-nav button').forEach(btn => btn.classList.remove('active-tab'));
@@ -2312,7 +2330,9 @@ function adminTab(section){
     'notifications': 'Notifications',
     'settings': 'System Settings',
     'activity': 'Activity Log',
-    'supportTickets': 'Support Tickets'
+    'supportTickets': 'Support Tickets',
+    'ticketingDesk': 'Passenger Ticketing Service',
+    'fleetControl': 'Fleet & Terminal Control'
   };
   title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
 
@@ -2321,7 +2341,7 @@ function adminTab(section){
     let target = event.target.closest('button');
     if(target) target.classList.add('active-tab');
   } else {
-    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10' }[section];
+    let btnId = { 'dashboard': 'a1', 'users': 'a2', 'operators': 'a3', 'routes': 'a4', 'bookings': 'a5', 'analytics': 'a6', 'payments': 'a7', 'notifications': 'a8', 'settings': 'a9', 'activity': 'a10', 'ticketingDesk': 'a11', 'fleetControl': 'a13' }[section];
     if(btnId) document.getElementById(btnId).classList.add('active-tab');
   }
 
@@ -2337,6 +2357,8 @@ function adminTab(section){
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
   else if(section === 'supportTickets') loadSupportTickets();
+  else if(section === 'ticketingDesk') renderUpcomingJourneys();
+  else if(section === 'fleetControl') { loadBusSelect(); renderFleet(); renderSchedules(); }
 }
 
 function toggleBulkTripSelect() {
@@ -2390,7 +2412,8 @@ function loadOperators(){
   let operatorList = document.getElementById('operatorList');
   operatorList.innerHTML = '';
   
-  let operators = buses.map(bus => bus.operator).filter((op, index, arr) => arr.indexOf(op) === index);
+  // Get all unique operators defined in users or buses
+  let operators = [...new Set([...buses.map(b => b.operator), ...users.filter(u => u.role === 'bus').map(u => u.name)])];
   
   operators.forEach(operator => {
     let operatorCard = document.createElement('div');
@@ -2398,7 +2421,7 @@ function loadOperators(){
     operatorCard.innerHTML = `
       <h4>${operator}</h4>
       <p><i class="fas fa-bus"></i> ${buses.filter(b => b.operator === operator).length} buses</p>
-      <button class="btn" onclick="viewOperatorBuses('${operator}')"><i class="fas fa-eye"></i> View Buses</button>
+      <button class="btn" onclick="adminTab('fleetControl')"><i class="fas fa-cog"></i> Manage Fleet</button>
     `;
     operatorList.appendChild(operatorCard);
   });
@@ -2600,6 +2623,32 @@ function exportUsers(){
   let url = window.URL.createObjectURL(blob);
   let a = document.createElement('a');
   a.href = url; a.download = 'ugbus_users.csv'; a.click();
+}
+
+function renderFleet(){
+  const fleetDiv = document.getElementById('fleet');
+  if (!fleetDiv) return;
+  fleetDiv.innerHTML = "";
+  
+  // Admin sees all buses, Operators see only theirs
+  const visibleBuses = role === 'admin' ? buses : buses.filter(b => b.operator === currentUser.name);
+
+  if(visibleBuses.length === 0) {
+    fleetDiv.innerHTML = "<p>No buses in fleet yet.</p>";
+    return;
+  }
+
+  visibleBuses.forEach(b => {
+    let d = document.createElement("div");
+    d.className = "card";
+    d.innerHTML = `
+      <h4>${b.name}</h4>
+      <p>Route: ${b.route}</p>
+      <p>Type: ${b.type} | UGX ${b.price.toLocaleString()}</p>
+      ${role === 'admin' ? `<p style="font-size:0.8rem; color:var(--uganda-yellow);">Operator: ${b.operator}</p>` : ''}
+    `;
+    fleetDiv.appendChild(d);
+  });
 }
 
 function loadPaymentSettings(){
