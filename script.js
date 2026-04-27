@@ -2362,6 +2362,18 @@ function adminTab(section){
 }
 
 /**
+ * Checks if a date falls within the selected admin range
+ */
+function isWithinDateRange(checkDate) {
+  const start = document.getElementById('revenueStart')?.value;
+  const end = document.getElementById('revenueEnd')?.value;
+  if (!start && !end) return true;
+  if (start && checkDate < start) return false;
+  if (end && checkDate > end) return false;
+  return true;
+}
+
+/**
  * Issues a ticket manually from the admin panel
  */
 function adminQuickBook() {
@@ -2421,18 +2433,21 @@ function loadUsers(){
     user.email.toLowerCase().includes(query)
   );
   
-  filteredUsers.forEach(user => {
-    let userCard = document.createElement('div');
-    userCard.className = 'card';
-    userCard.innerHTML = `
-      <h4>${user.name}</h4>
-      <p><i class="fas fa-envelope"></i> ${user.email}</p>
-      <p><i class="fas fa-phone"></i> ${user.phone}</p>
-      <p><i class="fas fa-user-tag"></i> ${user.role}</p>
-      <button class="btn" onclick="deleteUser(${user.id})"><i class="fas fa-trash"></i> Delete</button>
-    `;
-    userList.appendChild(userCard);
-  });
+  userList.innerHTML = `
+    <table class="ticket-table">
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        ${filteredUsers.map(u => `
+          <tr>
+            <td>${u.name}</td><td>${u.email}</td><td>${u.phone}</td><td>${u.role}</td>
+            <td><button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 function loadOperators(){
@@ -2442,16 +2457,22 @@ function loadOperators(){
   // Get all unique operators defined in users or buses
   let operators = [...new Set([...buses.map(b => b.operator), ...users.filter(u => u.role === 'bus').map(u => u.name)])];
   
-  operators.forEach(operator => {
-    let operatorCard = document.createElement('div');
-    operatorCard.className = 'card';
-    operatorCard.innerHTML = `
-      <h4>${operator}</h4>
-      <p><i class="fas fa-bus"></i> ${buses.filter(b => b.operator === operator).length} buses</p>
-      <button class="btn" onclick="adminTab('fleetControl')"><i class="fas fa-cog"></i> Manage Fleet</button>
-    `;
-    operatorList.appendChild(operatorCard);
-  });
+  operatorList.innerHTML = `
+    <table class="ticket-table">
+      <thead>
+        <tr><th>Operator Name</th><th>Fleet Size</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        ${operators.map(op => `
+          <tr>
+            <td>${op}</td>
+            <td>${buses.filter(b => b.operator === op).length} Buses</td>
+            <td><button class="btn btn-sm" onclick="adminTab('fleetControl')"><i class="fas fa-cog"></i> Manage</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 function loadRoutes(){
@@ -2473,17 +2494,23 @@ function loadRoutes(){
     }
   });
   
-  routes.forEach(route => {
-    let routeCard = document.createElement('div');
-    routeCard.className = 'card';
-    routeCard.innerHTML = `
-      <h4>${route.from} → ${route.to}</h4>
-      <p><i class="fas fa-dollar-sign"></i> UGX ${route.price.toLocaleString()}</p>
-      <p><i class="fas fa-ticket-alt"></i> ${route.bookings} bookings</p>
-      <button class="btn" onclick="editRoute('${route.key}')"><i class="fas fa-edit"></i> Edit</button>
-    `;
-    routeList.appendChild(routeCard);
-  });
+  routeList.innerHTML = `
+    <table class="ticket-table">
+      <thead>
+        <tr><th>Route</th><th>Base Price</th><th>Bookings</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        ${routes.map(r => `
+          <tr>
+            <td>${r.from} → ${r.to}</td>
+            <td>UGX ${r.price.toLocaleString()}</td>
+            <td>${r.bookings}</td>
+            <td><button class="btn btn-sm" onclick="editRoute('${r.key}')"><i class="fas fa-edit"></i></button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 function loadSupportTickets() {
@@ -2493,25 +2520,25 @@ function loadSupportTickets() {
         container.innerHTML = '<p>No pending refund requests found.</p>';
         return;
     }
-    refunds.forEach(r => {
-        const t = tickets.find(ticket => ticket.id == r.ticketId);
-        const d = document.createElement('div');
-        d.className = 'card';
-        d.innerHTML = `
-            <h4>Refund Request #${r.id}</h4>
-            <p><strong>Ticket ID:</strong> #${r.ticketId}</p>
-            <p><strong>Passenger:</strong> ${t ? t.passenger : 'N/A'}</p>
-            <p><strong>Reason:</strong> ${r.reason}</p>
-            <p><strong>Status:</strong> <span class="badge ${r.status === 'Pending' ? 'bg-primary' : 'bg-secondary'}">${r.status}</span></p>
-            ${r.status === 'Pending' ? `
-                <div style="display:flex; gap:10px; margin-top:10px;">
-                    <button class="btn" style="background:#48bb78;" onclick="updateRefundStatus(${r.id}, 'Approved')">Approve</button>
-                    <button class="btn" style="background:#e53e3e;" onclick="updateRefundStatus(${r.id}, 'Rejected')">Reject</button>
-                </div>
-            ` : ''}
-        `;
-        container.appendChild(d);
-    });
+    container.innerHTML = `
+      <table class="ticket-table">
+        <thead>
+          <tr><th>Ticket</th><th>Passenger</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${refunds.map(r => {
+            const t = tickets.find(ticket => ticket.id == r.ticketId);
+            return `<tr>
+              <td>#${r.ticketId}</td><td>${t ? t.passenger : 'N/A'}</td><td>${r.reason}</td>
+              <td><span class="badge ${r.status === 'Pending' ? 'bg-paid' : 'bg-used'}">${r.status}</span></td>
+              <td>
+                ${r.status === 'Pending' ? `<button class="btn btn-sm" style="background:#48bb78;" onclick="updateRefundStatus(${r.id}, 'Approved')">Verify</button>` : ''}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
 }
 
 function updateRefundStatus(id, status) {
@@ -2550,40 +2577,38 @@ function loadBookings(){
   let filter = document.getElementById('bookingFilter')?.value || 'all';
   bookingList.innerHTML = '';
   
-  let filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
-
-  filteredTickets.forEach(ticket => {
-    let status = ticket.status || "PAID";
-    let bookingCard = document.createElement('div');
-    bookingCard.className = 'card';
-    bookingCard.innerHTML = `
-      <h4>Ticket #${ticket.id}</h4>
-      <p><i class="fas fa-user"></i> ${ticket.passenger}</p>
-      <p><i class="fas fa-route"></i> ${ticket.from} → ${ticket.to}</p>
-      <p><i class="fas fa-calendar"></i> ${ticket.date} ${ticket.time}</p>
-      <p><i class="fas fa-dollar-sign"></i> UGX ${ticket.price.toLocaleString()}</p>
-      <p><i class="fas fa-phone"></i> ${ticket.phone || 'No phone'}</p>
-      <p><i class="fas fa-phone-alt"></i> Passenger Phone: ${ticket.passengerPhone || 'N/A'}</p>
-      <div style="margin: 10px 0;">
-        <label style="font-size:0.7rem; opacity:0.8; display:block;">Update Workflow Status:</label>
-        <select onchange="updateTicketStatus(${ticket.id}, this.value)" style="margin: 5px 0; padding: 5px;">
-          <option value="PAID" ${status === 'PAID' ? 'selected' : ''}>PAID</option>
-          <option value="VERIFIED" ${status === 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
-          <option value="ACTIVE" ${status === 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
-          <option value="BOARDED" ${status === 'BOARDED' ? 'selected' : ''}>BOARDED</option>
-          <option value="USED" ${status === 'USED' ? 'selected' : ''}>USED</option>
-          <option value="CANCELLED" ${status === 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
-        </select>
-      </div>
-      <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
-        <button class="btn btn-sm" style="background:var(--uganda-yellow); color:black;" onclick="resendTicketSMS(${ticket.id})"><i class="fas fa-share-nodes"></i> Resend All</button>
-        <button class="btn btn-sm" style="background:#4299e1;" onclick="logAdminCall('${ticket.passenger}', '${ticket.phone}', 'Confirmed trip details')"><i class="fas fa-phone"></i> Log Call</button>
-        <button class="btn btn-sm" style="background:var(--uganda-black); color:white;" onclick="printTicketReceipt(${ticket.id})"><i class="fas fa-print"></i> Print</button>
-        <button class="btn btn-sm" style="background:var(--uganda-red);" onclick="cancelBooking(${ticket.id})">Cancel</button>
-      </div>
-    `;
-    bookingList.appendChild(bookingCard);
+  let filteredTickets = tickets.filter(t => {
+    const statusMatch = (filter === 'all' || t.status === filter);
+    const dateMatch = isWithinDateRange(t.date);
+    return statusMatch && dateMatch;
   });
+
+  bookingList.innerHTML = `
+    <table class="ticket-table">
+      <thead>
+        <tr><th>ID</th><th>Passenger</th><th>Route</th><th>Price</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        ${filteredTickets.map(t => `
+          <tr>
+            <td>#${t.id}</td><td>${t.passenger}</td><td>${t.from} → ${t.to}</td>
+            <td>${t.price.toLocaleString()}</td>
+            <td>
+              <select onchange="updateTicketStatus(${t.id}, this.value)" style="padding:2px; font-size:0.7rem; width:auto;">
+                <option value="PAID" ${t.status === 'PAID' ? 'selected' : ''}>PAID</option>
+                <option value="VERIFIED" ${t.status === 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
+                <option value="USED" ${t.status === 'USED' ? 'selected' : ''}>USED</option>
+              </select>
+            </td>
+            <td style="display:flex; gap:5px;">
+              <button class="btn btn-sm" style="background:var(--uganda-black)" onclick="printTicketReceipt(${t.id})"><i class="fas fa-print"></i></button>
+              <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="cancelBooking(${t.id})"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 /**
@@ -2643,7 +2668,11 @@ function bulkVerifyPayments() {
  */
 function generateRevenueReport() {
   let filter = document.getElementById('bookingFilter')?.value || 'all';
-  let filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+  let filteredTickets = tickets.filter(t => {
+    const statusMatch = (filter === 'all' || t.status === filter);
+    const dateMatch = isWithinDateRange(t.date);
+    return statusMatch && dateMatch;
+  });
   let totalRevenue = filteredTickets.reduce((sum, t) => sum + (t.price || 0), 0);
   let reportDate = new Date().toLocaleDateString();
 
@@ -2653,7 +2682,8 @@ function generateRevenueReport() {
         <h2 style="color: #007A3D; margin: 0;">SmartSeat Revenue Report</h2>
         <span>Generated: ${reportDate}</span>
       </div>
-      <p style="margin-top: 20px;"><strong>Status Filter:</strong> ${filter.toUpperCase()}</p>
+      <p style="margin-top: 20px;"><strong>Status:</strong> ${filter.toUpperCase()}</p>
+      <p><strong>Period:</strong> ${document.getElementById('revenueStart')?.value || 'Start'} to ${document.getElementById('revenueEnd')?.value || 'End'}</p>
       <p><strong>Total Issued Tickets:</strong> ${filteredTickets.length}</p>
       <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
         <tr style="background: #f4f4f4; text-align: left;">
@@ -2676,6 +2706,21 @@ function generateRevenueReport() {
   const printWin = window.open('', '_blank');
   printWin.document.write('<html><head><title>Revenue Report</title></head><body onload="window.print(); window.close();">' + reportHtml + '</body></html>');
   printWin.document.close();
+}
+
+function exportRevenueToCSV() {
+  let filter = document.getElementById('bookingFilter')?.value || 'all';
+  let filteredTickets = tickets.filter(t => {
+    const statusMatch = (filter === 'all' || t.status === filter);
+    const dateMatch = isWithinDateRange(t.date);
+    return statusMatch && dateMatch;
+  });
+  let csv = "ID,Date,Passenger,Route,Price,Status\n";
+  filteredTickets.forEach(t => csv += `${t.id},${t.date},${t.passenger},${t.from}-${t.to},${t.price},${t.status}\n`);
+  let blob = new Blob([csv], { type: 'text/csv' });
+  let url = window.URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url; a.download = `revenue_report_${new Date().toISOString().split('T')[0]}.csv`; a.click();
 }
 
 function resendTicketSMS(ticketId) {
