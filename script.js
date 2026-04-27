@@ -804,7 +804,7 @@ function init(){
     if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
     window.upcomingRefreshInterval = setInterval(() => {
         if (role === 'user' || role === null) renderUpcomingJourneys();
-        if (role === 'bus') renderSchedules();
+        if (role === 'bus') refreshBusSchedules();
         if (activeSearchSchedules) refreshActiveSchedules();
     }, 1000);
 
@@ -1867,17 +1867,17 @@ function renderSchedules(){
     }
 
     let d_el = document.createElement("div");
-    d_el.className = "card fade-in";
+    d_el.className = "card";
     d_el.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <h4 class="${textClass}" style="margin:0;">${t.busName}</h4>
-        <div style="text-align:right;">${statusHtml}</div>
+        <h4 id="bus-name-text-${t.id}" class="${textClass}" style="margin:0;">${t.busName}</h4>
+        <div id="bus-timer-val-${t.id}" style="text-align:right;">${statusHtml}</div>
       </div>
       <p style="margin:5px 0;"><i class="fas fa-route"></i> ${t.from} → ${t.to}</p>
       <p style="margin:5px 0;"><i class="fas fa-calendar"></i> ${t.date} | <i class="fas fa-clock"></i> ${t.time}</p>
       
       <div class="progress-container" style="height:6px; margin: 10px 0;">
-        <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
+        <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
       </div>
 
       <p><strong>Seats:</strong> ${t.availableSeats || 0} / ${t.totalSeats || 28}</p>
@@ -1887,7 +1887,7 @@ function renderSchedules(){
       <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
         <div style="font-weight:bold;">UGX ${t.price.toLocaleString()}</div>
-        <div style="display:flex; gap:5px;">
+        <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
             ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start Boarding</button>` : ''}
             ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Departure Confirmed</button>` : ''}
             <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
@@ -1896,6 +1896,92 @@ function renderSchedules(){
     `;
     schedulesContainer.appendChild(d_el);
   });
+}
+
+/**
+ * Updates bus operator schedules in real-time without re-rendering the whole card (stops flashing)
+ */
+function refreshBusSchedules() {
+    const schedulesContainer = document.getElementById('schedules');
+    if (!schedulesContainer || trips.length === 0) return;
+
+    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const windowMs = 24 * 60 * 60 * 1000;
+
+    trips.forEach(t => {
+        const timerEl = document.getElementById(`bus-timer-val-${t.id}`);
+        const barEl = document.getElementById(`bus-bar-val-${t.id}`);
+        const nameEl = document.getElementById(`bus-name-text-${t.id}`);
+        const actionsEl = document.getElementById(`bus-actions-area-${t.id}`);
+        
+        if (!timerEl || !barEl || !nameEl || !actionsEl) return;
+
+        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+        const [mPart, ampm] = mFull.split(' ');
+        let hrs = parseInt(hPart);
+        if (ampm === 'PM' && hrs < 12) hrs += 12;
+        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        
+        const [y, m_val, d] = t.date.split('-').map(Number);
+        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
+        const diff = departure - now;
+
+        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
+        const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
+        const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
+        const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
+        const showLateAlert = diff < -5 * 60 * 1000 && !finished && !t.manualLive;
+
+        let statusHtml = "";
+        let barWidth = "0%";
+        let barColor = "var(--primary-color)";
+
+        if (finished) {
+            statusHtml = `<span class="status-finished"><i class="fas fa-times-circle"></i> FINISHED</span>`;
+            barWidth = "100%";
+            barColor = "var(--uganda-red)";
+            nameEl.classList.add('finished-schedule');
+        } else {
+            nameEl.classList.remove('finished-schedule');
+            if (isLive) {
+                statusHtml = `<span class="status-live"><span class="live-dot"></span> LIVE</span>`;
+                barWidth = "100%";
+                barColor = "var(--uganda-red)";
+            } else if (isUrgent) {
+                statusHtml = `<span class="status-urgent"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
+                barColor = "var(--uganda-red)";
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+            } else if (isBoarding) {
+                statusHtml = `<span class="status-boarding"><i class="fas fa-door-open"></i> BOARDING</span>`;
+                barColor = "var(--uganda-yellow)";
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+            } else {
+                const totalSec = Math.floor(diff / 1000);
+                const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
+                const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+                const ss = String(totalSec % 60).padStart(2, '0');
+                statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+            }
+        }
+
+        if (showLateAlert) {
+            statusHtml = `<span class="status-delayed-alert"><i class="fas fa-clock"></i> 5M LATE</span>`;
+        }
+
+        // Only update HTML if it changed to prevent unnecessary re-flows
+        if (timerEl.innerHTML !== statusHtml) timerEl.innerHTML = statusHtml;
+        barEl.style.width = barWidth;
+        barEl.style.background = barColor;
+
+        // Handle Button visibility changes dynamically
+        let actionButtonsHtml = `
+            ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start Boarding</button>` : ''}
+            ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Departure Confirmed</button>` : ''}
+            <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
+        `;
+        if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
+    });
 }
 
 async function startBoarding(tripId) {
