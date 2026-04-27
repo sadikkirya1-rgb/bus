@@ -1285,8 +1285,11 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                 </button>
                 <div style="text-align: right; display: flex; flex-direction: column;">
                     <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Tomorrow Date</span>
-                        <span id="headerTomorrowDate" style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${tomorrowDateStr}</span>
-                        <button class="view-ticket-btn" style="margin-top: 5px; padding: 2px 8px; font-size: 0.6rem;" onclick="rebookTomorrow('${document.getElementById('from').value}', '${document.getElementById('to').value}')">Switch to Tomorrow</button>
+                        <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
+                            <span id="headerTomorrowDate" style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${tomorrowDateStr}</span>
+                            <i class="fas fa-calendar-alt" style="cursor: pointer; color: white; font-size: 0.8rem;" onclick="setSearchDate('others')" title="Pick Date"></i>
+                        </div>
+                        <button id="switchTomorrowBtn" class="view-ticket-btn" style="margin-top: 5px; padding: 2px 8px; font-size: 0.6rem;" onclick="rebookTomorrow('${document.getElementById('from').value}', '${document.getElementById('to').value}')">Switch to Tomorrow</button>
                 </div>
             </div>
             <h4 style="margin: 5px 0 0 0; color: white;">${operatorName}</h4>
@@ -1339,6 +1342,7 @@ function refreshActiveSchedules() {
 
     const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
     const windowMs = 24 * 60 * 60 * 1000;
+    let allFinished = true;
 
     // Auto-update the "Tomorrow Date" header if it exists
     const headerTomorrow = document.getElementById('headerTomorrowDate');
@@ -1381,6 +1385,7 @@ function refreshActiveSchedules() {
         // Check for manual live override from operator
         const isLive = (diffMs <= 0 && diffMs > -15 * 60 * 1000) || t.manualLive;
         const finished = diffMs <= -10 * 60 * 1000 || t.manualFinished;
+        if (!finished) allFinished = false;
         const isUrgent = diffMs > 0 && diffMs < 5 * 60 * 1000;
         const isBoarding = diffMs > 0 && diffMs < 30 * 60 * 1000;
 
@@ -1430,6 +1435,20 @@ function refreshActiveSchedules() {
             }
         }
     });
+
+    // Highlight "Switch to Tomorrow" if everything today is done
+    const switchBtn = document.getElementById('switchTomorrowBtn');
+    if (switchBtn) {
+        if (allFinished && activeSearchSchedules.data.length > 0) {
+            switchBtn.classList.add('status-urgent');
+            switchBtn.style.background = 'var(--uganda-red)';
+            switchBtn.style.color = 'white';
+        } else {
+            switchBtn.classList.remove('status-urgent');
+            switchBtn.style.background = '';
+            switchBtn.style.color = '';
+        }
+    }
 }
 
 /* BUS DETAILS SCREEN */
