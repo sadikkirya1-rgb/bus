@@ -10,6 +10,7 @@ let users = JSON.parse(localStorage.getItem("users") || "[]");
 let notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
 let refunds = JSON.parse(localStorage.getItem("refunds") || "[]");
 let html5QrCode = null;
+let adminRefreshInterval = null;
 let activeSearchSchedules = null; // Tracks current search results for real-time updates
 
 // Development constants
@@ -2063,6 +2064,10 @@ function renderTickets(){
       
       const isUsed = statusLabel === "USED";
 
+      // Find associated user to retrieve profile photo for design parity
+      const passengerUser = users.find(u => u.email === t.email || u.name === t.passenger);
+      const photoUrl = passengerUser?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.passenger)}&background=007A3D&color=fff`;
+
       let tr = document.createElement('tr');
       tr.onclick = () => expandTicket(index);
       tr.innerHTML = `
@@ -2077,7 +2082,10 @@ function renderTickets(){
       d.innerHTML = `
         <div class="smart-ticket ${isUsed ? 'used-ticket' : ''}">
           <div class="ticket-header">
-            <div style="font-weight:bold; color:var(--primary-color);">SmartSeat Boarding Pass</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img src="${photoUrl}" style="width: 35px; height: 35px; border-radius: 6px; border: 1px solid var(--primary-color); object-fit: cover;">
+              <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">SmartSeat Boarding Pass</div>
+            </div>
             <div class="badge ${statusClass}">${statusLabel}</div>
           </div>
           <div class="ticket-body">
@@ -2619,6 +2627,21 @@ function loadBookings(){
 }
 
 /**
+ * Toggles auto-refresh for the admin booking list
+ */
+function toggleAdminRefresh() {
+  const isEnabled = document.getElementById('adminAutoRefresh').checked;
+  if (isEnabled) {
+    showNotification("Auto-refresh enabled (5s)", "info");
+    adminRefreshInterval = setInterval(loadBookings, 5000);
+  } else {
+    showNotification("Auto-refresh disabled", "info");
+    clearInterval(adminRefreshInterval);
+    adminRefreshInterval = null;
+  }
+}
+
+/**
  * Renders a visual bar chart of daily revenue
  */
 function renderRevenueChart(filteredData) {
@@ -2657,31 +2680,84 @@ function renderRevenueChart(filteredData) {
 /**
  * Generates a printable receipt for a ticket
  */
-function printTicketReceipt(id) {
-  const ticket = tickets.find(t => t.id == id);
-  if(!ticket) return;
-  
-  const receiptHtml = `
-    <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #000; width: 300px; margin: auto;">
-      <h2 style="text-align:center; margin-bottom:5px;">SmartSeat Receipt</h2>
-      <p style="text-align:center; font-size:0.8rem; margin-top:0;">Official Boarding Pass Receipt</p>
-      <hr style="border: 0.5px dashed #000;">
-      <p><strong>Ticket ID:</strong> #${ticket.id}</p>
-      <p><strong>Passenger:</strong> ${ticket.passenger}</p>
-      <p><strong>Route:</strong> ${ticket.from} to ${ticket.to}</p>
-      <p><strong>Date/Time:</strong> ${ticket.date} @ ${ticket.time || '08:00'}</p>
-      <p><strong>Bus:</strong> ${ticket.bus}</p>
-      <p><strong>Seat:</strong> ${ticket.seat || '1'}</p>
-      <hr style="border: 0.5px dashed #000;">
-      <h3 style="text-align:right;">Total: UGX ${ticket.price.toLocaleString()}</h3>
-      <p style="font-size: 0.7rem; text-align:center; margin-top:20px;">Safe Journey with SmartSeat Uganda!</p>
-    </div>
-  `;
-  
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write('<html><head><title>Receipt #' + id + '</title></head><body onload="window.print(); window.close();">' + receiptHtml + '</body></html>');
-  printWindow.document.close();
-  addActivityLog(`Admin printed receipt for Ticket #${id}`);
+async function printTicketReceipt(id) {
+    const t = tickets.find(ticket => ticket.id == id);
+    if (!t) return;
+
+    // Find associated user to retrieve profile photo for identity verification
+    const passengerUser = users.find(u => u.email === t.email || u.name === t.passenger);
+    const photoUrl = passengerUser?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.passenger)}&background=007A3D&color=fff`;
+
+    // Add 'Verified by Admin' stamp for manually issued tickets
+    const adminStamp = t.payment === "ADMIN_MANUAL" ? 
+        `<div style="position: absolute; bottom: 80px; right: 20px; transform: rotate(-15deg); border: 3px solid #E53E3E; color: #E53E3E; padding: 5px 10px; border-radius: 5px; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; z-index: 10; background: rgba(255,255,255,0.9); pointer-events: none;">Verified by Admin</div>` : '';
+
+    // Create the high-fidelity HTML matching the passenger's Smart Ticket
+    const statusLabel = t.status || "PAID";
+    const statusClass = statusLabel === "ACTIVE" ? "bg-active" : statusLabel === "BOARDED" ? "bg-boarded" : statusLabel === "USED" ? "bg-used" : "bg-paid";
+
+    const printHtml = `
+        <html>
+        <head>
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+            <style>
+                body { font-family: 'Inter', sans-serif; padding: 20px; display: flex; justify-content: center; background: #f8fafc; }
+                .smart-ticket { background: white; color: #2d3748; border-radius: 20px; width: 400px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); position: relative; }
+                .ticket-header { padding: 15px 20px; background: rgba(0, 122, 61, 0.05); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e2e8f0; }
+                .ticket-body { padding: 20px; }
+                .ticket-route { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+                .route-node h2 { margin: 0; font-size: 1.5rem; font-weight: 800; color: #1a202c; }
+                .route-node p { margin: 0; font-size: 0.8rem; color: #718096; }
+                .route-divider { flex: 1; text-align: center; color: #007A3D; font-size: 1.2rem; }
+                .ticket-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+                .info-item label { display: block; font-size: 0.7rem; text-transform: uppercase; color: #718096; letter-spacing: 1px; }
+                .info-item span { font-weight: 700; font-size: 0.95rem; }
+                .ticket-footer { padding: 15px 20px; background: #007A3D; color: white; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+                .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+                .bg-active { background: #48bb78; color: white; }
+                .bg-paid { background: #ed8936; color: white; }
+                @media print { body { background: none; padding: 0; } .smart-ticket { border: none; box-shadow: none; } }
+            </style>
+        </head>
+        <body onload="window.print(); window.close();">
+            <div class="smart-ticket">
+                ${adminStamp}
+                <div class="ticket-header">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img src="${photoUrl}" style="width: 50px; height: 50px; border-radius: 8px; border: 2px solid #007A3D; object-fit: cover;" alt="Passenger">
+                        <div>
+                            <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">SmartSeat Boarding Pass</div>
+                            <div style="font-size: 0.65rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;">Identity Verified</div>
+                        </div>
+                    </div>
+                    <div class="badge ${statusClass}">${statusLabel}</div>
+                </div>
+                <div class="ticket-body">
+                    <div class="ticket-route">
+                        <div class="route-node"><h2>${t.from.substring(0,3).toUpperCase()}</h2><p>${t.from}</p></div>
+                        <div class="route-divider"><i class="fas fa-bus"></i></div>
+                        <div class="route-node" style="text-align:right;"><h2>${t.to.substring(0,3).toUpperCase()}</h2><p>${t.to}</p></div>
+                    </div>
+                    <div class="ticket-info-grid">
+                        <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
+                        <div class="info-item"><label>Seat</label><span>#${t.seat || '1'}</span></div>
+                        <div class="info-item"><label>Bus</label><span>${t.bus}</span></div>
+                        <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
+                    </div>
+                </div>
+                <div class="ticket-footer">
+                    <div>Fare: UGX ${t.price.toLocaleString()}</div>
+                    <div>ID: #${t.id}</div>
+                </div>
+            </div>
+        </body>
+        </html>`;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    addActivityLog(`Admin printed high-fidelity receipt for Ticket #${id}`);
 }
 
 /**
@@ -2717,6 +2793,13 @@ function generateRevenueReport() {
     return statusMatch && dateMatch;
   });
   let totalRevenue = filteredTickets.reduce((sum, t) => sum + (t.price || 0), 0);
+  
+  // Calculate counts per day
+  const dailyGroups = filteredTickets.reduce((acc, t) => {
+    acc[t.date] = (acc[t.date] || 0) + 1;
+    return acc;
+  }, {});
+
   let reportDate = new Date().toLocaleDateString();
 
   const reportHtml = `
@@ -2733,6 +2816,7 @@ function generateRevenueReport() {
           <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Passenger</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Route</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Date</th>
           <th style="padding: 10px; border: 1px solid #ddd;">Amount</th>
         </tr>
         ${filteredTickets.map(t => `
@@ -2740,9 +2824,20 @@ function generateRevenueReport() {
             <td style="padding: 10px; border: 1px solid #ddd;">#${t.id}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${t.passenger}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">${t.from} → ${t.to}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${t.date}</td>
             <td style="padding: 10px; border: 1px solid #ddd;">UGX ${(t.price || 0).toLocaleString()}</td>
           </tr>`).join('')}
       </table>
+      <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px;">
+        <h4>Daily Breakdown (Ticket Count):</h4>
+        <ul style="list-style: none; padding: 0;">
+          ${Object.entries(dailyGroups).map(([date, count]) => `
+            <li style="display: flex; justify-content: space-between; padding: 5px 0;">
+              <span>${date}</span>
+              <strong>${count} tickets</strong>
+            </li>`).join('')}
+        </ul>
+      </div>
       <h3 style="text-align: right; margin-top: 30px;">Total Revenue: UGX ${totalRevenue.toLocaleString()}</h3>
     </div>`;
 
