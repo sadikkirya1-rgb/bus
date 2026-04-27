@@ -3075,6 +3075,50 @@ function saveSettings(){
   alert('Settings saved successfully!');
 }
 
+/**
+ * Seeds the Firestore database with sample trips based on standard operators.
+ */
+async function seedFirestore() {
+  if (role !== 'admin') {
+    alert("Access Denied: Only administrators can initialize the database.");
+    return;
+  }
+  
+  if (!confirm("This will add sample bus routes to your live database. Continue?")) return;
+
+  const batch = db.batch();
+  const todayISO = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+  }).format(new Date());
+
+  standardOperators.forEach(op => {
+    standardTimes.forEach(time => {
+      const tripRef = db.collection('trips').doc();
+      batch.set(tripRef, {
+        busName: op.name,
+        from: op.from,
+        to: op.to,
+        date: todayISO,
+        time: time,
+        price: op.price,
+        busType: op.type,
+        amenities: op.am,
+        totalSeats: 28,
+        availableSeats: Math.floor(Math.random() * 15) + 5,
+        timestamp: new Date().toISOString()
+      });
+    });
+  });
+
+  try {
+    await batch.commit();
+    showNotification("Firestore successfully seeded with sample trips!", "success");
+  } catch (error) {
+    console.error("Error seeding Firestore:", error);
+    showNotification("Failed to seed database. Check console.", "error");
+  }
+}
+
 function deleteUser(userId){
   if(confirm('Are you sure you want to delete this user?')) {
     users = users.filter(u => u.id !== userId);

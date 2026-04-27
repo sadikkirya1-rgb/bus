@@ -6,7 +6,6 @@
     "deploy": "firebase deploy --only functions"
   },
   "dependencies": {
-    "firebase": "^12.12.1",
     "firebase-admin": "^11.8.0",
     "firebase-functions": "^4.3.1"
   },
