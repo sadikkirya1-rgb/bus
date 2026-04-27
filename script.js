@@ -804,9 +804,25 @@ function init(){
     // Auto-refresh UI components every second for real-time countdowns
     if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
     window.upcomingRefreshInterval = setInterval(() => {
-        if (role === 'user' || role === null) renderUpcomingJourneys();
+        // Sync local variables with latest localStorage data to capture Admin/Operator changes instantly
+        tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
+        trips = JSON.parse(localStorage.getItem("trips") || "[]");
+        users = JSON.parse(localStorage.getItem("users") || "[]");
+        notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
+
+        if (role === 'user' || role === null) {
+            renderUpcomingJourneys();
+            // Refresh the ticket list if the user is currently looking at it
+            if (!document.getElementById('userTickets').classList.contains('hidden')) renderTickets();
+        }
         if (role === 'bus') refreshBusSchedules();
         if (activeSearchSchedules) refreshActiveSchedules();
+        
+        if (role === 'admin') {
+            // Refresh admin dashboard stats and booking tables in real-time
+            if (!document.getElementById('adminBookings').classList.contains('hidden')) loadBookings();
+            if (!document.getElementById('adminDashboard').classList.contains('hidden')) loadDashboard();
+        }
     }, 1000);
 
     tickets.forEach(scheduleDepartureNotification);
@@ -2300,6 +2316,15 @@ function logout(){
   sessionStorage.removeItem("currentUser");
   init(); // Re-initialize the app to the guest view
 }
+
+// GLOBAL SYNC: Listen for changes from other tabs/windows
+window.addEventListener('storage', (e) => {
+    if (['tickets', 'trips', 'users', 'notifications', 'refunds'].includes(e.key)) {
+        console.log(`[SYNC] ${e.key} updated in storage. Synchronizing UI...`);
+        // The 1-second interval will pick these up and re-render the current view
+        showNotification("Data updated from another session", "info");
+    }
+});
 
 /* ADMIN FUNCTIONS */
 function adminTab(section){
