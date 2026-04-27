@@ -371,6 +371,27 @@ function renderUpcomingJourneys() {
       weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
     });
 
+    /**
+     * Helper to quickly set search for tomorrow's date
+     */
+    window.rebookTomorrow = function(from, to) {
+        const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        
+        document.getElementById('from').value = from;
+        document.getElementById('to').value = to;
+        document.getElementById('date').value = tomorrowStr;
+        
+        const btns = document.querySelectorAll('.date-btn');
+        btns.forEach(b => b.classList.remove('active'));
+        document.getElementById('btnOthers').classList.add('active');
+        document.getElementById('btnOthers').innerText = tomorrowStr;
+        document.getElementById('date').classList.remove('hidden');
+        loadTrips();
+    };
+
     const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
     
     // Find the "Next" available bus to set as current focus
@@ -410,6 +431,11 @@ function renderUpcomingJourneys() {
             focusClass = "focus-schedule";
             focusFound = true;
         }
+
+        const btnText = finished ? "Book Tomorrow" : "Book Today";
+        const btnOnClick = finished 
+            ? `event.stopPropagation(); rebookTomorrow('${t.from}', '${t.to}')` 
+            : `event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')`;
 
         let barWidth = "0%";
         let barColor = "var(--primary-color)";
@@ -465,6 +491,9 @@ function renderUpcomingJourneys() {
             <div class="progress-container" style="height: 4px; margin: 4px 0;">
               <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
             </div>
+            <button class="view-ticket-btn" style="width: 100%; margin-top: 8px; font-size: 0.65rem; padding: 6px; background: ${finished ? '#718096' : ''};" onclick="${btnOnClick}">
+                ${btnText}
+            </button>
           </div>
         `;
     }).join('');
@@ -1253,7 +1282,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                     <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums;">--m --s left</span>
-                    <button class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Now</button>
+                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>Book Today</button>
                 </div>
             </div>
         </div>
@@ -1286,6 +1315,7 @@ function refreshActiveSchedules() {
         const timerEl = document.getElementById(`timer-${t.id}`);
         const barEl = document.getElementById(`bar-${t.id}`);
         const timeTextEl = document.getElementById(`time-text-${t.id}`);
+        const bookBtn = document.getElementById(`book-btn-${t.id}`);
         if (!timerEl || !barEl || !timeTextEl) return;
 
         let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
@@ -1307,11 +1337,19 @@ function refreshActiveSchedules() {
             timeTextEl.classList.add('finished-schedule');
             barEl.style.width = '100%';
             barEl.style.background = 'var(--uganda-red)';
+            if (bookBtn) {
+                bookBtn.innerText = "Book Tomorrow";
+                bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
+            }
         } else if (isLive) {
             timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
             barEl.style.width = '100%';
             barEl.style.background = 'var(--uganda-red)';
             timeTextEl.classList.remove('finished-schedule');
+            if (bookBtn) {
+                bookBtn.innerText = "Book Today";
+                bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
+            }
         } else if (isUrgent) {
             timerEl.innerHTML = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
             barEl.style.width = '95%';
