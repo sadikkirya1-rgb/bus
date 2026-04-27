@@ -1270,12 +1270,23 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
         timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
     }).format(new Date());
 
+    const kampalaNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const tomorrow = new Date(kampalaNow);
+    tomorrow.setDate(kampalaNow.getDate() + 1);
+    const tomorrowDateStr = tomorrow.toLocaleDateString('en-GB', { 
+        day: '2-digit', month: 'short', year: 'numeric' 
+    });
+
     tripsContainer.innerHTML = `
         <div class="card" style="background: rgba(255,255,255,0.05); margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                 <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
                     <i class="fas fa-arrow-left"></i> Back
                 </button>
+                <div style="text-align: right; display: flex; flex-direction: column;">
+                    <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Tomorrow Date</span>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${tomorrowDateStr}</span>
+                </div>
             </div>
             <h4 style="margin: 5px 0 0 0; color: white;">${operatorName}</h4>
             <small style="opacity: 0.7;">${document.getElementById('from').value} → ${document.getElementById('to').value}</small>
