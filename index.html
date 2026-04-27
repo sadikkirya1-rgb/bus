@@ -436,6 +436,17 @@
           <button class="btn" onclick="scheduleTrip()"><i class="fas fa-clock"></i> Schedule Trip</button>
         </div>
 
+        <div class="card">
+          <h3><i class="fas fa-fire"></i> Seat Occupancy Heatmap</h3>
+          <p>Identify popular seats across your fleet.</p>
+          <select id="heatmapBusSelector" onchange="loadHeatmap()" style="margin-bottom: 20px;"></select>
+          <div id="seatHeatmap" class="heatmap-grid"></div>
+          <div class="seat-legend" style="margin-top: 20px;">
+            <span class="seat-legend-item"><div class="seat-mini" style="background: rgba(229,62,62,0.1);"></div> Low</span>
+            <span class="seat-legend-item"><div class="seat-mini" style="background: rgba(229,62,62,1);"></div> High Popularity</span>
+          </div>
+        </div>
+
       </div>
 
       <div id="busFleet" class="hidden">
@@ -486,19 +497,6 @@
           <h3><i class="fas fa-info-circle"></i> Seat Preview Legend</h3>
           <div class="seat-legend">
             <span class="seat-legend-item available">Available</span> <span class="seat-legend-item occupied">Occupied</span>
-          </div>
-        </div>
-      </div>
-
-      <div id="busAnalytics" class="hidden">
-        <div class="card">
-          <h3><i class="fas fa-fire"></i> Seat Occupancy Heatmap</h3>
-          <p>Identify popular seats across your fleet.</p>
-          <select id="heatmapBusSelector" onchange="loadHeatmap()" style="margin-bottom: 20px;"></select>
-          <div id="seatHeatmap" class="heatmap-grid"></div>
-          <div class="seat-legend" style="margin-top: 20px;">
-            <span class="seat-legend-item"><div class="seat-mini" style="background: rgba(229,62,62,0.1);"></div> Low</span>
-            <span class="seat-legend-item"><div class="seat-mini" style="background: rgba(229,62,62,1);"></div> High Popularity</span>
           </div>
         </div>
       </div>

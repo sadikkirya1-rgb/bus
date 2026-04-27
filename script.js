@@ -912,7 +912,6 @@ function renderBottomNav(){
       <button onclick="busTab('fleet')" id="b2"><i class="fas fa-bus"></i> Fleet</button>
       <button onclick="busTab('schedules')" id="b3"><i class="fas fa-calendar"></i> Schedules</button>
       <button onclick="busTab('scanner')" id="b5"><i class="fas fa-barcode"></i> Scanner</button>
-      <button onclick="busTab('analytics')" id="b6"><i class="fas fa-chart-pie"></i> Analytics</button>
       <button onclick="busTab('profile')" id="b4"><i class="fas fa-user-cog"></i> Profile</button>
     `;
   }
@@ -1048,7 +1047,6 @@ function busTab(tab){
   document.getElementById('busFleet').classList.add("hidden");
   document.getElementById('busSchedules').classList.add("hidden");
   document.getElementById('busScanner').classList.add("hidden");
-  document.getElementById('busAnalytics').classList.add("hidden");
   document.getElementById('busProfile').classList.add("hidden");
 
   // Remove active class from all bus nav buttons
@@ -1058,6 +1056,7 @@ function busTab(tab){
     document.getElementById('busHome').classList.remove("hidden");
     document.getElementById('b1').classList.add("active-tab");
     loadBusSelect();
+    loadHeatmap();
   }else if(tab==="fleet"){
     document.getElementById('busFleet').classList.remove("hidden");
     document.getElementById('b2').classList.add("active-tab");
@@ -1069,10 +1068,6 @@ function busTab(tab){
   }else if(tab==="scanner"){
     document.getElementById('busScanner').classList.remove("hidden");
     document.getElementById('b5').classList.add("active-tab");
-  }else if(tab==="analytics"){
-    document.getElementById('busAnalytics').classList.remove("hidden");
-    document.getElementById('b6').classList.add("active-tab");
-    loadHeatmap();
   }else if(tab==="profile"){
     document.getElementById('busProfile').classList.remove("hidden");
     document.getElementById('b4').classList.add("active-tab");
