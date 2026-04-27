@@ -2616,6 +2616,68 @@ function printTicketReceipt(id) {
   addActivityLog(`Admin printed receipt for Ticket #${id}`);
 }
 
+/**
+ * Updates all filtered tickets with 'PAID' status to 'VERIFIED' at once.
+ */
+function bulkVerifyPayments() {
+  let filter = document.getElementById('bookingFilter')?.value || 'all';
+  let targetTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+  let paidTickets = targetTickets.filter(t => t.status === 'PAID');
+
+  if (paidTickets.length === 0) {
+    showNotification("No 'PAID' tickets found in current view.", "info");
+    return;
+  }
+
+  if (confirm(`Are you sure you want to verify all ${paidTickets.length} pending payments?`)) {
+    paidTickets.forEach(t => { t.status = 'VERIFIED'; });
+    localStorage.setItem("tickets", JSON.stringify(tickets));
+    showNotification(`Successfully verified ${paidTickets.length} tickets!`, "success");
+    addActivityLog(`Admin bulk verified ${paidTickets.length} payments.`);
+    loadBookings();
+  }
+}
+
+/**
+ * Generates a printable Revenue Report based on the current filtered list.
+ */
+function generateRevenueReport() {
+  let filter = document.getElementById('bookingFilter')?.value || 'all';
+  let filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+  let totalRevenue = filteredTickets.reduce((sum, t) => sum + (t.price || 0), 0);
+  let reportDate = new Date().toLocaleDateString();
+
+  const reportHtml = `
+    <div style="font-family: 'Inter', sans-serif; padding: 30px; color: #333; max-width: 800px; margin: auto;">
+      <div style="border-bottom: 2px solid #007A3D; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="color: #007A3D; margin: 0;">SmartSeat Revenue Report</h2>
+        <span>Generated: ${reportDate}</span>
+      </div>
+      <p style="margin-top: 20px;"><strong>Status Filter:</strong> ${filter.toUpperCase()}</p>
+      <p><strong>Total Issued Tickets:</strong> ${filteredTickets.length}</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+        <tr style="background: #f4f4f4; text-align: left;">
+          <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Passenger</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Route</th>
+          <th style="padding: 10px; border: 1px solid #ddd;">Amount</th>
+        </tr>
+        ${filteredTickets.map(t => `
+          <tr>
+            <td style="padding: 10px; border: 1px solid #ddd;">#${t.id}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${t.passenger}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">${t.from} → ${t.to}</td>
+            <td style="padding: 10px; border: 1px solid #ddd;">UGX ${(t.price || 0).toLocaleString()}</td>
+          </tr>`).join('')}
+      </table>
+      <h3 style="text-align: right; margin-top: 30px;">Total Revenue: UGX ${totalRevenue.toLocaleString()}</h3>
+    </div>`;
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write('<html><head><title>Revenue Report</title></head><body onload="window.print(); window.close();">' + reportHtml + '</body></html>');
+  printWin.document.close();
+}
+
 function resendTicketSMS(ticketId) {
     const t = tickets.find(ticket => ticket.id == ticketId);
     if (t) dispatchMultiChannel(t.phone || currentUser.phone, formatTicketSMS(t));
