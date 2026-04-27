@@ -627,7 +627,20 @@
       <!-- BOOKING MANAGEMENT -->
       <div id="adminBookings" class="hidden">
         <div class="card">
-          <h3><i class="fas fa-ticket-alt"></i> Booking Management</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin:0;"><i class="fas fa-ticket-alt"></i> Booking Management</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <label style="font-size: 0.8rem; opacity: 0.8; color: white;">Filter Status:</label>
+              <select id="bookingFilter" onchange="loadBookings()" style="width: auto; margin: 0; padding: 5px 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                <option value="all">All Bookings</option>
+                <option value="PAID">PAID (Pending Verification)</option>
+                <option value="VERIFIED">VERIFIED</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="BOARDED">BOARDED</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+            </div>
+          </div>
           <div id="bookingList" class="grid">
             <!-- Bookings will be populated here -->
           </div>
@@ -640,10 +653,22 @@
             <h3 style="color: white;"><i class="fas fa-search"></i> Terminal Search</h3>
             <p style="color: rgba(255,255,255,0.8);">Search and book tickets on behalf of passengers.</p>
          </div>
-         <!-- This replicates the user search section but inside admin -->
-         <div id="adminSearchWrap">
-            <!-- The JS loadTrips function will render results to the global 'trips' div if we provide a target -->
-            <button class="btn" onclick="userTab('home')">Go to Interactive Booking Map</button>
+         <div class="card">
+            <h3><i class="fas fa-plus-circle"></i> Quick Book (Manual Issue)</h3>
+            <div class="grid">
+              <input id="qbName" placeholder="Passenger Full Name">
+              <input id="qbPhone" placeholder="Passenger Phone">
+              <select id="qbBus" onfocus="loadBusSelect()">
+                <option value="">Select Bus/Route</option>
+              </select>
+              <input id="qbDate" type="date">
+            </div>
+            <button class="btn" style="margin-top: 15px;" onclick="adminQuickBook()">
+              <i class="fas fa-ticket-alt"></i> Issue Manual Ticket
+            </button>
+         </div>
+         <div id="adminSearchWrap" style="margin-top: 20px;">
+            <button class="btn" style="background: #4a5568;" onclick="userTab('home')">Open Interactive Passenger Map</button>
          </div>
       </div>
 

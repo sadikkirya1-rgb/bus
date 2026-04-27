@@ -2361,6 +2361,33 @@ function adminTab(section){
   else if(section === 'fleetControl') { loadBusSelect(); renderFleet(); renderSchedules(); }
 }
 
+/**
+ * Issues a ticket manually from the admin panel
+ */
+function adminQuickBook() {
+  const name = document.getElementById('qbName').value;
+  const phone = document.getElementById('qbPhone').value;
+  const busId = document.getElementById('qbBus').value;
+  const date = document.getElementById('qbDate').value;
+  const bus = buses.find(b => b.id == busId);
+
+  if(!name || !phone || !bus || !date) return alert("Please fill all fields to issue a ticket.");
+
+  const ticket = {
+    id: Math.floor(100000 + Math.random() * 900000),
+    bus: bus.name, seat: 1, price: bus.price, date: date,
+    from: bus.route.split(' - ')[0], to: bus.route.split(' - ')[1],
+    payment: "ADMIN_MANUAL", passenger: name, passengerPhone: phone,
+    email: "admin@smartseat.ug", status: "ACTIVE", timestamp: new Date().toISOString()
+  };
+
+  tickets.push(ticket);
+  localStorage.setItem("tickets", JSON.stringify(tickets));
+  showNotification(`Ticket #${ticket.id} issued for ${name}`, "success");
+  addActivityLog(`Admin issued manual ticket #${ticket.id}`);
+  adminTab('bookings');
+}
+
 function toggleBulkTripSelect() {
     const type = document.getElementById('notificationType').value;
     const group = document.getElementById('bulkTripSelectGroup');
@@ -2519,9 +2546,13 @@ async function sendManifestToOperator(busName, date) {
 
 function loadBookings(){
   let bookingList = document.getElementById('bookingList');
+  if(!bookingList) return;
+  let filter = document.getElementById('bookingFilter')?.value || 'all';
   bookingList.innerHTML = '';
   
-  tickets.forEach(ticket => {
+  let filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+
+  filteredTickets.forEach(ticket => {
     let status = ticket.status || "PAID";
     let bookingCard = document.createElement('div');
     bookingCard.className = 'card';
@@ -2533,24 +2564,56 @@ function loadBookings(){
       <p><i class="fas fa-dollar-sign"></i> UGX ${ticket.price.toLocaleString()}</p>
       <p><i class="fas fa-phone"></i> ${ticket.phone || 'No phone'}</p>
       <p><i class="fas fa-phone-alt"></i> Passenger Phone: ${ticket.passengerPhone || 'N/A'}</p>
-      <p><i class="fas fa-info-circle"></i> Status: <strong>${status}</strong></p>
+      <div style="margin: 10px 0;">
+        <label style="font-size:0.7rem; opacity:0.8; display:block;">Update Workflow Status:</label>
+        <select onchange="updateTicketStatus(${ticket.id}, this.value)" style="margin: 5px 0; padding: 5px;">
+          <option value="PAID" ${status === 'PAID' ? 'selected' : ''}>PAID</option>
+          <option value="VERIFIED" ${status === 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
+          <option value="ACTIVE" ${status === 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
+          <option value="BOARDED" ${status === 'BOARDED' ? 'selected' : ''}>BOARDED</option>
+          <option value="USED" ${status === 'USED' ? 'selected' : ''}>USED</option>
+          <option value="CANCELLED" ${status === 'CANCELLED' ? 'selected' : ''}>CANCELLED</option>
+        </select>
+      </div>
       <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
         <button class="btn btn-sm" style="background:var(--uganda-yellow); color:black;" onclick="resendTicketSMS(${ticket.id})"><i class="fas fa-share-nodes"></i> Resend All</button>
         <button class="btn btn-sm" style="background:#4299e1;" onclick="logAdminCall('${ticket.passenger}', '${ticket.phone}', 'Confirmed trip details')"><i class="fas fa-phone"></i> Log Call</button>
-        ${status === 'PAID' ? `<button class="btn btn-sm" style="background:#48bb78;" onclick="updateTicketStatus(${ticket.id}, 'VERIFIED')">Approve Payment</button>` : ''}
-        ${status === 'VERIFIED' ? `
-            <select id="opAssign-${ticket.id}" style="width: auto; padding: 5px;">
-                <option value="Operator_1">Bus 001 (Main)</option>
-                <option value="Operator_2">Bus 002 (Express)</option>
-            </select>
-            <button class="btn btn-sm" onclick="assignOperator(${ticket.id})">Assign & Activate</button>
-        ` : ''}
-        ${status === 'BOARDED' ? `<button class="btn btn-sm" style="background:var(--text-light);" onclick="updateTicketStatus(${ticket.id}, 'USED')">Mark as Used</button>` : ''}
+        <button class="btn btn-sm" style="background:var(--uganda-black); color:white;" onclick="printTicketReceipt(${ticket.id})"><i class="fas fa-print"></i> Print</button>
         <button class="btn btn-sm" style="background:var(--uganda-red);" onclick="cancelBooking(${ticket.id})">Cancel</button>
       </div>
     `;
     bookingList.appendChild(bookingCard);
   });
+}
+
+/**
+ * Generates a printable receipt for a ticket
+ */
+function printTicketReceipt(id) {
+  const ticket = tickets.find(t => t.id == id);
+  if(!ticket) return;
+  
+  const receiptHtml = `
+    <div style="font-family: 'Inter', sans-serif; padding: 20px; border: 1px solid #000; width: 300px; margin: auto;">
+      <h2 style="text-align:center; margin-bottom:5px;">SmartSeat Receipt</h2>
+      <p style="text-align:center; font-size:0.8rem; margin-top:0;">Official Boarding Pass Receipt</p>
+      <hr style="border: 0.5px dashed #000;">
+      <p><strong>Ticket ID:</strong> #${ticket.id}</p>
+      <p><strong>Passenger:</strong> ${ticket.passenger}</p>
+      <p><strong>Route:</strong> ${ticket.from} to ${ticket.to}</p>
+      <p><strong>Date/Time:</strong> ${ticket.date} @ ${ticket.time || '08:00'}</p>
+      <p><strong>Bus:</strong> ${ticket.bus}</p>
+      <p><strong>Seat:</strong> ${ticket.seat || '1'}</p>
+      <hr style="border: 0.5px dashed #000;">
+      <h3 style="text-align:right;">Total: UGX ${ticket.price.toLocaleString()}</h3>
+      <p style="font-size: 0.7rem; text-align:center; margin-top:20px;">Safe Journey with SmartSeat Uganda!</p>
+    </div>
+  `;
+  
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write('<html><head><title>Receipt #' + id + '</title></head><body onload="window.print(); window.close();">' + receiptHtml + '</body></html>');
+  printWindow.document.close();
+  addActivityLog(`Admin printed receipt for Ticket #${id}`);
 }
 
 function resendTicketSMS(ticketId) {
