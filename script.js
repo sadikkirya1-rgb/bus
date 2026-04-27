@@ -2601,11 +2601,12 @@ function loadBookings(){
             <td>#${t.id}</td><td>${t.passenger}</td><td>${t.from} → ${t.to}</td>
             <td>${t.price.toLocaleString()}</td>
             <td>
-              <span class="badge ${t.status === 'PAID' ? 'bg-paid' : t.status === 'VERIFIED' ? 'bg-active' : 'bg-used'}">${t.status}</span>
+              <span class="badge ${t.status === 'PAID' ? 'bg-paid' : t.status === 'VERIFIED' ? 'bg-active' : t.status === 'BOARDED' ? 'bg-boarded' : 'bg-used'}">${t.status}</span>
             </td>
             <td style="display:flex; gap:5px;">
               ${t.status === 'PAID' ? `<button class="btn btn-sm" style="background:#48bb78" onclick="updateTicketStatus(${t.id}, 'VERIFIED')" title="Verify Payment"><i class="fas fa-check"></i></button>` : ''}
-              ${t.status === 'VERIFIED' ? `<button class="btn btn-sm" style="background:#4299e1" onclick="updateTicketStatus(${t.id}, 'USED')" title="Mark as Used"><i class="fas fa-bus"></i></button>` : ''}
+              ${t.status === 'VERIFIED' ? `<button class="btn btn-sm" style="background:#f6ad55" onclick="updateTicketStatus(${t.id}, 'BOARDED')" title="Manual Terminal Boarding"><i class="fas fa-id-card-clip"></i></button>` : ''}
+              ${t.status === 'BOARDED' ? `<button class="btn btn-sm" style="background:#4299e1" onclick="updateTicketStatus(${t.id}, 'USED')" title="Mark Trip Finished"><i class="fas fa-check-double"></i></button>` : ''}
               ${t.status === 'USED' ? `<button class="btn btn-sm" style="background:#718096" onclick="updateTicketStatus(${t.id}, 'PAID')" title="Reset to Paid"><i class="fas fa-undo"></i></button>` : ''}
               <button class="btn btn-sm" style="background:var(--uganda-black)" onclick="printTicketReceipt(${t.id})"><i class="fas fa-print"></i></button>
               <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="cancelBooking(${t.id})"><i class="fas fa-trash"></i></button>
@@ -2626,12 +2627,14 @@ function renderRevenueChart(filteredData) {
 
   // Group revenue by date
   const dailyData = filteredData.reduce((acc, t) => {
-    acc[t.date] = (acc[t.date] || 0) + (t.price || 0);
+    if (!acc[t.date]) acc[t.date] = { revenue: 0, count: 0 };
+    acc[t.date].revenue += (t.price || 0);
+    acc[t.date].count += 1;
     return acc;
   }, {});
 
   const dates = Object.keys(dailyData).sort();
-  const maxRev = Math.max(...Object.values(dailyData), 1);
+  const maxRev = Math.max(...Object.values(dailyData).map(d => d.revenue), 1);
 
   if (dates.length === 0) {
     chartContainer.innerHTML = '<p style="font-size: 0.8rem; opacity: 0.5;">No revenue data for selected filters.</p>';
@@ -2639,12 +2642,12 @@ function renderRevenueChart(filteredData) {
   }
 
   chartContainer.innerHTML = dates.map(date => {
-    const amount = dailyData[date];
+    const amount = dailyData[date].revenue;
     const height = (amount / maxRev) * 100;
     const displayDate = date.split('-').slice(1).join('/'); // MM/DD
     return `
       <div style="display: flex; flex-direction: column; align-items: center; min-width: 40px;">
-        <div class="bar" style="height: ${height}%; width: 25px;" title="UGX ${amount.toLocaleString()} on ${date}"></div>
+        <div class="bar" style="height: ${height}%; width: 25px;" title="UGX ${amount.toLocaleString()} | ${dailyData[date].count} tickets on ${date}"></div>
         <span style="font-size: 0.6rem; margin-top: 5px; opacity: 0.7; color: white;">${displayDate}</span>
       </div>
     `;
