@@ -54,6 +54,7 @@ auth.onAuthStateChanged(async (user) => {
         if (userDoc.exists) {
             currentUser = { ...userDoc.data(), uid: user.uid };
             role = currentUser.role;
+            console.log("onAuthStateChanged: User logged in, role is", role);
             
             // Start Real-time Listeners for Production Data
             setupRealtimeData();
@@ -65,6 +66,7 @@ auth.onAuthStateChanged(async (user) => {
     } else {
         currentUser = null;
         role = null;
+        console.log("onAuthStateChanged: User logged out, role is", role);
         init();
     }
 });
@@ -80,7 +82,10 @@ function setupRealtimeData() {
         
         // Auto-refresh search results if user is currently looking at the trips screen
         const tripsPanel = document.getElementById('trips');
-        if (tripsPanel && !tripsPanel.classList.contains('hidden')) {
+        const userHome = document.getElementById('userHome'); // Check if userHome is active
+        
+        if (role === 'user' && userHome && !userHome.classList.contains('hidden') && tripsPanel && !tripsPanel.classList.contains('hidden') && document.getElementById('from') && document.getElementById('to')) { // Added checks for 'from' and 'to' elements
+            console.log("trips onSnapshot: User UI is active, potentially calling loadTrips().");
             if (activeSearchSchedules) {
                 const from = document.getElementById('from').value;
                 const to = document.getElementById('to').value;
@@ -1150,10 +1155,12 @@ function loadTrips(){
   let sortOrder = document.getElementById('sortTrips') ? document.getElementById('sortTrips').value : "time";
 
   if(!from || !to) {
-    alert("Please fill in all search fields");
+    // Only show the alert if the user is actually in the user role and on the search tab
+    if (role === 'user' && !document.getElementById('trips').classList.contains('hidden')) {
+        alert("Please fill in all search fields");
+    }
     return;
   }
-
   saveRecentSearch(from, to);
   const tripsContainer = document.getElementById('trips');
   if (!tripsContainer) return;
@@ -1729,38 +1736,75 @@ function trackBus(id) {
 }
 
 /* LOAD BUS SELECT */
-function loadBusSelect(){
-  selectBus.innerHTML = "<option value=''>Select Bus</option>";
-  buses.forEach(b => {
-    let opt = document.createElement("option");
-    opt.value = b.id;
-    opt.textContent = `${b.name} (${b.route})`;
-    selectBus.appendChild(opt);
+function loadBusSelect() {
+  // Find all select elements that are meant to display bus options
+  const busSelectElements = document.querySelectorAll('select[id^="selectBus"], select[id="qbBus"]'); // Selects IDs starting with 'selectBus' and 'qbBus'
+
+  busSelectElements.forEach(selectElement => {
+    // Determine the default option text based on the element's original content or ID
+    let defaultOptionText = "Select Bus";
+    if (selectElement.id === 'selectBusAdmin') {
+      defaultOptionText = "Select Any Registered Bus";
+    } else if (selectElement.id === 'qbBus') {
+      defaultOptionText = "Select Bus/Route";
+    }
+
+    selectElement.innerHTML = `<option value="">${defaultOptionText}</option>`;
+    buses.forEach(b => {
+      let opt = document.createElement("option");
+      opt.value = b.id;
+      opt.textContent = `${b.name} (${b.route})`;
+      selectElement.appendChild(opt);
+    });
   });
 }
-
 /* ADD BUS */
 async function addNewBus(){
-  let name = document.getElementById('newBusName').value;
-  let route = document.getElementById('newBusRoute').value;
-  let price = document.getElementById('newBusPrice').value;
-  let type = document.getElementById('newBusType').value;
+  // Targeted selection within the specific form container to avoid ID collisions
+  const container = document.getElementById('newBusFormContainer');
+  if (!container) return;
 
-  if(!name || !route || !price) return alert("Please fill all fields");
+  const nameEl = container.querySelector('#newBusName');
+  const routeEl = container.querySelector('#newBusRoute');
+  const priceEl = container.querySelector('#newBusPrice');
+  const typeEl = container.querySelector('#newBusType');
+
+  const name = nameEl ? nameEl.value.trim() : "";
+  const route = routeEl ? routeEl.value.trim() : "";
+  const priceStr = priceEl ? priceEl.value.trim() : "";
+  const type = typeEl ? typeEl.value : "Standard";
+
+  if(!name || !route || !priceStr) {
+    showNotification("Please fill in the Name, Route, and Price fields.", "error");
+    console.error("addNewBus validation failed: Name, Route, or Price is empty. Current values:", { name, route, priceStr }); // Debugging line
+    return;
+  }
+  const price = parseInt(priceStr);
+  if (isNaN(price) || price <= 0) {
+    showNotification("Please enter a valid positive number for the Price.", "error");
+    console.error("addNewBus validation failed: Price is not a valid positive number.", priceStr); // Debugging line
+    return;
+  }
+
+  if(!route.includes(' - ')) {
+    showNotification("Route must follow the 'City A - City B' format.", "error");
+    console.error("addNewBus validation failed: Route format incorrect.", route); // Debugging line
+    return;
+  }
 
   let bus = {
     name, route, type,
-    price: parseInt(price),
-    operator: currentUser.name,
+    price: price, // Use the parsed integer price
+    operator: currentUser ? currentUser.name : "System Admin",
     timestamp: new Date().toISOString()
   };
 
   try {
     await db.collection('buses').add(bus);
     addActivityLog(`New bus registered: ${name} by ${currentUser.name}`);
-    document.getElementById('newBusName').value = "";
-    document.getElementById('newBusRoute').value = "";
-    document.getElementById('newBusPrice').value = "";
+    nameEl.value = "";
+    routeEl.value = "";
+    priceEl.value = "";
     showNotification("Bus added to live fleet!", "success");
   } catch (error) {
     console.error("Firestore Error:", error);
@@ -1786,9 +1830,13 @@ async function deleteBus(busId) {
 
 /* SCHEDULE TRIP */
 async function scheduleTrip(){
-  let busId = selectBus.value;
-  let date = tripDate.value;
-  let time = departureTime.value;
+  const busSelectEl = document.getElementById('selectBusAdmin'); // Correct ID for admin schedule form
+  const dateEl = document.getElementById('tripDate');
+  const timeEl = document.getElementById('departureTime');
+
+  let busId = busSelectEl ? busSelectEl.value : '';
+  let date = dateEl ? dateEl.value : '';
+  let time = timeEl ? timeEl.value : '';
 
   let amenities = [];
   if(document.getElementById('wifiAmenity').checked) amenities.push('wifi');
@@ -1796,7 +1844,7 @@ async function scheduleTrip(){
   if(document.getElementById('usbAmenity').checked) amenities.push('charging-station');
 
   if(!busId || !date || !time) {
-    alert("Please fill all fields");
+    showNotification("Please fill all fields for scheduling.", "error");
     return;
   }
 
@@ -1818,7 +1866,9 @@ async function scheduleTrip(){
     await db.collection('trips').add(trip);
     addActivityLog(`Trip scheduled: ${bus.name} on ${date}`);
     showNotification("Trip scheduled in live database!", "success");
-    tripDate.value = departureTime.value = "";
+    if (busSelectEl) busSelectEl.value = ""; // Clear bus selection
+    if (dateEl) dateEl.value = "";
+    if (timeEl) timeEl.value = "";
     document.getElementById('wifiAmenity').checked = false;
     document.getElementById('acAmenity').checked = false;
     document.getElementById('usbAmenity').checked = false;
@@ -3061,7 +3111,7 @@ function renderBusRegistrationForm() {
                     </select>
                 </div>
             </div>
-            <button class="view-ticket-btn" style="margin-top: 15px; width: 100%; background: var(--primary-color);" onclick="addNewBus()">
+            <button type="button" class="view-ticket-btn" style="margin-top: 15px; width: 100%; background: var(--primary-color);" onclick="addNewBus()">
                 <i class="fas fa-save"></i> Save to Live Fleet
             </button>
         </div>
