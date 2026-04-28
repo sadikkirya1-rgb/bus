@@ -160,6 +160,7 @@
     <button onclick="adminTab('settings')" id="a9" title="System Settings"><i class="fas fa-cogs"></i> <span>System Settings</span></button>
     <button onclick="adminTab('activity')" id="a10" title="Activity Log"><i class="fas fa-history"></i> <span>Activity Log</span></button>
     <button onclick="adminTab('supportTickets')" id="a12" title="Support Tickets"><i class="fas fa-headset"></i> <span>Support Tickets</span></button>
+    <button onclick="adminTab('terminals')" id="a14" title="Terminal Management"><i class="fas fa-map-marker-alt"></i> <span>Terminal Management</span></button>
     <button onclick="toggleDarkMode()" title="Toggle Dark Mode"><i class="fas fa-moon"></i> <span>Toggle Theme</span></button>
   </div>
 
@@ -256,15 +257,9 @@
           <button class="screen-back-btn" onclick="showUserScreen('busDetailsBox')"><i class="fas fa-arrow-left"></i> Back to Bus Details</button>
           <select id="boardingPoint">
             <option value="" disabled selected hidden>Boarding Point</option>
-            <option>Main Terminal</option>
-            <option>Clock Tower</option>
-            <option>Wandegeya Stage</option>
           </select>
           <select id="droppingPoint">
             <option value="" disabled selected hidden>Dropping Point</option>
-            <option>Central Park</option>
-            <option>Market Square</option>
-            <option>Main Hospital Stage</option>
           </select>
           <button class="btn" style="margin-top:15px;" onclick="showPassengerInfo()"><i class="fas fa-user-edit"></i> Passenger Details</button>
         </div>
@@ -603,6 +598,20 @@
           <h3><i class="fas fa-bus"></i> Bus Operators</h3>
           <div id="operatorList" style="overflow-x: auto;">
             <!-- Operators will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TERMINAL MANAGEMENT -->
+      <div id="adminTerminals" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-map-marker-alt"></i> Terminal & Point Management</h3>
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <input id="newTerminalName" placeholder="Point Name (e.g. Wandegeya Stage)">
+            <button class="btn" onclick="addTerminal()"><i class="fas fa-plus"></i> Add Point</button>
+          </div>
+          <div id="terminalList" style="overflow-x: auto;">
+            <!-- Terminals will be populated here -->
           </div>
         </div>
       </div>

@@ -28,6 +28,7 @@ let trips = [];
 let users = [];
 let notifications = [];
 let refunds = [];
+let terminals = [];
 
 let html5QrCode = null;
 let adminRefreshInterval = null;
@@ -109,6 +110,11 @@ function setupRealtimeData() {
         notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         updateNotificationBadge();
     });
+    db.collection('terminals').onSnapshot(snap => {
+        terminals = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        populateCityLists();
+        if (role === 'admin') loadTerminals();
+    });
 }
 
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
@@ -172,7 +178,7 @@ function formatTicketSMS(t) {
          `Seat: ${t.seat}. Safe journey!`;
 }
 
-const ugandaCitiesList = ["Kampala", "Jinja", "Entebbe", "Mbarara", "Gulu", "Lira", "Mbale", "Masaka", "Fort Portal", "Arua", "Soroti", "Kabale", "Hoima", "Tororo"];
+let ugandaCitiesList = ["Kampala", "Jinja", "Entebbe", "Mbarara", "Gulu", "Lira", "Mbale", "Masaka", "Fort Portal", "Arua", "Soroti", "Kabale", "Hoima", "Tororo"];
 let notificationTimeouts = {};
 
 /* DYNAMIC INFO TICKER */
@@ -997,7 +1003,9 @@ function swapLocations() {
 function populateCityLists() {
     const fromList = document.getElementById('ugandaCitiesFrom');
     if (fromList) {
-        fromList.innerHTML = ugandaCitiesList.map(city => `<option value="${city}">`).join('');
+        // Use terminals from cloud if available, fallback to hardcoded list
+        const source = terminals.length > 0 ? terminals.map(t => t.name) : ugandaCitiesList;
+        fromList.innerHTML = source.map(city => `<option value="${city}">`).join('');
     }
     filterToCities();
 }
@@ -1006,7 +1014,8 @@ function filterToCities() {
     const fromVal = document.getElementById('from').value;
     const toList = document.getElementById('ugandaCitiesTo');
     if (toList) {
-        toList.innerHTML = ugandaCitiesList
+        const source = terminals.length > 0 ? terminals.map(t => t.name) : ugandaCitiesList;
+        toList.innerHTML = source
             .filter(city => city !== fromVal)
             .map(city => `<option value="${city}">`)
             .join('');
@@ -1486,8 +1495,16 @@ function showBusDetails(name, price, amenities) {
 
 /* BOOKING FLOW ENHANCEMENTS */
 function showBoardingPoints() {
-  // No seat selection for users, proceed directly to points
   showUserScreen('pointsBox');
+  
+  // Populate points dynamically from the cloud data
+  const bSelect = document.getElementById('boardingPoint');
+  const dSelect = document.getElementById('droppingPoint');
+  
+  const options = terminals.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+  
+  bSelect.innerHTML = `<option value="" disabled selected hidden>Boarding Point</option>` + options;
+  dSelect.innerHTML = `<option value="" disabled selected hidden>Dropping Point</option>` + options;
 }
 
 function showPassengerInfo() {
@@ -2410,6 +2427,7 @@ function adminTab(section){
   document.getElementById('adminSupportTickets').classList.add('hidden');
   document.getElementById('adminTicketingDesk').classList.add('hidden');
   document.getElementById('adminFleetControl').classList.add('hidden');
+  document.getElementById('adminTerminals').classList.add('hidden');
 
   // Remove active class from all admin nav buttons
   document.querySelectorAll('.sidebar button, .topbar-nav button').forEach(btn => btn.classList.remove('active-tab'));
@@ -2433,7 +2451,8 @@ function adminTab(section){
     'activity': 'Activity Log',
     'supportTickets': 'Support Tickets',
     'ticketingDesk': 'Passenger Ticketing Service',
-    'fleetControl': 'Fleet & Terminal Control'
+    'fleetControl': 'Fleet & Terminal Control',
+    'terminals': 'Terminal Management'
   };
   title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
 
@@ -2458,6 +2477,7 @@ function adminTab(section){
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
   else if(section === 'supportTickets') loadSupportTickets();
+  else if(section === 'terminals') loadTerminals();
   else if(section === 'ticketingDesk') renderUpcomingJourneys();
   else if(section === 'fleetControl') { 
     renderBusRegistrationForm(); 
@@ -2465,6 +2485,47 @@ function adminTab(section){
     renderFleet(); 
     renderSchedules(); 
   }
+}
+
+/* TERMINAL MANAGEMENT */
+function loadTerminals() {
+    const list = document.getElementById('terminalList');
+    if (!list) return;
+    list.innerHTML = `
+      <table class="ticket-table">
+        <thead>
+          <tr><th>Point Name</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${terminals.map(t => `
+            <tr>
+              <td>${t.name}</td>
+              <td><button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteTerminal('${t.id}')"><i class="fas fa-trash"></i></button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+}
+
+async function addTerminal() {
+    const nameInput = document.getElementById('newTerminalName');
+    const name = nameInput.value.trim();
+    if (!name) return alert("Enter point name");
+    
+    try {
+        await db.collection('terminals').add({ name, timestamp: new Date().toISOString() });
+        nameInput.value = "";
+        showNotification("Terminal point added!", "success");
+    } catch (e) { alert(e.message); }
+}
+
+async function deleteTerminal(id) {
+    if (confirm("Delete this point?")) {
+        try {
+            await db.collection('terminals').doc(id).delete();
+        } catch (e) { alert(e.message); }
+    }
 }
 
 /**
