@@ -801,25 +801,6 @@ function init(){
     renderRecentSearches();
     renderUpcomingJourneys();
     updateNotificationBadge();
-    
-    // Auto-refresh UI components every second for real-time countdowns
-    if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
-    window.upcomingRefreshInterval = setInterval(() => {
-        if (role === 'user' || role === null) {
-            renderUpcomingJourneys();
-            // Refresh the ticket list if the user is currently looking at it
-            if (!document.getElementById('userTickets').classList.contains('hidden')) renderTickets();
-        }
-        if (role === 'bus') refreshBusSchedules();
-        if (activeSearchSchedules) refreshActiveSchedules();
-        
-        if (role === 'admin') {
-            // Refresh admin dashboard stats and booking tables in real-time
-            if (!document.getElementById('adminBookings').classList.contains('hidden')) loadBookings();
-            if (!document.getElementById('adminDashboard').classList.contains('hidden')) loadDashboard();
-        }
-    }, 1000);
-
     tickets.forEach(scheduleDepartureNotification);
   } else if (role === "bus") {
     busUI.classList.remove("hidden");
@@ -837,6 +818,24 @@ function init(){
     adminTab('dashboard'); // Initialize with dashboard
     showNotification(`Welcome, ${currentUser.name}! Admin panel ready.`, "success");
   }
+
+  // Auto-refresh UI components every second for real-time countdowns (Global)
+  if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
+  window.upcomingRefreshInterval = setInterval(() => {
+      if (role === 'user' || role === null) {
+          renderUpcomingJourneys();
+          if (!document.getElementById('userTickets').classList.contains('hidden')) renderTickets();
+      }
+      if (role === 'bus' || role === 'admin') refreshBusSchedules();
+      if (activeSearchSchedules) refreshActiveSchedules();
+      
+      if (role === 'admin') {
+          // Refresh admin dashboard stats and booking tables in real-time
+          if (!document.getElementById('adminBookings').classList.contains('hidden')) loadBookings();
+          // Only reload dashboard if the dashboard panel is visible to save resources
+          if (!document.getElementById('adminDashboard').classList.contains('hidden')) loadDashboard();
+      }
+  }, 1000);
 }
 
 /* ADMIN CLOCK */
@@ -1839,9 +1838,9 @@ async function scheduleTrip(){
     return;
   }
 
-  const busSelectEl = container.querySelector('#selectBusAdmin') || container.querySelector('#selectBus');
-  const dateEl = container.querySelector('#tripDate');
-  const timeEl = container.querySelector('#departureTime');
+  const busSelectEl = container.querySelector('#selectBusAdmin');
+  const dateEl = container.querySelector('#tripDateAdmin');
+  const timeEl = container.querySelector('#departureTimeAdmin');
 
   const busId = busSelectEl ? busSelectEl.value : '';
   const date = dateEl ? dateEl.value : '';
@@ -1894,7 +1893,10 @@ async function scheduleTrip(){
 
 /* RENDER SCHEDULES */
 function renderSchedules(){
-  const schedulesContainer = document.getElementById('schedules');
+  // Only target the container relevant to the current role to prevent duplicate IDs
+  const containerId = (role === 'admin') ? 'schedulesAdmin' : 'schedulesBus';
+  const schedulesContainer = document.getElementById(containerId);
+
   if (!schedulesContainer) return;
   schedulesContainer.innerHTML = "";
 
@@ -1963,9 +1965,8 @@ function renderSchedules(){
         statusHtml = `<span class="status-delayed-alert"><i class="fas fa-clock"></i> 5M LATE</span>`;
     }
 
-    let d_el = document.createElement("div");
-    d_el.className = "card";
-    d_el.innerHTML = `
+    const cardHtml = `
+      <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <h4 id="bus-name-text-${t.id}" class="${textClass}" style="margin:0;">${t.busName}</h4>
         <div id="bus-timer-val-${t.id}" style="text-align:right;">${statusHtml}</div>
@@ -1990,8 +1991,9 @@ function renderSchedules(){
             <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
         </div>
       </div>
+      </div>
     `;
-    schedulesContainer.appendChild(d_el);
+    schedulesContainer.insertAdjacentHTML('beforeend', cardHtml);
   });
 }
 
@@ -1999,13 +2001,16 @@ function renderSchedules(){
  * Updates bus operator schedules in real-time without re-rendering the whole card (stops flashing)
  */
 function refreshBusSchedules() {
-    const schedulesContainer = document.getElementById('schedules');
-    if (!schedulesContainer || trips.length === 0) return;
+    if (trips.length === 0) return;
 
     const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
     const windowMs = 24 * 60 * 60 * 1000;
 
     trips.forEach(t => {
+        // We update specific elements by ID, which is fine if they are unique per trip
+        // but we need to ensure we find them in whichever container is active.
+        // Since trip IDs are unique, we just look for them globally.
+
         const timerEl = document.getElementById(`bus-timer-val-${t.id}`);
         const barEl = document.getElementById(`bus-bar-val-${t.id}`);
         const nameEl = document.getElementById(`bus-name-text-${t.id}`);
@@ -2517,10 +2522,40 @@ function loadDashboard(){
   document.getElementById('statBuses').textContent = buses.length.toLocaleString();
   document.getElementById('statBookings').textContent = tickets.length.toLocaleString();
   document.getElementById('statTrips').textContent = trips.length.toLocaleString();
+
+  // Calculate Cancellation
+  const cancelledCount = tickets.filter(t => t.status === 'CANCELLED').length;
+  const cancelRate = tickets.length > 0 ? Math.round((cancelledCount / tickets.length) * 100) : 0;
+  document.getElementById('statCancelled').textContent = cancelledCount;
+  document.getElementById('statCancelled').nextElementSibling.textContent = `Cancellation rate: ${cancelRate}%`;
   
   // Calculate revenue
   let revenue = tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
   document.getElementById('statRevenue').textContent = 'UGX ' + revenue.toLocaleString();
+
+  // Booking Distribution (Occupancy)
+  const totalSeatsAcrossFleet = trips.length * 28;
+  const occupiedSeats = trips.reduce((acc, t) => acc + (28 - (t.availableSeats || 0)), 0);
+  const occupancyPerc = totalSeatsAcrossFleet > 0 ? Math.round((occupiedSeats / totalSeatsAcrossFleet) * 100) : 0;
+  const distInner = document.getElementById('bookingDistributionInner');
+  if (distInner) distInner.textContent = `${occupancyPerc}% Full`;
+
+  // Charts (Real-time distribution)
+  const revenueChart = document.getElementById('revenueTrendChart');
+  if (revenueChart) {
+      // Group by last 4 dates present in tickets
+      const revByDate = tickets.reduce((acc, t) => { acc[t.date] = (acc[t.date] || 0) + (t.price || 0); return acc; }, {});
+      const sortedDates = Object.keys(revByDate).sort().slice(-4);
+      const maxRev = Math.max(...Object.values(revByDate), 1);
+      revenueChart.innerHTML = sortedDates.map(d => `<div class="bar" style="height: ${(revByDate[d]/maxRev)*100}%;" title="${d}"></div>`).join('');
+  }
+
+  const growthChart = document.getElementById('userGrowthChart');
+  if (growthChart) {
+      // Simply display relative volume of users vs target for visualization
+      const growthData = [30, 50, 45, 80]; // Mocking growth trend for UI feel
+      growthChart.innerHTML = growthData.map(h => `<div class="bar" style="height: ${h}%; background: #4a5568;"></div>`).join('');
+  }
 
   // --- NEW: Calculate revenue per bus ---
   const revenueByBus = tickets.reduce((acc, t) => {
@@ -3134,7 +3169,10 @@ function renderBusRegistrationForm() {
 }
 
 function renderFleet(){
-  const fleetDiv = document.getElementById('fleet');
+  // Only target the container relevant to the current role to prevent duplicate IDs
+  const containerId = (role === 'admin') ? 'fleetAdmin' : 'fleetBus';
+  const fleetDiv = document.getElementById(containerId);
+
   if (!fleetDiv) return;
   fleetDiv.innerHTML = "";
   
@@ -3146,10 +3184,8 @@ function renderFleet(){
     return;
   }
 
-  visibleBuses.forEach(b => {
-    let d = document.createElement("div");
-    d.className = "card";
-    d.innerHTML = `
+  const fleetHtml = visibleBuses.map(b => `
+      <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div>
           <h4 style="margin:0;">${b.name}</h4>
@@ -3161,9 +3197,10 @@ function renderFleet(){
           <i class="fas fa-trash"></i>
         </button>
       </div>
-    `;
-    fleetDiv.appendChild(d);
-  });
+      </div>
+    `).join('');
+    
+  fleetDiv.innerHTML = fleetHtml;
 }
 
 function loadPaymentSettings(){
