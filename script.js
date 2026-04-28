@@ -1830,18 +1830,31 @@ async function deleteBus(busId) {
 
 /* SCHEDULE TRIP */
 async function scheduleTrip(){
-  const busSelectEl = document.getElementById('selectBusAdmin'); // Correct ID for admin schedule form
-  const dateEl = document.getElementById('tripDate');
-  const timeEl = document.getElementById('departureTime');
+  // Targeted selection based on the active UI to avoid ID collisions and missing elements
+  const containerId = role === 'admin' ? 'adminFleetControl' : 'busHome';
+  const container = document.getElementById(containerId);
+  
+  if (!container) {
+    console.error("Schedule container not found for role:", role);
+    return;
+  }
 
-  let busId = busSelectEl ? busSelectEl.value : '';
-  let date = dateEl ? dateEl.value : '';
-  let time = timeEl ? timeEl.value : '';
+  const busSelectEl = container.querySelector('#selectBusAdmin') || container.querySelector('#selectBus');
+  const dateEl = container.querySelector('#tripDate');
+  const timeEl = container.querySelector('#departureTime');
+
+  const busId = busSelectEl ? busSelectEl.value : '';
+  const date = dateEl ? dateEl.value : '';
+  const time = timeEl ? timeEl.value : '';
 
   let amenities = [];
-  if(document.getElementById('wifiAmenity').checked) amenities.push('wifi');
-  if(document.getElementById('acAmenity').checked) amenities.push('snowflake');
-  if(document.getElementById('usbAmenity').checked) amenities.push('charging-station');
+  const wifi = container.querySelector('#wifiAmenity');
+  const ac = container.querySelector('#acAmenity');
+  const usb = container.querySelector('#usbAmenity');
+
+  if(wifi && wifi.checked) amenities.push('wifi');
+  if(ac && ac.checked) amenities.push('snowflake');
+  if(usb && usb.checked) amenities.push('charging-station');
 
   if(!busId || !date || !time) {
     showNotification("Please fill all fields for scheduling.", "error");
@@ -1866,12 +1879,13 @@ async function scheduleTrip(){
     await db.collection('trips').add(trip);
     addActivityLog(`Trip scheduled: ${bus.name} on ${date}`);
     showNotification("Trip scheduled in live database!", "success");
-    if (busSelectEl) busSelectEl.value = ""; // Clear bus selection
+
+    if (busSelectEl) busSelectEl.value = "";
     if (dateEl) dateEl.value = "";
     if (timeEl) timeEl.value = "";
-    document.getElementById('wifiAmenity').checked = false;
-    document.getElementById('acAmenity').checked = false;
-    document.getElementById('usbAmenity').checked = false;
+    if (wifi) wifi.checked = false;
+    if (ac) ac.checked = false;
+    if (usb) usb.checked = false;
   } catch (error) {
     console.error("Firestore Error:", error);
     alert("Failed to schedule trip.");
