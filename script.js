@@ -771,6 +771,7 @@ function init(){
   bottomNav.classList.add("hidden"); // Hide bottom nav by default
   sidebar.classList.add("hidden"); // Hide sidebar by default
   document.getElementById('sidebarToggle').classList.add('hidden'); // Hide sidebar toggle by default
+  document.getElementById('adminUserIndicator').classList.add('hidden'); // Hide admin user indicator by default
   document.getElementById('adminClock').classList.add('hidden'); // Hide admin clock by default
 
   if (role === 'admin') {
@@ -823,6 +824,9 @@ function init(){
     document.getElementById('sidebarToggle').classList.remove("hidden");
     adminUI.classList.remove("hidden");
     document.getElementById('adminClock').classList.remove('hidden');
+    document.getElementById('adminUserIndicator').classList.remove('hidden');
+    document.getElementById('adminUserName').innerText = currentUser.name;
+    document.getElementById('adminProfilePic').src = currentUser.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=007A3D&color=fff`;
     bottomNav.classList.add("hidden"); // Admin doesn't use bottom nav
     startClock();
     adminTab('dashboard'); // Initialize with dashboard
@@ -1654,17 +1658,17 @@ async function confirmBooking(){
   selectedSeat = 1; // Auto-assign a default seat as there is no user selection
   const ticketId = Math.floor(100000 + Math.random() * 900000);
   let ticket = { 
-    bus: selectedBus.name,
+    bus: selectedBus?.name || "Unknown Bus",
     seat: selectedSeat,
-    price: selectedBus.price,
+    price: selectedBus?.price || 0,
     date: document.getElementById('date') ? document.getElementById('date').value : new Date().toISOString().split('T')[0],
     from: document.getElementById('from').value,
     to: document.getElementById('to').value,
     payment: selectedPayment,
-    passenger: document.querySelector('.p-name')?.value || currentUser.name,
+    passenger: document.querySelector('.p-name')?.value || currentUser?.name || "Guest",
     passengerPhone: document.querySelector('.p-phone')?.value || "",
-    email: currentUser.email,
-    phone: currentUser.phone,
+    email: currentUser?.email || "",
+    phone: currentUser?.phone || "",
     uid: currentUser ? (currentUser.uid || currentUser.id) : null,
     id: ticketId,
     status: "PAID", // Start at PAID for demo purposes once confirmed
@@ -1684,7 +1688,7 @@ async function confirmBooking(){
     userTab("tickets");
   } catch (error) {
     console.error("Booking error:", error);
-    alert("Failed to confirm booking. Please try again.");
+    showNotification("Failed to confirm booking: " + error.message, "error");
   }
 }
 

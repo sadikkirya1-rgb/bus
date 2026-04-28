@@ -1326,6 +1326,19 @@ input, select, textarea {
   font-weight: bold;
 }
 
+/* Admin User Indicator */
+#adminUserIndicator {
+  display: flex;
+  align-items: center;
+  margin-left: 15px;
+  padding-left: 15px;
+  border-left: 2px solid rgba(255,255,255,0.2);
+}
+
+#adminUserIndicator .header-avatar {
+  width: 35px;
+  height: 35px;
+}
 /* TICKET TABLE STYLES */
 .ticket-table {
   width: 100%;
