@@ -34,7 +34,7 @@ let adminRefreshInterval = null;
 let activeSearchSchedules = null; // Tracks current search results for real-time updates
 
 // Development constants
-const TEST_USER_EMAIL = "user@smartseat.ug";
+const TEST_USER_EMAIL = "user@bus.ug";
 const TEST_USER_NAME = "John Doe";
 
 // Global Terminal Schedule Logic
@@ -77,6 +77,25 @@ function setupRealtimeData() {
     });
     db.collection('trips').onSnapshot(snap => {
         trips = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        
+        // Auto-refresh search results if user is currently looking at the trips screen
+        const tripsPanel = document.getElementById('trips');
+        if (tripsPanel && !tripsPanel.classList.contains('hidden')) {
+            if (activeSearchSchedules) {
+                const from = document.getElementById('from').value;
+                const to = document.getElementById('to').value;
+                const date = document.getElementById('date').value;
+                const updated = trips.filter(t => t.busName === activeSearchSchedules.name && t.from === from && t.to === to && t.date === date);
+                renderOperatorSchedules(activeSearchSchedules.name, updated);
+            } else {
+                loadTrips();
+            }
+        }
+        if (role === 'admin' || role === 'bus') renderSchedules();
+    });
+    db.collection('buses').onSnapshot(snap => {
+        buses = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        if (role === 'admin' || role === 'bus') { loadBusSelect(); renderFleet(); }
     });
     db.collection('users').onSnapshot(snap => {
         users = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -319,13 +338,20 @@ function renderUpcomingJourneys() {
 
   // Filter tickets for current user and future/current status
   const userTickets = tickets.filter(t => 
-    (t.email?.toLowerCase() === currentUser.email?.toLowerCase() || 
-     t.passenger === currentUser.name) && 
+    (t.uid === currentUser.uid || 
+     t.email?.toLowerCase() === currentUser.email?.toLowerCase() || 
+     (t.passenger?.toLowerCase() === currentUser.name?.toLowerCase())) && 
     ["PAID", "ACTIVE", "VERIFIED", "BOARDED"].includes(t.status)
   ).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 3);
 
   if (userTickets.length === 0) {
-    container.innerHTML = `<p style="text-align:center; color:rgba(255,255,255,0.6); font-size:0.8rem;">No upcoming trips scheduled.</p>`;
+    container.innerHTML = `
+      <div style="text-align:center; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.2);">
+        <p style="color:rgba(255,255,255,0.8); font-size:0.9rem; margin-bottom: 10px;">You haven't booked any journeys yet.</p>
+        <button class="view-ticket-btn" style="margin: 0 auto; display: block;" onclick="document.getElementById('from').focus()">
+          <i class="fas fa-search"></i> Find and Book a Bus
+        </button>
+      </div>`;
     return;
   }
 
@@ -353,8 +379,9 @@ function renderUpcomingJourneys() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        const departure = new Date(now);
-        departure.setHours(hrs, parseInt(mPart), 0, 0);
+        // Fix: Use the ticket's specific date to calculate the countdown correctly
+        const [y, m_val, d] = t.date.split('-').map(Number);
+        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
 
         const diff = departure - now;
         
@@ -544,8 +571,10 @@ function cancelJourney(id) {
   if (confirm("Are you sure you want to cancel this trip?")) {
     const ticketIndex = tickets.findIndex(t => t.id == id);
     if (ticketIndex !== -1) {
-      tickets[ticketIndex].status = "CANCELLED";
-      localStorage.setItem("tickets", JSON.stringify(tickets));
+      db.collection('tickets').doc(id.toString()).update({
+        status: "CANCELLED",
+        updatedAt: new Date().toISOString()
+      });
       showNotification("Trip #" + id + " cancelled.", "info");
       addActivityLog(`User cancelled trip #${id}`);
       renderUpcomingJourneys();
@@ -667,7 +696,7 @@ async function register(){
   }
 
   try {
-      const cred = await auth.createUserWithEmailAndPassword(email || `${phone}@smartseat.ug`, password);
+      const cred = await auth.createUserWithEmailAndPassword(email || `${phone}@bus.ug`, password);
       // Store user role in Firestore
       await db.collection('users').doc(cred.user.uid).set({
           name, email, phone, role: userRole, id: cred.user.uid, timestamp: new Date().toISOString()
@@ -679,10 +708,14 @@ async function register(){
   }
 }
 
-function quickFill(type){
-  if(type==='admin'){ email.value='admin@smartseat.ug'; password.value='1234'; }
-  else if(type==='user'){ email.value='user@smartseat.ug'; password.value='1234'; }
-  else if(type==='bus'){ email.value='bus@smartseat.ug'; password.value='1234'; }
+function quickFill(type) {
+  const emailInput = document.getElementById('email');
+  const passInput = document.getElementById('password');
+  if (!emailInput || !passInput) return;
+
+  if (type === 'admin') { emailInput.value = 'admin@bus.ug'; passInput.value = '123456'; }
+  else if (type === 'user') { emailInput.value = 'user@bus.ug'; passInput.value = '123456'; }
+  else if (type === 'bus') { emailInput.value = 'bus@bus.ug'; passInput.value = '123456'; }
 }
 
 function togglePassword(inputId, iconId) {
@@ -767,12 +800,6 @@ function init(){
     // Auto-refresh UI components every second for real-time countdowns
     if (window.upcomingRefreshInterval) clearInterval(window.upcomingRefreshInterval);
     window.upcomingRefreshInterval = setInterval(() => {
-        // Sync local variables with latest localStorage data to capture Admin/Operator changes instantly
-        tickets = JSON.parse(localStorage.getItem("tickets") || "[]");
-        trips = JSON.parse(localStorage.getItem("trips") || "[]");
-        users = JSON.parse(localStorage.getItem("users") || "[]");
-        notifications = JSON.parse(localStorage.getItem("notifications") || "[]");
-
         if (role === 'user' || role === null) {
             renderUpcomingJourneys();
             // Refresh the ticket list if the user is currently looking at it
@@ -1140,32 +1167,6 @@ function loadTrips(){
     t.date === date
   );
 
-  // If no specific trips in DB, generate from Terminal Schedule Logic for the selected date
-  if (availableTrips.length === 0) {
-    const operatorsForRoute = standardOperators.filter(op => 
-      op.from.toLowerCase() === from.toLowerCase() && 
-      op.to.toLowerCase() === to.toLowerCase()
-    );
-
-    operatorsForRoute.forEach(op => {
-      standardTimes.forEach(time => {
-        availableTrips.push({
-          id: Math.floor(Math.random() * 100000),
-          busName: op.name,
-          from: op.from,
-          to: op.to,
-          date: date,
-          time: time,
-          price: op.price,
-          busType: op.type,
-          amenities: op.am,
-          totalSeats: 28,
-          availableSeats: Math.floor(Math.random() * 15) + 5
-        });
-      });
-    });
-  }
-
   // Group results by Operator
   const operatorGroups = availableTrips.reduce((acc, t) => {
     if (!acc[t.busName]) acc[t.busName] = [];
@@ -1203,7 +1204,31 @@ function loadTrips(){
   tripsContainer.innerHTML = headerCard;
 
   if(operatorList.length === 0) {
-      tripsContainer.innerHTML += `<div class="card" style="text-align:center; padding: 40px;"><p style="opacity:0.7;">No terminal operators found for this route yet.</p></div>`;
+      // Find next available date for this route
+      const nextTrip = trips.filter(t => 
+          t.from.toLowerCase() === from.toLowerCase() && 
+          t.to.toLowerCase() === to.toLowerCase() &&
+          t.date > date
+      ).sort((a, b) => a.date.localeCompare(b.date))[0];
+
+      let suggestionHtml = "";
+      if (nextTrip) {
+          const nextDateStr = new Date(nextTrip.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          suggestionHtml = `
+            <div style="margin-top: 20px; padding: 15px; background: rgba(252, 209, 22, 0.1); border-radius: 8px; border: 1px solid var(--uganda-yellow);">
+                <p style="color: var(--uganda-yellow); margin-bottom: 10px; font-weight: 600;">Next available bus is on ${nextDateStr}</p>
+                <button class="view-ticket-btn" style="margin: 0 auto; background: var(--uganda-yellow); color: var(--uganda-black);" onclick="document.getElementById('date').value='${nextTrip.date}'; loadTrips();">Switch to ${nextDateStr}</button>
+            </div>`;
+      }
+
+      tripsContainer.innerHTML += `
+        <div class="card" style="text-align:center; padding: 60px 20px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);">
+          <i class="fas fa-bus-slash" style="font-size: 3rem; opacity: 0.2; margin-bottom: 15px; color: white;"></i>
+          <h3 style="color: white; margin-bottom: 10px;">No Buses Found</h3>
+          <p style="opacity:0.7; font-size: 0.9rem; color: white;">There are no buses scheduled from <strong>${from}</strong> to <strong>${to}</strong> on this date.</p>
+          ${suggestionHtml}
+          <button class="view-ticket-btn" style="margin: 20px auto 0;" onclick="userTab('home')">Try Another Route or Date</button>
+        </div>`;
   } else {
     operatorList.forEach(name => {
       const opTrips = operatorGroups[name];
@@ -1277,6 +1302,11 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
     const listContainer = document.getElementById('activeSchedulesList');
     listContainer.innerHTML = opTrips.map((t, index) => {
         let bTxt = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+        const isSoldOut = (t.availableSeats === 0);
+        const soldOutBadge = isSoldOut ? `<span class="badge bg-used" style="margin-left:10px; font-size:0.6rem;">SOLD OUT</span>` : '';
+        const btnDisabled = isSoldOut ? 'disabled' : '';
+        const btnStyle = isSoldOut ? 'background: #718096; cursor: not-allowed; opacity: 0.7;' : '';
+        const btnAction = isSoldOut ? '' : `onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'`;
         
         return `
         <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
@@ -1289,7 +1319,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                             ${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 5px;"></i>`).join('')}
                         </span>
                     </div>
-                    <div style="font-weight:bold; font-size:1rem;">UGX ${t.price.toLocaleString()}</div>
+                    <div style="font-weight:bold; font-size:1rem;">UGX ${t.price.toLocaleString()} ${soldOutBadge}</div>
                 </div>
                 
                 <div class="progress-container">
@@ -1298,7 +1328,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                     <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums;">--m --s left</span>
-                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0;" onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'>${bTxt}</button>
+                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0; ${btnStyle}" ${btnDisabled} ${btnAction}>${isSoldOut ? 'Full Capacity' : bTxt}</button>
                 </div>
             </div>
         </div>
@@ -1710,7 +1740,7 @@ function loadBusSelect(){
 }
 
 /* ADD BUS */
-function addNewBus(){
+async function addNewBus(){
   let name = document.getElementById('newBusName').value;
   let route = document.getElementById('newBusRoute').value;
   let price = document.getElementById('newBusPrice').value;
@@ -1719,25 +1749,43 @@ function addNewBus(){
   if(!name || !route || !price) return alert("Please fill all fields");
 
   let bus = {
-    id: Date.now(),
     name, route, type,
     price: parseInt(price),
-    operator: currentUser.name
+    operator: currentUser.name,
+    timestamp: new Date().toISOString()
   };
 
-  buses.push(bus);
-  localStorage.setItem("buses", JSON.stringify(buses));
-  addActivityLog(`New bus registered: ${name} by ${currentUser.name}`);
-  
-  document.getElementById('newBusName').value = "";
-  document.getElementById('newBusRoute').value = "";
-  document.getElementById('newBusPrice').value = "";
-  renderFleet();
-  showNotification("Bus added to fleet!", "success");
+  try {
+    await db.collection('buses').add(bus);
+    addActivityLog(`New bus registered: ${name} by ${currentUser.name}`);
+    document.getElementById('newBusName').value = "";
+    document.getElementById('newBusRoute').value = "";
+    document.getElementById('newBusPrice').value = "";
+    showNotification("Bus added to live fleet!", "success");
+  } catch (error) {
+    console.error("Firestore Error:", error);
+    alert("Failed to add bus to live database.");
+  }
+}
+
+/**
+ * Removes a bus from the live Firestore database.
+ */
+async function deleteBus(busId) {
+    if (confirm("Are you sure you want to remove this bus from the fleet? This will not delete past trip records.")) {
+        try {
+            await db.collection('buses').doc(busId).delete();
+            showNotification("Bus removed from fleet", "info");
+            addActivityLog(`Admin/Operator deleted bus ID: ${busId}`);
+        } catch (error) {
+            console.error("Delete error:", error);
+            showNotification("Failed to delete bus", "error");
+        }
+    }
 }
 
 /* SCHEDULE TRIP */
-function scheduleTrip(){
+async function scheduleTrip(){
   let busId = selectBus.value;
   let date = tripDate.value;
   let time = departureTime.value;
@@ -1756,20 +1804,28 @@ function scheduleTrip(){
   if(!bus) return alert("Bus not found");
 
   let trip = {
-    busId, busName: bus.name, from: bus.route.split(' - ')[0], to: bus.route.split(' - ')[1],
-    date, time, price: bus.price, busType: bus.type, id: Date.now(), amenities
+    busId, busName: bus.name, 
+    from: bus.route.split(' - ')[0].trim(), 
+    to: bus.route.split(' - ')[1].trim(),
+    date, time, price: bus.price, busType: bus.type, 
+    amenities,
+    totalSeats: 28,
+    availableSeats: 28,
+    timestamp: new Date().toISOString()
   };
 
-  trips.push(trip);
-  localStorage.setItem("trips", JSON.stringify(trips));
-
-  addActivityLog(`Trip scheduled: ${bus.name} on ${date}`);
-  alert("Trip scheduled successfully!");
-  tripDate.value = departureTime.value = "";
-  document.getElementById('wifiAmenity').checked = false;
-  document.getElementById('acAmenity').checked = false;
-  document.getElementById('usbAmenity').checked = false;
-  renderSchedules();
+  try {
+    await db.collection('trips').add(trip);
+    addActivityLog(`Trip scheduled: ${bus.name} on ${date}`);
+    showNotification("Trip scheduled in live database!", "success");
+    tripDate.value = departureTime.value = "";
+    document.getElementById('wifiAmenity').checked = false;
+    document.getElementById('acAmenity').checked = false;
+    document.getElementById('usbAmenity').checked = false;
+  } catch (error) {
+    console.error("Firestore Error:", error);
+    alert("Failed to schedule trip.");
+  }
 }
 
 /* RENDER SCHEDULES */
@@ -1787,6 +1843,9 @@ function renderSchedules(){
   const windowMs = 24 * 60 * 60 * 1000;
 
   trips.forEach(t => {
+        const isSoldOut = (t.availableSeats === 0);
+        const soldOutBadge = isSoldOut ? `<span class="badge bg-used" style="font-size:0.7rem; margin-left:8px;">SOLD OUT</span>` : '';
+
     // Consistent time parsing logic
     const [hPart, mFull] = (t.time || "08:00 AM").split(':');
     const [mPart, ampm] = mFull.split(' ');
@@ -1854,7 +1913,7 @@ function renderSchedules(){
         <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
       </div>
 
-      <p><strong>Seats:</strong> ${t.availableSeats || 0} / ${t.totalSeats || 28}</p>
+      <p><strong>Seats:</strong> ${t.availableSeats || 0} / ${t.totalSeats || 28} ${soldOutBadge}</p>
       <div class="seat-preview" style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 10px;">
         ${generateSeatPreview(t.totalSeats || 28, t.availableSeats || 0)}
       </div>
@@ -2127,29 +2186,6 @@ async function downloadTicketAsImage(index, event) {
     link.click();
 }
 
-/* REGISTER */
-function register(){
-  let name = regName.value;
-  let email = regEmail.value;
-  let phone = regPhone.value;
-  let password = regPassword.value;
-  let role = regRole.value;
-
-  if(!name || !phone || !password || !role) {
-    alert("Please fill in Phone, Name and Password");
-    return;
-  }
-
-  if(users.find(u => u.phone === phone)) return alert("Phone number already registered.");
-
-  let user = {name, email, phone, password, role, id: Date.now()};
-  users.push(user);
-  localStorage.setItem("users", JSON.stringify(users));
-
-  alert("Registration successful! Please login.");
-  showLogin();
-}
-
 /* SHOW REGISTER */
 function showRegister() {
   document.getElementById('loginFormCard').classList.add("hidden");
@@ -2181,7 +2217,7 @@ function selectPayment(method){
 
 /* LOAD PROFILE */
 function loadProfile(){
-  let user = currentUser || users.find(u => u.email === "user@bus.ug");
+  let user = currentUser || users.find(u => u.email === TEST_USER_EMAIL);
   if(user) {
     // Ensure mandatory notification preferences are set
     user.notifyBookingConfirmations = true;
@@ -2271,9 +2307,10 @@ function rebook(from, to){
 }
 
 /* LOGOUT */
-function logout(){
+async function logout() {
   role = null;
   currentUser = null;
+  await auth.signOut();
   localStorage.removeItem("currentUser");
   sessionStorage.removeItem("currentUser");
   init(); // Re-initialize the app to the guest view
@@ -2353,7 +2390,12 @@ function adminTab(section){
   else if(section === 'activity') loadActivity();
   else if(section === 'supportTickets') loadSupportTickets();
   else if(section === 'ticketingDesk') renderUpcomingJourneys();
-  else if(section === 'fleetControl') { loadBusSelect(); renderFleet(); renderSchedules(); }
+  else if(section === 'fleetControl') { 
+    renderBusRegistrationForm(); 
+    loadBusSelect(); 
+    renderFleet(); 
+    renderSchedules(); 
+  }
 }
 
 /**
@@ -2415,6 +2457,63 @@ function loadDashboard(){
   // Calculate revenue
   let revenue = tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
   document.getElementById('statRevenue').textContent = 'UGX ' + revenue.toLocaleString();
+
+  // --- NEW: Calculate revenue per bus ---
+  const revenueByBus = tickets.reduce((acc, t) => {
+    const busName = t.bus || 'Unknown Bus';
+    acc[busName] = (acc[busName] || 0) + (t.price || 0);
+    return acc;
+  }, {});
+
+  // Inject Admin Control buttons if they don't exist
+  const container = document.getElementById('adminDashboard');
+  
+  // Create or Update Revenue Breakdown Card
+  let revBreakdown = document.getElementById('revBreakdownCard');
+  if (container && !revBreakdown) {
+    revBreakdown = document.createElement('div');
+    revBreakdown.id = 'revBreakdownCard';
+    revBreakdown.className = 'card';
+    revBreakdown.style.marginTop = '20px';
+    container.appendChild(revBreakdown);
+  }
+
+  if (revBreakdown) {
+    const sortedRev = Object.entries(revenueByBus).sort((a, b) => b[1] - a[1]);
+    revBreakdown.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="margin:0;"><i class="fas fa-coins"></i> Revenue by Bus</h3>
+        <span class="badge bg-active" style="font-size: 0.6rem;">REAL-TIME</span>
+      </div>
+      <div style="max-height: 250px; overflow-y: auto;">
+        ${sortedRev.length === 0 ? '<p style="opacity:0.6;">No sales recorded yet.</p>' : 
+          sortedRev.map(([name, rev]) => `
+            <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+              <span style="font-size:0.95rem;">${name}</span>
+              <strong style="color:var(--uganda-yellow);">UGX ${rev.toLocaleString()}</strong>
+            </div>
+          `).join('')}
+      </div>
+    `;
+  }
+
+  if (container && !document.getElementById('adminSeedBtn')) {
+    const btnWrap = document.createElement('div');
+    btnWrap.id = 'adminActionSection';
+    btnWrap.style.margin = '20px 0';
+    btnWrap.innerHTML = `
+      <h4 style="color:white; margin-bottom:10px;"><i class="fas fa-tools"></i> Admin Maintenance</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <button id="adminSeedBtn" class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="seedFirestore()">
+          <i class="fas fa-calendar-plus"></i> Populate Schedule
+        </button>
+        <button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="deleteExpiredTrips()">
+          <i class="fas fa-trash-alt"></i> Delete Old Trips
+        </button>
+      </div>
+    `;
+    container.appendChild(btnWrap);
+  }
 }
 
 function loadUsers(){
@@ -2871,13 +2970,14 @@ async function updateTicketStatus(id, newStatus) {
 
 function assignOperator(id) {
     const op = document.getElementById(`opAssign-${id}`).value;
-    let ticket = tickets.find(t => t.id == id);
-    if(ticket) {
-        ticket.status = "ACTIVE";
-        ticket.assignedOperator = op;
-        localStorage.setItem("tickets", JSON.stringify(tickets));
-        showNotification(`Ticket assigned to ${op}`, "success");
-        loadBookings();
+    if (op) {
+        db.collection('tickets').doc(id.toString()).update({
+            status: "ACTIVE",
+            assignedOperator: op,
+            updatedAt: new Date().toISOString()
+        }).then(() => {
+            showNotification(`Ticket assigned to ${op}`, "success");
+        });
     }
 }
 
@@ -2926,6 +3026,49 @@ function exportUsers(){
   a.href = url; a.download = 'ugbus_users.csv'; a.click();
 }
 
+/**
+ * Injects the Register New Bus form into the Admin UI if it doesn't exist.
+ */
+function renderBusRegistrationForm() {
+    const container = document.getElementById('adminFleetControl');
+    if (!container || document.getElementById('newBusFormContainer')) return;
+
+    const formHtml = `
+        <div id="newBusFormContainer" class="card" style="margin-bottom: 25px; border-left: 5px solid var(--primary-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fas fa-plus-circle"></i> Register New Bus</h3>
+                <span class="badge bg-active" style="font-size: 0.6rem;">LIVE DATABASE</span>
+            </div>
+            <div class="grid-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label style="font-size: 0.75rem; opacity: 0.8;">Bus Operator Name</label>
+                    <input type="text" id="newBusName" placeholder="e.g. Swift Express">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 0.75rem; opacity: 0.8;">Primary Route</label>
+                    <input type="text" id="newBusRoute" placeholder="Format: Kampala - Jinja">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 0.75rem; opacity: 0.8;">Default Price (UGX)</label>
+                    <input type="number" id="newBusPrice" placeholder="25000">
+                </div>
+                <div class="form-group">
+                    <label style="font-size: 0.75rem; opacity: 0.8;">Service Class</label>
+                    <select id="newBusType">
+                        <option value="Standard">Standard</option>
+                        <option value="Luxury">Luxury</option>
+                        <option value="Executive">Executive</option>
+                    </select>
+                </div>
+            </div>
+            <button class="view-ticket-btn" style="margin-top: 15px; width: 100%; background: var(--primary-color);" onclick="addNewBus()">
+                <i class="fas fa-save"></i> Save to Live Fleet
+            </button>
+        </div>
+    `;
+    container.insertAdjacentHTML('afterbegin', formHtml);
+}
+
 function renderFleet(){
   const fleetDiv = document.getElementById('fleet');
   if (!fleetDiv) return;
@@ -2943,10 +3086,17 @@ function renderFleet(){
     let d = document.createElement("div");
     d.className = "card";
     d.innerHTML = `
-      <h4>${b.name}</h4>
-      <p>Route: ${b.route}</p>
-      <p>Type: ${b.type} | UGX ${b.price.toLocaleString()}</p>
-      ${role === 'admin' ? `<p style="font-size:0.8rem; color:var(--uganda-yellow);">Operator: ${b.operator}</p>` : ''}
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h4 style="margin:0;">${b.name}</h4>
+          <p style="margin:5px 0;">Route: ${b.route}</p>
+          <p style="margin:5px 0;">Type: ${b.type} | UGX ${b.price.toLocaleString()}</p>
+          ${role === 'admin' ? `<p style="font-size:0.8rem; color:var(--uganda-yellow); margin:0;">Operator: ${b.operator}</p>` : ''}
+        </div>
+        <button class="btn btn-sm" style="background:var(--uganda-red); padding: 8px 12px;" onclick="deleteBus('${b.id}')">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
     `;
     fleetDiv.appendChild(d);
   });
@@ -3061,6 +3211,42 @@ function sendNotification(){
   alert('Notification sent successfully!');
   document.getElementById('notificationTitle').value = '';
   document.getElementById('notificationMessage').value = '';
+}
+
+/**
+ * Deletes all trips from Firestore that are in the past.
+ */
+async function deleteExpiredTrips() {
+    if (role !== 'admin') return;
+    if (!confirm("Are you sure you want to delete all expired trips? This action cannot be undone.")) return;
+
+    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const batch = db.batch();
+    let count = 0;
+
+    trips.forEach(t => {
+        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+        const [mPart, ampm] = mFull.split(' ');
+        let hrs = parseInt(hPart);
+        if (ampm === 'PM' && hrs < 12) hrs += 12;
+        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        
+        const [y, m_val, d] = t.date.split('-').map(Number);
+        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
+
+        if (departure < (now - 30 * 60 * 1000)) {
+            batch.delete(db.collection('trips').doc(t.id));
+            count++;
+        }
+    });
+
+    if (count > 0) {
+        await batch.commit();
+        showNotification(`Maintenance: Deleted ${count} expired trips.`, "success");
+        addActivityLog(`Admin deleted ${count} expired trips.`);
+    } else {
+        showNotification("No expired trips found to clean up.", "info");
+    }
 }
 
 function saveSettings(){
@@ -3228,13 +3414,14 @@ function toggleOpSeatMap(ticketId) {
         s.onclick = (e) => {
             e.stopPropagation();
             if(s.classList.contains("booked")) return;
-            ticket.seat = i;
-            localStorage.setItem("tickets", JSON.stringify(tickets));
-            document.getElementById('opCurrentSeat').innerText = '#' + i;
-            document.querySelectorAll("#opSeatMap .seat").forEach(x => x.classList.remove("active"));
-            s.classList.add("active");
-            showNotification("Seat updated to #" + i, "success");
-            addActivityLog(`Seat for Ticket #${ticket.id} changed to #${i} by Operator.`);
+            
+            db.collection('tickets').doc(ticketId.toString()).update({
+                seat: i,
+                updatedAt: new Date().toISOString()
+            }).then(() => {
+                showNotification("Seat updated to #" + i, "success");
+                addActivityLog(`Seat for Ticket #${ticketId} changed to #${i} by Operator.`);
+            });
         };
         mapDiv.appendChild(s);
         
@@ -3246,13 +3433,12 @@ function toggleOpSeatMap(ticketId) {
 }
 
 function confirmBoarding(id) {
-    let ticket = tickets.find(t => t.id == id);
-    if(ticket) {
-        ticket.status = "BOARDED";
-        ticket.boardedAt = new Date().toISOString();
-        localStorage.setItem("tickets", JSON.stringify(tickets));
+    db.collection('tickets').doc(id.toString()).update({
+        status: "BOARDED",
+        boardedAt: new Date().toISOString()
+    }).then(() => {
         showNotification("Boarding Confirmed!", "success");
         document.getElementById('scanResult').classList.add('hidden');
         addActivityLog(`Ticket #${id} marked as BOARDED.`);
-    }
+    });
 }
