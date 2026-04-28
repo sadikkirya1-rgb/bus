@@ -622,6 +622,31 @@
             <!-- Terminals will be populated here -->
           </div>
         </div>
+
+        <!-- BULK SCHEDULER -->
+        <div class="card" style="border-top: 5px solid var(--uganda-yellow);">
+          <h3 style="color: white;"><i class="fas fa-magic"></i> One-Click Bulk Scheduler</h3>
+          <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 15px; color: white;">Generate the standard 4 daily slots (8 AM, 11 AM, 2 PM, 6 PM) for a bus route on a specific date.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div>
+              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Target Date</label>
+              <input id="bulkDate" type="date" style="margin:0;">
+            </div>
+            <div>
+              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Bus / Operator</label>
+              <select id="selectBusBulk" onfocus="loadBusSelect()" style="margin:0;">
+                <option value="">Select Bus</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Departure City</label>
+              <input id="bulkCity" placeholder="e.g. Kampala" list="ugandaCitiesFrom" style="margin:0;">
+            </div>
+            <button class="btn" onclick="bulkAddSchedules()" style="background: var(--uganda-yellow); color: black; font-weight: 800;">
+              <i class="fas fa-calendar-plus"></i> Generate 4 Slots
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- ROUTE MANAGEMENT -->
@@ -659,8 +684,9 @@
               <label style="font-size: 0.8rem; opacity: 0.8; color: white; margin-left: 5px;">Filter:</label>
               <select id="bookingFilter" onchange="loadBookings()" style="width: auto; margin: 0; padding: 5px 10px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3);">
                 <option value="all">All Bookings</option>
-                <option value="PAID">PAID (Pending Verification)</option>
-                <option value="VERIFIED">VERIFIED</option>
+                <option value="PENDING">PENDING (New)</option>
+                <option value="ACTIVE">ACTIVE (Paid)</option>
+                <option value="BOARDED">BOARDED</option>
               </select>
               <div style="display: flex; gap: 5px; align-items: center;">
                 <input type="date" id="revenueStart" onchange="loadBookings()" style="width: auto; padding: 5px; margin: 0; font-size: 0.8rem;">

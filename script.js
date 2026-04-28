@@ -42,15 +42,6 @@ let activeSearchSchedules = null; // Tracks current search results for real-time
 const TEST_USER_EMAIL = "user@bus.ug";
 const TEST_USER_NAME = "John Doe";
 
-// Global Terminal Schedule Logic
-const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
-const standardOperators = [
-  { name: "Swift Express", from: "Kampala", to: "Jinja", price: 25000, type: "Standard", am: ["wifi", "charging-station"] },
-  { name: "Link Coaches", from: "Kampala", to: "Mbarara", price: 30000, type: "Luxury", am: ["wifi", "snowflake"] },
-  { name: "Global Coaches", from: "Kampala", to: "Masaka", price: 25000, type: "Standard", am: ["wifi"] },
-  { name: "Gateway Bus", from: "Kampala", to: "Gulu", price: 35000, type: "Standard", am: ["charging-station"] }
-];
-
 // --- FIREBASE AUTH LISTENER ---
 auth.onAuthStateChanged(async (user) => {
     if (user) {
@@ -356,7 +347,7 @@ function renderUpcomingJourneys() {
     (t.uid === currentUser.uid || 
      t.email?.toLowerCase() === currentUser.email?.toLowerCase() || 
      (t.passenger?.toLowerCase() === currentUser.name?.toLowerCase())) && 
-    ["PAID", "ACTIVE", "VERIFIED", "BOARDED"].includes(t.status)
+    ["PENDING", "PAID", "ACTIVE", "VERIFIED", "BOARDED"].includes(t.status)
   ).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 3);
 
   if (userTickets.length === 0) {
@@ -386,9 +377,12 @@ function renderUpcomingJourneys() {
     const tripData = trips.find(trip => trip.busName === t.bus);
     const amenities = tripData ? tripData.amenities : [];
 
-    const schedulesHtml = standardTimes.map(slotTime => {
-        // Parse slot time correctly for comparison against Kampala 'now'
-        const [hPart, mFull] = slotTime.split(':');
+    // Get real scheduled trips for this specific route and date from the cloud
+    const terminalTrips = trips.filter(tr => tr.from === t.from && tr.to === t.to && tr.date === t.date)
+                               .sort((a,b) => a.time.localeCompare(b.time));
+
+    const schedulesHtml = terminalTrips.map(tr => {
+        const [hPart, mFull] = (tr.time || "08:00 AM").split(':');
         const [mPart, ampm] = mFull.split(' ');
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
@@ -399,11 +393,9 @@ function renderUpcomingJourneys() {
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
 
         const diff = departure - now;
-        
-        // Lookup the specific trip to check for manual status overrides
-        const tripEntry = trips.find(tr => tr.busName === t.bus && tr.time === slotTime && tr.date === t.date);
-        const manualFinished = tripEntry ? tripEntry.manualFinished : false;
-        const manualLive = tripEntry ? tripEntry.manualLive : false;
+
+        const manualFinished = tr.manualFinished || false;
+        const manualLive = tr.manualLive || false;
 
         // 1. Auto-hide: Remove from UI if finished for more than 30 minutes
         if (diff <= -30 * 60 * 1000 || manualFinished) return "";
@@ -412,7 +404,7 @@ function renderUpcomingJourneys() {
         const finished = diff <= -10 * 60 * 1000 || manualFinished;
         const isUrgent = diff > 0 && diff < 5 * 60 * 1000;   // < 5 mins
         const isBoarding = diff > 0 && diff < 30 * 60 * 1000; // < 30 mins
-        const isUserSlot = slotTime === t.time;
+        const isUserSlot = tr.time === t.time && tr.busName === t.bus;
         
         let statusText = "";
         let statusClass = "";
@@ -478,7 +470,7 @@ function renderUpcomingJourneys() {
               <div style="display: flex; flex-direction: column;">
                 <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Departure</span>
                 <span class="${statusClass}" style="font-weight: 700; font-size: 0.9rem; ${isUserSlot ? 'color: var(--uganda-yellow);' : ''}">
-                  <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${slotTime} ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
+                  <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${tr.time} ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
                 </span>
               </div>
               <div style="text-align: right; display: flex; flex-direction: column;">
@@ -501,7 +493,7 @@ function renderUpcomingJourneys() {
         <div class="up-num">#${index + 1}</div>
         <div class="up-center">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="up-terminal">Bus Terminal 1</div>
+            <div class="up-terminal">${t.from} Terminal</div>
             <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">${t.from} → ${t.to}</div>
           </div>
           <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
@@ -509,7 +501,7 @@ function renderUpcomingJourneys() {
           </div>
           
           <div style="margin-top: 10px;">
-            <p style="font-size: 0.65rem; text-transform: uppercase; color: var(--uganda-yellow); margin: 0; opacity: 0.8;">Terminal Schedule Today (${todayLabelStr})</p>
+            <p style="font-size: 0.65rem; text-transform: uppercase; color: var(--uganda-yellow); margin: 0; opacity: 0.8;">Active Terminal Schedules (${todayLabelStr})</p>
             ${schedulesHtml}
           </div>
 
@@ -1654,6 +1646,22 @@ function showBookingSummary() {
 /* CONFIRM BOOKING */
 async function confirmBooking(){
   if(!selectedPayment) return alert("Select payment method");
+  
+  const confirmBtn = document.getElementById('confirmBtn');
+  const originalBtnHtml = confirmBtn.innerHTML;
+
+  // Wait until currentUser profile is fully loaded from Firestore if the user is authenticated
+  if (auth.currentUser && !currentUser) {
+      let waitCount = 0;
+      while (!currentUser && waitCount < 10) { // Wait up to 5 seconds
+          await new Promise(r => setTimeout(r, 500));
+          waitCount++;
+      }
+  }
+
+  // Add loading spinner and disable button to prevent double clicks
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
   selectedSeat = 1; // Auto-assign a default seat as there is no user selection
   const ticketId = Math.floor(100000 + Math.random() * 900000);
@@ -1671,7 +1679,7 @@ async function confirmBooking(){
     phone: currentUser?.phone || "",
     uid: currentUser ? (currentUser.uid || currentUser.id) : null,
     id: ticketId,
-    status: "PAID", // Start at PAID for demo purposes once confirmed
+    status: "PENDING", // Show status pending until admin verify the payment
     timestamp: new Date().toISOString()
   };
 
@@ -1682,13 +1690,16 @@ async function confirmBooking(){
     const confirmBox = document.getElementById('bookingConfirm');
     if (confirmBox) confirmBox.classList.add("hidden");
     
-    showNotification("Payment successful! Booking ID: #" + ticket.id, "success");
-    showNotification("Booking confirmed! Check your tickets.", "success");
+    showNotification("Booking submitted! Status: PENDING verification.", "info");
     
     userTab("tickets");
   } catch (error) {
     console.error("Booking error:", error);
     showNotification("Failed to confirm booking: " + error.message, "error");
+  } finally {
+    // Reset button state
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = originalBtnHtml;
   }
 }
 
@@ -1786,6 +1797,8 @@ function loadBusSelect() {
       defaultOptionText = "Select Any Registered Bus";
     } else if (selectElement.id === 'qbBus') {
       defaultOptionText = "Select Bus/Route";
+    } else if (selectElement.id === 'selectBusBulk') {
+      defaultOptionText = "Bus for Bulk Slots";
     }
 
     selectElement.innerHTML = `<option value="">${defaultOptionText}</option>`;
@@ -1945,95 +1958,69 @@ function renderSchedules(){
     return;
   }
 
+  // Group trips by Terminal (from) and Date for organized Admin View
+  const groupedSchedules = trips.reduce((acc, t) => {
+    const key = `${t.from}|${t.date}`;
+    if (!acc[key]) acc[key] = { from: t.from, date: t.date, slots: [] };
+    acc[key].slots.push(t);
+    return acc;
+  }, {});
+
   const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
   const windowMs = 24 * 60 * 60 * 1000;
 
-  trips.forEach(t => {
+  Object.values(groupedSchedules).forEach(group => {
+    const slotsHtml = group.slots.slice(0, 4).map(t => {
         const isSoldOut = (t.availableSeats === 0);
-        const soldOutBadge = isSoldOut ? `<span class="badge bg-used" style="font-size:0.7rem; margin-left:8px;">SOLD OUT</span>` : '';
+        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+        const [mPart, ampm] = mFull.split(' ');
+        let hrs = parseInt(hPart);
+        if (ampm === 'PM' && hrs < 12) hrs += 12;
+        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        const departure = new Date(...t.date.split('-').map((v,i)=>i===1?v-1:v), hrs, parseInt(mPart));
+        const diff = departure - now;
 
-    // Consistent time parsing logic
-    const [hPart, mFull] = (t.time || "08:00 AM").split(':');
-    const [mPart, ampm] = mFull.split(' ');
-    let hrs = parseInt(hPart);
-    if (ampm === 'PM' && hrs < 12) hrs += 12;
-    if (ampm === 'AM' && hrs === 12) hrs = 0;
-    
-    const [y, m_val, d] = t.date.split('-').map(Number);
-    const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-    const diff = departure - now;
+        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
+        const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
 
-    const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
-    const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
-    const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
-    const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
-    // Alert if 5 minutes past departure and not yet "Finished" or manually started
-    const showLateAlert = diff < -5 * 60 * 1000 && !finished && !t.manualLive;
+        let statusText = finished ? "FINISHED" : isLive ? "LIVE" : t.time;
+        let statusColor = finished ? "var(--uganda-red)" : isLive ? "var(--uganda-yellow)" : "white";
+        let pulseClass = isLive ? "pulse-live" : "";
 
-    let statusHtml = "";
-    let barWidth = "0%";
-    let barColor = "var(--primary-color)";
-    let textClass = "";
+        return `
+          <div class="${pulseClass}" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border-left: 3px solid ${statusColor};">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <span style="font-weight:700; color:${statusColor}">${statusText}</span>
+                <div style="font-size:0.7rem; opacity:0.7;">${t.busName} (${t.availableSeats}/${t.totalSeats})</div>
+              </div>
+              <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
+                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start</button>` : ''}
+                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Finish</button>` : ''}
+              </div>
+            </div>
+            <div class="progress-container" style="height:3px; margin: 5px 0;">
+               <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${finished?'100%':Math.max(0,Math.min(100,((windowMs-diff)/windowMs)*100))}%"></div>
+            </div>
+          </div>
+        `;
+    }).join('');
 
-    if (finished) {
-        statusHtml = `<span class="status-finished"><i class="fas fa-times-circle"></i> FINISHED</span>`;
-        barWidth = "100%";
-        barColor = "var(--uganda-red)";
-        textClass = "finished-schedule";
-    } else if (isLive) {
-        statusHtml = `<span class="status-live"><span class="live-dot"></span> LIVE</span>`;
-        barWidth = "100%";
-        barColor = "var(--uganda-red)";
-    } else if (isUrgent) {
-        statusHtml = `<span class="status-urgent"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
-        barColor = "var(--uganda-red)";
-        barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-    } else if (isBoarding) {
-        statusHtml = `<span class="status-boarding"><i class="fas fa-door-open"></i> BOARDING</span>`;
-        barColor = "var(--uganda-yellow)";
-        barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-    } else {
-        const totalSec = Math.floor(diff / 1000);
-        const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
-        const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-        const ss = String(totalSec % 60).padStart(2, '0');
-        statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
-        barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-    }
-
-    if (showLateAlert) {
-        statusHtml = `<span class="status-delayed-alert"><i class="fas fa-clock"></i> 5M LATE</span>`;
-    }
-
-    const cardHtml = `
-      <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <h4 id="bus-name-text-${t.id}" class="${textClass}" style="margin:0;">${t.busName}</h4>
-        <div id="bus-timer-val-${t.id}" style="text-align:right;">${statusHtml}</div>
-      </div>
-      <p style="margin:5px 0;"><i class="fas fa-route"></i> ${t.from} → ${t.to}</p>
-      <p style="margin:5px 0;"><i class="fas fa-calendar"></i> ${t.date} | <i class="fas fa-clock"></i> ${t.time}</p>
-      
-      <div class="progress-container" style="height:6px; margin: 10px 0;">
-        <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
-      </div>
-
-      <p><strong>Seats:</strong> ${t.availableSeats || 0} / ${t.totalSeats || 28} ${soldOutBadge}</p>
-      <div class="seat-preview" style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 10px;">
-        ${generateSeatPreview(t.totalSeats || 28, t.availableSeats || 0)}
-      </div>
-      <div style="margin: 8px 0; color: var(--text-light);">${(t.amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 8px;"></i>`).join('')}</div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:10px;">
-        <div style="font-weight:bold;">UGX ${t.price.toLocaleString()}</div>
-        <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
-            ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start Boarding</button>` : ''}
-            ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Departure Confirmed</button>` : ''}
-            <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
+    const terminalCard = `
+      <div class="card" style="border: 1px solid rgba(255,255,255,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+          <h4 style="margin:0;"><i class="fas fa-hotel"></i> ${group.from} Terminal</h4>
+          <span class="badge bg-secondary">${group.date}</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          ${slotsHtml}
+        </div>
+        <div style="margin-top:15px; text-align:right;">
+          <button class="view-ticket-btn" style="font-size:0.7rem;" onclick="adminTab('fleetControl')">View All Slots</button>
         </div>
       </div>
-      </div>
     `;
-    schedulesContainer.insertAdjacentHTML('beforeend', cardHtml);
+    schedulesContainer.insertAdjacentHTML('beforeend', terminalCard);
   });
 }
 
@@ -2202,11 +2189,13 @@ function renderTickets(){
 
   tickets.forEach((t, index) => {
       let statusClass = "bg-secondary";
-      let statusLabel = t.status || "PAID";
+      let statusLabel = t.status || "PENDING";
       if(statusLabel === "ACTIVE") statusClass = "bg-active";
+      else if(statusLabel === "VERIFIED") statusClass = "bg-active";
       else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
       else if(statusLabel === "USED") statusClass = "bg-used";
       else if(statusLabel === "PAID") statusClass = "bg-paid";
+      else if(statusLabel === "PENDING") statusClass = "bg-paid";
       
       const isUsed = statusLabel === "USED";
 
@@ -2895,13 +2884,13 @@ function loadBookings(){
             <td>#${t.id}</td><td>${t.passenger}</td><td>${t.from} → ${t.to}</td>
             <td>${t.price.toLocaleString()}</td>
             <td>
-              <span class="badge ${t.status === 'PAID' ? 'bg-paid' : t.status === 'VERIFIED' ? 'bg-active' : t.status === 'BOARDED' ? 'bg-boarded' : 'bg-used'}">${t.status}</span>
+              <span class="badge ${t.status === 'PENDING' ? 'bg-paid' : t.status === 'ACTIVE' ? 'bg-active' : t.status === 'BOARDED' ? 'bg-boarded' : 'bg-used'}">${t.status}</span>
             </td>
             <td style="display:flex; gap:5px;">
-              ${t.status === 'PAID' ? `<button class="btn btn-sm" style="background:#48bb78" onclick="updateTicketStatus(${t.id}, 'VERIFIED')" title="Verify Payment"><i class="fas fa-check"></i></button>` : ''}
-              ${t.status === 'VERIFIED' ? `<button class="btn btn-sm" style="background:#f6ad55" onclick="updateTicketStatus(${t.id}, 'BOARDED')" title="Manual Terminal Boarding"><i class="fas fa-id-card-clip"></i></button>` : ''}
+              ${t.status === 'PENDING' ? `<button class="btn btn-sm" style="background:#48bb78" onclick="updateTicketStatus(${t.id}, 'ACTIVE')" title="Verify Payment & Set Active"><i class="fas fa-check"></i></button>` : ''}
+              ${t.status === 'ACTIVE' ? `<button class="btn btn-sm" style="background:#f6ad55" onclick="updateTicketStatus(${t.id}, 'BOARDED')" title="Manual Terminal Boarding"><i class="fas fa-id-card-clip"></i></button>` : ''}
               ${t.status === 'BOARDED' ? `<button class="btn btn-sm" style="background:#4299e1" onclick="updateTicketStatus(${t.id}, 'USED')" title="Mark Trip Finished"><i class="fas fa-check-double"></i></button>` : ''}
-              ${t.status === 'USED' ? `<button class="btn btn-sm" style="background:#718096" onclick="updateTicketStatus(${t.id}, 'PAID')" title="Reset to Paid"><i class="fas fa-undo"></i></button>` : ''}
+              ${t.status === 'USED' ? `<button class="btn btn-sm" style="background:#718096" onclick="updateTicketStatus(${t.id}, 'PENDING')" title="Reset to Pending"><i class="fas fa-undo"></i></button>` : ''}
               <button class="btn btn-sm" style="background:var(--uganda-black)" onclick="printTicketReceipt(${t.id})"><i class="fas fa-print"></i></button>
               <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="cancelBooking(${t.id})"><i class="fas fa-trash"></i></button>
             </td>
@@ -3052,18 +3041,18 @@ async function printTicketReceipt(id) {
 async function bulkVerifyPayments() {
   let filter = document.getElementById('bookingFilter')?.value || 'all';
   let targetTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
-  let paidTickets = targetTickets.filter(t => t.status === 'PAID');
+  let pendingTickets = targetTickets.filter(t => t.status === 'PENDING');
 
-  if (paidTickets.length === 0) {
-    showNotification("No 'PAID' tickets found in current view.", "info");
+  if (pendingTickets.length === 0) {
+    showNotification("No 'PENDING' tickets found in current view.", "info");
     return;
   }
 
-  if (confirm(`Are you sure you want to verify all ${paidTickets.length} pending payments?`)) {
+  if (confirm(`Are you sure you want to verify all ${pendingTickets.length} pending payments?`)) {
     const batch = db.batch();
-    paidTickets.forEach(t => {
+    pendingTickets.forEach(t => {
         const ref = db.collection('tickets').doc(t.id.toString());
-        batch.update(ref, { status: 'VERIFIED', updatedAt: new Date().toISOString() });
+        batch.update(ref, { status: 'ACTIVE', updatedAt: new Date().toISOString() });
     });
     
     await batch.commit();
@@ -3643,4 +3632,57 @@ function confirmBoarding(id) {
         document.getElementById('scanResult').classList.add('hidden');
         addActivityLog(`Ticket #${id} marked as BOARDED.`);
     });
+}
+
+/**
+ * Quickly adds 4 standard daily slots for a terminal and bus in one click.
+ */
+async function bulkAddSchedules() {
+    const date = document.getElementById('bulkDate').value;
+    const busId = document.getElementById('selectBusBulk').value;
+    const city = document.getElementById('bulkCity').value.trim();
+
+    if (!date || !busId || !city) {
+        showNotification("Please fill all fields for bulk generation.", "error");
+        return;
+    }
+
+    const bus = buses.find(b => b.id == busId);
+    if (!bus) return;
+
+    // Determine destination from bus primary route
+    const routeParts = bus.route.split(' - ').map(s => s.trim());
+    const to = routeParts.find(c => c.toLowerCase() !== city.toLowerCase()) || "Destination";
+
+    const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+    const batch = db.batch();
+
+    standardTimes.forEach(time => {
+        const tripRef = db.collection('trips').doc();
+        batch.set(tripRef, {
+            busId, 
+            busName: bus.name, 
+            from: city, 
+            to: to,
+            date, 
+            time, 
+            price: bus.price, 
+            busType: bus.type, 
+            amenities: [], 
+            totalSeats: 28,
+            availableSeats: 28,
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    try {
+        await batch.commit();
+        showNotification(`Created 4 daily slots for ${bus.name} on ${date}`, "success");
+        addActivityLog(`Admin generated bulk slots for ${bus.name} (${city} to ${to})`);
+        document.getElementById('bulkDate').value = "";
+        document.getElementById('bulkCity').value = "";
+    } catch (e) {
+        console.error("Bulk Scheduling Error:", e);
+        showNotification("Failed to generate bulk slots.", "error");
+    }
 }

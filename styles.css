@@ -497,6 +497,13 @@ body{
   background: rgba(252, 209, 22, 0.05) !important;
 }
 
+.pulse-live {
+  animation: pulse-yellow 2s infinite;
+  box-shadow: 0 0 15px rgba(252, 209, 22, 0.3);
+  border: 1px solid var(--uganda-yellow) !important;
+  z-index: 5;
+}
+
 .status-finished {
   color: var(--uganda-red);
   font-weight: bold;
