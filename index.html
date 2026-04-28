@@ -606,7 +606,11 @@
       <div id="adminTerminals" class="hidden">
         <div class="card">
           <h3><i class="fas fa-map-marker-alt"></i> Terminal & Point Management</h3>
-          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-bottom: 20px;">
+            <div class="floating-label-group" style="margin:0">
+              <input id="newTerminalCity" placeholder=" " list="ugandaCitiesFrom">
+              <label>City (e.g. Kampala)</label>
+            </div>
             <input id="newTerminalName" placeholder="Point Name (e.g. Wandegeya Stage)">
             <button class="btn" onclick="addTerminal()"><i class="fas fa-plus"></i> Add Point</button>
           </div>

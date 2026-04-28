@@ -12,6 +12,10 @@ const firebaseConfig = {
 // Initialize Firebase (Compat mode for global script usage)
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+
+// Enable session persistence so different tabs can maintain different roles/logins
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
 const db = firebase.firestore();
 const analytics = firebase.analytics();
 
@@ -1003,8 +1007,13 @@ function swapLocations() {
 function populateCityLists() {
     const fromList = document.getElementById('ugandaCitiesFrom');
     if (fromList) {
-        // Use terminals from cloud if available, fallback to hardcoded list
-        const source = terminals.length > 0 ? terminals.map(t => t.name) : ugandaCitiesList;
+        // Get unique cities from the terminals collection, or fallback to default list
+        let source = ugandaCitiesList;
+        if (terminals.length > 0) {
+            const uniqueCities = [...new Set(terminals.map(t => t.city).filter(c => c))];
+            if (uniqueCities.length > 0) source = uniqueCities;
+        }
+        
         fromList.innerHTML = source.map(city => `<option value="${city}">`).join('');
     }
     filterToCities();
@@ -1014,7 +1023,12 @@ function filterToCities() {
     const fromVal = document.getElementById('from').value;
     const toList = document.getElementById('ugandaCitiesTo');
     if (toList) {
-        const source = terminals.length > 0 ? terminals.map(t => t.name) : ugandaCitiesList;
+        let source = ugandaCitiesList;
+        if (terminals.length > 0) {
+            const uniqueCities = [...new Set(terminals.map(t => t.city).filter(c => c))];
+            if (uniqueCities.length > 0) source = uniqueCities;
+        }
+
         toList.innerHTML = source
             .filter(city => city !== fromVal)
             .map(city => `<option value="${city}">`)
@@ -1495,16 +1509,21 @@ function showBusDetails(name, price, amenities) {
 
 /* BOOKING FLOW ENHANCEMENTS */
 function showBoardingPoints() {
+  const fromCity = document.getElementById('from').value;
+  const toCity = document.getElementById('to').value;
+
   showUserScreen('pointsBox');
   
-  // Populate points dynamically from the cloud data
+  // Filter points based on the cities selected in the search section
   const bSelect = document.getElementById('boardingPoint');
   const dSelect = document.getElementById('droppingPoint');
   
-  const options = terminals.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+  const boardingOptions = terminals.filter(t => t.city === fromCity).map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+  const droppingOptions = terminals.filter(t => t.city === toCity).map(t => `<option value="${t.name}">${t.name}</option>`).join('');
   
-  bSelect.innerHTML = `<option value="" disabled selected hidden>Boarding Point</option>` + options;
-  dSelect.innerHTML = `<option value="" disabled selected hidden>Dropping Point</option>` + options;
+  // Fallback to all points if no match is found (for robustness)
+  bSelect.innerHTML = `<option value="" disabled selected hidden>Boarding Point in ${fromCity}</option>` + (boardingOptions || terminals.map(t => `<option value="${t.name}">${t.name}</option>`).join(''));
+  dSelect.innerHTML = `<option value="" disabled selected hidden>Dropping Point in ${toCity}</option>` + (droppingOptions || terminals.map(t => `<option value="${t.name}">${t.name}</option>`).join(''));
 }
 
 function showPassengerInfo() {
@@ -2491,31 +2510,48 @@ function adminTab(section){
 function loadTerminals() {
     const list = document.getElementById('terminalList');
     if (!list) return;
-    list.innerHTML = `
-      <table class="ticket-table">
-        <thead>
-          <tr><th>Point Name</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          ${terminals.map(t => `
-            <tr>
-              <td>${t.name}</td>
-              <td><button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteTerminal('${t.id}')"><i class="fas fa-trash"></i></button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+
+    // Group terminals by city
+    const grouped = terminals.reduce((acc, t) => {
+        const city = t.city || "Unassigned";
+        if (!acc[city]) acc[city] = [];
+        acc[city].push(t);
+        return acc;
+    }, {});
+
+    list.innerHTML = Object.entries(grouped).map(([city, points]) => `
+      <div style="margin-bottom: 20px;">
+        <h4 style="color: var(--uganda-yellow); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; margin-bottom: 10px;">
+            <i class="fas fa-city"></i> ${city}
+        </h4>
+        <table class="ticket-table">
+          <thead>
+            <tr><th>Point Name</th><th style="width: 80px;">Actions</th></tr>
+          </thead>
+          <tbody>
+            ${points.map(t => `
+              <tr>
+                <td>${t.name}</td>
+                <td><button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteTerminal('${t.id}')"><i class="fas fa-trash"></i></button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `).join('');
 }
 
 async function addTerminal() {
+    const cityInput = document.getElementById('newTerminalCity');
     const nameInput = document.getElementById('newTerminalName');
+    const city = cityInput.value.trim();
     const name = nameInput.value.trim();
-    if (!name) return alert("Enter point name");
+    if (!name || !city) return alert("Enter both city and point name");
     
     try {
-        await db.collection('terminals').add({ name, timestamp: new Date().toISOString() });
+        await db.collection('terminals').add({ name, city, timestamp: new Date().toISOString() });
         nameInput.value = "";
+        cityInput.value = "";
         showNotification("Terminal point added!", "success");
     } catch (e) { alert(e.message); }
 }
