@@ -117,6 +117,12 @@ function setupRealtimeData() {
             maintenanceMode = doc.data().maintenanceMode || false;
             const toggle = document.getElementById('maintenanceToggle');
             if (toggle) toggle.checked = maintenanceMode;
+
+            const banner = document.getElementById('maintenanceBanner');
+            if (banner) {
+                if (maintenanceMode) banner.classList.remove('hidden');
+                else banner.classList.add('hidden');
+            }
         }
     });
 }
@@ -478,6 +484,8 @@ function renderUpcomingJourneys() {
             if (diff / (1000 * 60) < 30) barColor = "var(--uganda-red)";
         }
 
+        let delayHtml = tr.delayReason ? `<div style="font-size: 0.65rem; color: var(--uganda-yellow); margin-top: 2px;"><i class="fas fa-info-circle"></i> Delay: ${tr.delayReason}</div>` : '';
+
         return `
           <div class="${focusClass}" style="margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 8px; border-radius: 8px;">
             ${focusClass ? '<div style="font-size: 0.55rem; color: var(--uganda-yellow); font-weight: bold; margin-bottom: 4px;"><i class="fas fa-star"></i> NEXT AVAILABLE</div>' : ''}
@@ -487,6 +495,7 @@ function renderUpcomingJourneys() {
                 <span class="${statusClass}" style="font-weight: 700; font-size: 0.9rem; ${isUserSlot ? 'color: var(--uganda-yellow);' : ''}">
                   <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${tr.time} - <small>${tr.busName}</small> ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
                 </span>
+                ${delayHtml}
               </div>
               <div style="text-align: right; display: flex; flex-direction: column;">
                 <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Timer Status</span>
@@ -1375,6 +1384,9 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                     </div>
                     <div style="font-weight:bold; font-size:1rem;">UGX ${t.price.toLocaleString()} ${soldOutBadge}</div>
                 </div>
+                <div id="delay-info-${t.id}" style="font-size: 0.7rem; color: var(--uganda-yellow); margin-bottom: 5px;">
+                    ${t.delayReason ? `<i class="fas fa-info-circle"></i> Delay: ${t.delayReason}` : ''}
+                </div>
                 
                 <div class="progress-container">
                     <div id="bar-${t.id}" class="progress-bar" style="width: 0%; transition: width 1s linear;"></div>
@@ -1427,6 +1439,7 @@ function refreshActiveSchedules() {
         const barEl = document.getElementById(`bar-${t.id}`);
         const timeTextEl = document.getElementById(`time-text-${t.id}`);
         const bookBtn = document.getElementById(`book-btn-${t.id}`);
+        const delayEl = document.getElementById(`delay-info-${t.id}`);
         if (!timerEl || !barEl || !timeTextEl) return;
 
         const todayISO = new Intl.DateTimeFormat('en-CA', { 
@@ -1493,6 +1506,10 @@ function refreshActiveSchedules() {
             if (bookBtn) {
                 bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
             }
+        }
+
+        if (delayEl) {
+            delayEl.innerHTML = t.delayReason ? `<i class="fas fa-info-circle"></i> Delay: ${t.delayReason}` : '';
         }
     });
 
@@ -2028,8 +2045,11 @@ function renderSchedules(){
           <div class="${pulseClass}" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border-left: 3px solid ${statusColor};">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <span style="font-weight:700; color:${statusColor}">${statusText}</span>
-                <div style="font-size:0.7rem; opacity:0.7;">${t.busName} (${t.availableSeats}/${t.totalSeats})</div>
+                <span id="bus-timer-val-${t.id}" style="font-weight:700; color:${statusColor}">${statusText}</span>
+                <div id="bus-name-text-${t.id}" style="font-size:0.7rem; opacity:0.7;">${t.busName} (${t.availableSeats}/${t.totalSeats})</div>
+                <div id="bus-delay-text-${t.id}" style="font-size: 0.6rem; color: var(--uganda-yellow); margin-top: 2px;">
+                    ${t.delayReason ? `<i class="fas fa-info-circle"></i> ${t.delayReason}` : ''}
+                </div>
               </div>
               <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
                 ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start</button>` : ''}
@@ -2080,6 +2100,7 @@ function refreshBusSchedules() {
         const barEl = document.getElementById(`bus-bar-val-${t.id}`);
         const nameEl = document.getElementById(`bus-name-text-${t.id}`);
         const actionsEl = document.getElementById(`bus-actions-area-${t.id}`);
+        const busDelayEl = document.getElementById(`bus-delay-text-${t.id}`);
         
         if (!timerEl || !barEl || !nameEl || !actionsEl) return;
 
@@ -2143,6 +2164,10 @@ function refreshBusSchedules() {
         barEl.style.width = barWidth;
         barEl.style.background = barColor;
 
+        if (busDelayEl) {
+            busDelayEl.innerHTML = t.delayReason ? `<i class="fas fa-info-circle"></i> ${t.delayReason}` : '';
+        }
+
         // Handle Button visibility changes dynamically
         let actionButtonsHtml = `
             ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start Boarding</button>` : ''}
@@ -2162,11 +2187,15 @@ window.updateETD = async function(tripId) {
     if (!trip) return;
     
     const newTime = prompt(`Adjust Departure Time (ETD) for ${trip.busName}:`, trip.time);
-    if (newTime && newTime !== trip.time) {
+    if (newTime) {
+        const reason = prompt(`Enter reason for delay (e.g. Traffic, Mechanical, Weather) - Optional:`, trip.delayReason || "");
         try {
-            await db.collection('trips').doc(tripId).update({ time: newTime });
+            await db.collection('trips').doc(tripId).update({ 
+                time: newTime,
+                delayReason: reason || null
+            });
             showNotification("Departure time adjusted successfully!", "success");
-            addActivityLog(`ETD updated for ${trip.busName} to ${newTime}`);
+            addActivityLog(`ETD updated for ${trip.busName} to ${newTime}${reason ? ' Reason: ' + reason : ''}`);
         } catch (e) {
             showNotification("Failed to update ETD", "error");
         }
