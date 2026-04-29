@@ -254,6 +254,35 @@
     border: 1px solid rgba(0, 122, 61, 0.2);
 }
 
+/* DAILY SCHEDULE SUMMARY ON TICKET */
+.daily-schedule-summary {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+}
+.daily-schedule-summary label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-light);
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 5px;
+}
+.daily-time-chip {
+    display: inline-block;
+    background: #edf2f7;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+.daily-time-chip.active {
+    background: var(--uganda-yellow);
+    color: var(--uganda-black);
+}
+
 body{
   margin:0;
   font-family: 'Inter', 'Segoe UI', sans-serif;

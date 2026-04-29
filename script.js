@@ -34,6 +34,7 @@ let notifications = [];
 let refunds = [];
 let terminals = [];
 
+let terminalSearchQuery = "";
 let html5QrCode = null;
 let adminRefreshInterval = null;
 let activeSearchSchedules = null; // Tracks current search results for real-time updates
@@ -362,7 +363,10 @@ function renderUpcomingJourneys() {
   }
 
   const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
-  const todayLabelStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const todayISO = new Intl.DateTimeFormat('en-CA', { 
+      timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+  }).format(now);
+  const todayLabelStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   container.innerHTML = userTickets.map((t, index) => {
     const dateStr = new Date(t.date).toLocaleDateString('en-GB', { 
@@ -377,23 +381,27 @@ function renderUpcomingJourneys() {
     const tripData = trips.find(trip => trip.busName === t.bus);
     const amenities = tripData ? tripData.amenities : [];
 
-    // Get real scheduled trips for this specific route and date from the cloud
-    const terminalTrips = trips.filter(tr => tr.from === t.from && tr.to === t.to && tr.date === t.date)
+    // Get daily scheduled trips for this specific route (Daily Terminal View)
+    const terminalTrips = trips.filter(tr => tr.from === t.from && tr.to === t.to && tr.date === 'DAILY')
                                .sort((a,b) => a.time.localeCompare(b.time));
 
-    const schedulesHtml = terminalTrips.map(tr => {
+    // Look up real terminal name from admin configuration instead of hard-coding "Terminal"
+    const terminalData = terminals.find(term => term.city === t.from);
+    const terminalName = terminalData ? terminalData.name : `Unassigned (${t.from})`;
+
+    const schedulesHtml = terminalTrips.map((tr, slotIndex) => {
         const [hPart, mFull] = (tr.time || "08:00 AM").split(':');
         const [mPart, ampm] = mFull.split(' ');
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        // Fix: Use the ticket's specific date to calculate the countdown correctly
-        const [y, m_val, d] = t.date.split('-').map(Number);
+        // Timer is based on TODAY'S departure time to reflect daily terminal status
+        const [y, m_val, d] = (tr.date === 'DAILY' ? todayISO : tr.date).split('-').map(Number);
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
 
         const diff = departure - now;
-
+        
         const manualFinished = tr.manualFinished || false;
         const manualLive = tr.manualLive || false;
 
@@ -404,7 +412,9 @@ function renderUpcomingJourneys() {
         const finished = diff <= -10 * 60 * 1000 || manualFinished;
         const isUrgent = diff > 0 && diff < 5 * 60 * 1000;   // < 5 mins
         const isBoarding = diff > 0 && diff < 30 * 60 * 1000; // < 30 mins
-        const isUserSlot = tr.time === t.time && tr.busName === t.bus;
+        
+        // Highlight if this specific daily slot matches the user's booking (and the date is today)
+        const isUserSlot = t.date === todayISO && tr.time === t.time && tr.busName === t.bus;
         
         let statusText = "";
         let statusClass = "";
@@ -416,10 +426,7 @@ function renderUpcomingJourneys() {
             focusFound = true;
         }
 
-        const todayISO = new Intl.DateTimeFormat('en-CA', { 
-            timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-        }).format(new Date());
-        
+        const todayISOCheck = todayISO;
         let btnText = finished ? "Book Tomorrow" : "Book Today";
         if (!finished && t.date > todayISO) btnText = "Book For Tomorrow";
 
@@ -468,9 +475,9 @@ function renderUpcomingJourneys() {
             ${focusClass ? '<div style="font-size: 0.55rem; color: var(--uganda-yellow); font-weight: bold; margin-bottom: 4px;"><i class="fas fa-star"></i> NEXT AVAILABLE</div>' : ''}
             <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.75rem;">
               <div style="display: flex; flex-direction: column;">
-                <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Departure</span>
+                <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Slot #${slotIndex + 1}</span>
                 <span class="${statusClass}" style="font-weight: 700; font-size: 0.9rem; ${isUserSlot ? 'color: var(--uganda-yellow);' : ''}">
-                  <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${tr.time} ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
+                  <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${tr.time} - <small>${tr.busName}</small> ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
                 </span>
               </div>
               <div style="text-align: right; display: flex; flex-direction: column;">
@@ -493,7 +500,7 @@ function renderUpcomingJourneys() {
         <div class="up-num">#${index + 1}</div>
         <div class="up-center">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div class="up-terminal">${t.from} Terminal</div>
+            <div class="up-terminal">${terminalName}</div>
             <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">${t.from} → ${t.to}</div>
           </div>
           <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
@@ -533,6 +540,20 @@ window.rebookTomorrow = function(from, to) {
     document.getElementById('btnOthers').innerText = tomorrowStr;
     document.getElementById('date').classList.remove('hidden');
     loadTrips();
+};
+
+/**
+ * Populate search fields and initiate a search for a specific slot time.
+ */
+window.initiateRebook = function(from, to, time) {
+    document.getElementById('from').value = from;
+    document.getElementById('to').value = to;
+    
+    setSearchDate('today');
+    userTab('home');
+    loadTrips();
+    
+    showNotification(`Rebooking initiated for ${from} to ${to}.`, "info");
 };
 
 function shareETA(id) {
@@ -1189,7 +1210,7 @@ function loadTrips(){
   let availableTrips = trips.filter(t => 
     t.from.toLowerCase().includes(from.toLowerCase()) && 
     t.to.toLowerCase().includes(to.toLowerCase()) &&
-    t.date === date
+    t.date === 'DAILY'
   );
 
   // Group results by Operator
@@ -1389,7 +1410,8 @@ function refreshActiveSchedules() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        const [y, m_val, d] = t.date.split('-').map(Number);
+        const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
+        const [y, m_val, d] = dateToUse.split('-').map(Number);
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
         const diffMs = departure - now;
         
@@ -1891,12 +1913,10 @@ async function scheduleTrip(){
     return;
   }
 
-  const busSelectEl = container.querySelector('#selectBusAdmin');
-  const dateEl = container.querySelector('#tripDateAdmin');
-  const timeEl = container.querySelector('#departureTimeAdmin');
+  const busSelectEl = container.querySelector('select[id^="selectBus"]');
+  const timeEl = container.querySelector('input[type="time"]');
 
   const busId = busSelectEl ? busSelectEl.value : '';
-  const date = dateEl ? dateEl.value : '';
   const time = timeEl ? timeEl.value : '';
 
   let amenities = [];
@@ -1908,8 +1928,8 @@ async function scheduleTrip(){
   if(ac && ac.checked) amenities.push('snowflake');
   if(usb && usb.checked) amenities.push('charging-station');
 
-  if(!busId || !date || !time) {
-    showNotification("Please fill all fields for scheduling.", "error");
+  if(!busId || !time) {
+    showNotification("Please select a bus and time for daily scheduling.", "error");
     return;
   }
 
@@ -1920,7 +1940,7 @@ async function scheduleTrip(){
     busId, busName: bus.name, 
     from: bus.route.split(' - ')[0].trim(), 
     to: bus.route.split(' - ')[1].trim(),
-    date, time, price: bus.price, busType: bus.type, 
+    date: 'DAILY', time, price: bus.price, busType: bus.type, 
     amenities,
     totalSeats: 28,
     availableSeats: 28,
@@ -1929,11 +1949,10 @@ async function scheduleTrip(){
 
   try {
     await db.collection('trips').add(trip);
-    addActivityLog(`Trip scheduled: ${bus.name} on ${date}`);
+    addActivityLog(`Daily recurring trip scheduled for ${bus.name} at ${time}`);
     showNotification("Trip scheduled in live database!", "success");
 
     if (busSelectEl) busSelectEl.value = "";
-    if (dateEl) dateEl.value = "";
     if (timeEl) timeEl.value = "";
     if (wifi) wifi.checked = false;
     if (ac) ac.checked = false;
@@ -1959,14 +1978,18 @@ function renderSchedules(){
   }
 
   // Group trips by Terminal (from) and Date for organized Admin View
-  const groupedSchedules = trips.reduce((acc, t) => {
-    const key = `${t.from}|${t.date}`;
-    if (!acc[key]) acc[key] = { from: t.from, date: t.date, slots: [] };
-    acc[key].slots.push(t);
-    return acc;
-  }, {});
+  // Filter for daily schedules and group by Terminal city
+  const groupedSchedules = trips
+    .filter(t => t.date === 'DAILY')
+    .reduce((acc, t) => {
+        const key = t.from;
+        if (!acc[key]) acc[key] = { from: t.from, slots: [] };
+        acc[key].slots.push(t);
+        return acc;
+    }, {});
 
   const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+  const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
   const windowMs = 24 * 60 * 60 * 1000;
 
   Object.values(groupedSchedules).forEach(group => {
@@ -1977,7 +2000,8 @@ function renderSchedules(){
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
-        const departure = new Date(...t.date.split('-').map((v,i)=>i===1?v-1:v), hrs, parseInt(mPart));
+        const [y, m_val, d] = todayISO.split('-').map(Number);
+        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
         const diff = departure - now;
 
         const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
@@ -1995,8 +2019,8 @@ function renderSchedules(){
                 <div style="font-size:0.7rem; opacity:0.7;">${t.busName} (${t.availableSeats}/${t.totalSeats})</div>
               </div>
               <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
-                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start</button>` : ''}
-                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Finish</button>` : ''}
+                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start</button>` : ''}
+                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Finish</button>` : ''}
               </div>
             </div>
             <div class="progress-container" style="height:3px; margin: 5px 0;">
@@ -2010,7 +2034,7 @@ function renderSchedules(){
       <div class="card" style="border: 1px solid rgba(255,255,255,0.1);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
           <h4 style="margin:0;"><i class="fas fa-hotel"></i> ${group.from} Terminal</h4>
-          <span class="badge bg-secondary">${group.date}</span>
+          <span class="badge bg-active" style="font-size: 0.6rem;">DAILY RECURRING</span>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           ${slotsHtml}
@@ -2051,7 +2075,9 @@ function refreshBusSchedules() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        const [y, m_val, d] = t.date.split('-').map(Number);
+        const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
+        const [y, m_val, d] = dateToUse.split('-').map(Number);
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
         const diff = departure - now;
 
@@ -2105,8 +2131,8 @@ function refreshBusSchedules() {
 
         // Handle Button visibility changes dynamically
         let actionButtonsHtml = `
-            ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding(${t.id})">Start Boarding</button>` : ''}
-            ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture(${t.id})">Departure Confirmed</button>` : ''}
+            ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start Boarding</button>` : ''}
+            ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Departure Confirmed</button>` : ''}
             <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
         `;
         if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
@@ -2203,6 +2229,19 @@ function renderTickets(){
       const passengerUser = users.find(u => u.email === t.email || u.name === t.passenger);
       const photoUrl = passengerUser?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.passenger)}&background=007A3D&color=fff`;
 
+      const routeTimes = [...new Set(trips
+        .filter(trip => trip.from === t.from && trip.to === t.to && trip.date === 'DAILY')
+        .map(trip => trip.time))]
+        .sort((a, b) => a.localeCompare(b));
+
+      const scheduleSummaryHtml = routeTimes.length > 0 ? `
+        <div class="daily-schedule-summary">
+          <label>Daily Route Schedule</label>
+          <div class="daily-schedule-times">
+            ${routeTimes.map(time => `<span class="daily-time-chip ${time === t.time ? 'active' : ''}" style="cursor:pointer;" onclick="event.stopPropagation(); initiateRebook('${t.from}', '${t.to}', '${time}')">${time}</span>`).join('')}
+          </div>
+        </div>` : '';
+
       let tr = document.createElement('tr');
       tr.onclick = () => expandTicket(index);
       tr.innerHTML = `
@@ -2241,6 +2280,7 @@ function renderTickets(){
               <div class="qr-container"></div>
               <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
             </div>
+            ${scheduleSummaryHtml}
           </div>
           <div class="ticket-footer">
             <div>Total Fare: UGX ${t.price.toLocaleString()}</div>
@@ -2501,11 +2541,28 @@ function adminTab(section){
 
 /* TERMINAL MANAGEMENT */
 function loadTerminals() {
+    const container = document.getElementById('adminTerminals');
     const list = document.getElementById('terminalList');
-    if (!list) return;
+    if (!container || !list) return;
+
+    // Inject Search Filter if not present
+    if (!document.getElementById('terminalSearch')) {
+        const filterHtml = `
+            <div class="search-box" style="margin-bottom: 20px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="terminalSearch" placeholder="Filter points or cities..." 
+                    oninput="terminalSearchQuery = this.value; loadTerminals();">
+            </div>`;
+        list.insertAdjacentHTML('beforebegin', filterHtml);
+    }
 
     // Group terminals by city
-    const grouped = terminals.reduce((acc, t) => {
+    const grouped = terminals
+      .filter(t => 
+        (t.name || "").toLowerCase().includes(terminalSearchQuery.toLowerCase()) || 
+        (t.city || "").toLowerCase().includes(terminalSearchQuery.toLowerCase())
+      )
+      .reduce((acc, t) => {
         const city = t.city || "Unassigned";
         if (!acc[city]) acc[city] = [];
         acc[city].push(t);
@@ -3422,6 +3479,7 @@ async function deleteExpiredTrips() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
+        if (t.date === 'DAILY') return; // Do not delete recurring daily schedules
         const [y, m_val, d] = t.date.split('-').map(Number);
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
 
@@ -3475,7 +3533,7 @@ async function seedFirestore() {
         busName: op.name,
         from: op.from,
         to: op.to,
-        date: todayISO,
+        date: 'DAILY',
         time: time,
         price: op.price,
         busType: op.type,
@@ -3638,11 +3696,10 @@ function confirmBoarding(id) {
  * Quickly adds 4 standard daily slots for a terminal and bus in one click.
  */
 async function bulkAddSchedules() {
-    const date = document.getElementById('bulkDate').value;
     const busId = document.getElementById('selectBusBulk').value;
     const city = document.getElementById('bulkCity').value.trim();
 
-    if (!date || !busId || !city) {
+    if (!busId || !city) {
         showNotification("Please fill all fields for bulk generation.", "error");
         return;
     }
@@ -3664,7 +3721,7 @@ async function bulkAddSchedules() {
             busName: bus.name, 
             from: city, 
             to: to,
-            date, 
+            date: 'DAILY', 
             time, 
             price: bus.price, 
             busType: bus.type, 
@@ -3677,9 +3734,8 @@ async function bulkAddSchedules() {
 
     try {
         await batch.commit();
-        showNotification(`Created 4 daily slots for ${bus.name} on ${date}`, "success");
+        showNotification(`Created 4 daily recurring slots for ${bus.name}`, "success");
         addActivityLog(`Admin generated bulk slots for ${bus.name} (${city} to ${to})`);
-        document.getElementById('bulkDate').value = "";
         document.getElementById('bulkCity').value = "";
     } catch (e) {
         console.error("Bulk Scheduling Error:", e);
