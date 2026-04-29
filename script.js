@@ -519,7 +519,7 @@ function renderUpcomingJourneys() {
 
     return `
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
-        <div class="up-num">#${index + 1}</div>
+        <div class="up-num"></div>
         <div class="up-center">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="up-terminal">${terminalName}</div>
