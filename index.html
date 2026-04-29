@@ -334,6 +334,10 @@
         </div>
         <div class="card fade-in" style="background: transparent; box-shadow: none; border: none;">
           <h3 style="color: white;"><i class="fas fa-ticket-alt"></i> My Boarding Passes</h3>
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="ticketSearch" placeholder="Search by Ticket ID or Destination..." onkeyup="renderTickets()">
+          </div>
           <div id="tickets"></div>
         </div>
 
@@ -832,20 +836,52 @@
             <option value="users">Passengers Only</option>
             <option value="operators">Bus Operators Only</option>
             <option value="trip">Specific Trip (Bulk SMS/WhatsApp)</option>
+            <option value="route">Specific Route (Emergency Alert)</option>
           </select>
           
           <div id="bulkTripSelectGroup" class="hidden" style="margin-top:10px;">
             <select id="targetTripSelect"></select>
           </div>
 
+          <div id="routeSelectGroup" class="hidden" style="margin-top:10px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="floating-label-group" style="margin:0">
+                <input id="emergencyFrom" placeholder=" " list="ugandaCitiesFrom">
+                <label>From Route</label>
+              </div>
+              <div class="floating-label-group" style="margin:0">
+                <input id="emergencyTo" placeholder=" " list="ugandaCitiesTo">
+                <label>To Route</label>
+              </div>
+            </div>
+          </div>
+
           <input id="notificationTitle" placeholder="Notification Title">
           <textarea id="notificationMessage" placeholder="Notification Message" rows="4"></textarea>
           <button class="btn" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Send Notification</button>
+          
+          <div style="margin-top: 30px;">
+            <h4 style="color: var(--uganda-yellow); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+              <i class="fas fa-history"></i> Broadcast History
+            </h4>
+            <div id="broadcastHistoryList" style="margin-top: 15px; overflow-x: auto;">
+              <table class="ticket-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Target</th>
+                    <th>Message Snippet</th>
+                    <th>Recipients</th>
+                  </tr>
+                </thead>
+                <tbody id="broadcastHistoryBody">
+                  <tr><td colspan="4" style="text-align:center; opacity:0.5;">No history available</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
-
-      <!-- SYSTEM SETTINGS -->
-      <div id="adminSettings" class="hidden">
         <div class="card">
           <h3><i class="fas fa-cogs"></i> System Settings</h3>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">

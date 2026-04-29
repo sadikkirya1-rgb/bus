@@ -31,6 +31,7 @@ let buses = [];
 let trips = [];
 let users = [];
 let notifications = [];
+let broadcasts = [];
 let refunds = [];
 let terminals = [];
 let maintenanceMode = false;
@@ -106,6 +107,10 @@ function setupRealtimeData() {
     db.collection('notifications').onSnapshot(snap => {
         notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         updateNotificationBadge();
+    });
+    db.collection('broadcasts').orderBy('timestamp', 'desc').onSnapshot(snap => {
+        broadcasts = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        if (role === 'admin' && !document.getElementById('adminNotifications').classList.contains('hidden')) renderBroadcastHistory();
     });
     db.collection('terminals').onSnapshot(snap => {
         terminals = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -871,7 +876,6 @@ function init(){
   window.upcomingRefreshInterval = setInterval(() => {
       if (role === 'user' || role === null) {
           renderUpcomingJourneys();
-          if (!document.getElementById('userTickets').classList.contains('hidden')) renderTickets();
       }
       if (role === 'bus' || role === 'admin') refreshBusSchedules();
       if (activeSearchSchedules) refreshActiveSchedules();
@@ -2279,9 +2283,24 @@ function generateSeatPreview(totalSeats, availableSeats) {
 /* RENDER TICKETS */
 function renderTickets(){
   let ticketsDiv = document.getElementById('tickets');
-  ticketsDiv.innerHTML="";
+  if (!ticketsDiv || (role !== 'user' && role !== 'admin')) return;
+  
+  let searchQuery = document.getElementById('ticketSearch')?.value.toLowerCase() || '';
+  
+  // Optimization: Only re-render if search changed or data changed (prevents shaking)
+  const currentHash = searchQuery + tickets.length + tickets.map(t => t.status).join('');
+  if (ticketsDiv.dataset.lastRender === currentHash) return;
+  ticketsDiv.dataset.lastRender = currentHash;
 
-  if(tickets.length === 0) {
+  ticketsDiv.innerHTML="";
+  
+  let filteredTickets = tickets.filter(t => 
+    t.id.toString().includes(searchQuery) || 
+    t.to.toLowerCase().includes(searchQuery) ||
+    t.from.toLowerCase().includes(searchQuery)
+  );
+
+  if(filteredTickets.length === 0) {
     ticketsDiv.innerHTML = "<p style='color:white;'>No boarding passes found. Start your journey today!</p>";
     return;
   }
@@ -2302,7 +2321,7 @@ function renderTickets(){
   let hiddenCards = document.createElement('div');
   hiddenCards.className = 'hidden';
 
-  tickets.forEach((t, index) => {
+  filteredTickets.forEach((t, index) => {
       let statusClass = "bg-secondary";
       let statusLabel = t.status || "PENDING";
       if(statusLabel === "ACTIVE") statusClass = "bg-active";
@@ -2745,7 +2764,11 @@ function adminQuickBook() {
 function toggleBulkTripSelect() {
     const type = document.getElementById('notificationType').value;
     const group = document.getElementById('bulkTripSelectGroup');
+    const routeGroup = document.getElementById('routeSelectGroup');
+    
     group.classList.toggle('hidden', type !== 'trip');
+    routeGroup.classList.toggle('hidden', type !== 'route');
+
     if (type === 'trip') {
         const select = document.getElementById('targetTripSelect');
         select.innerHTML = trips.map(t => `<option value="${t.id}">${t.busName}: ${t.from}-${t.to} (${t.date})</option>`).join('');
@@ -3518,11 +3541,42 @@ function sendNotification(){
       const tripTickets = tickets.filter(t => t.bus === trip.busName && t.date === trip.date && t.status !== 'CANCELLED');
       
       if(confirm(`Send this update to ${tripTickets.length} passengers via SMS/WhatsApp?`)) {
+          db.collection('broadcasts').add({
+              title: title,
+              message: message,
+              type: 'Trip Bulk',
+              target: `${trip.busName} (${trip.date})`,
+              recipientCount: tripTickets.length,
+              timestamp: new Date().toISOString()
+          });
           tripTickets.forEach(t => {
               dispatchMultiChannel(t.phone || t.email, `URGENT: ${title} - ${message}`);
           });
           showNotification(`Bulk update sent to ${tripTickets.length} passengers`, "success");
           addActivityLog(`Bulk notification sent for trip ${trip.busName} on ${trip.date}`);
+      }
+      return;
+  } else if (type === 'route') {
+      const from = document.getElementById('emergencyFrom').value;
+      const to = document.getElementById('emergencyTo').value;
+      if (!from || !to) return alert("Please specify route cities.");
+
+      const routeTickets = tickets.filter(t => t.from === from && t.to === to && ["PENDING", "ACTIVE", "PAID", "VERIFIED", "BOARDED"].includes(t.status));
+      
+      if(confirm(`Send Emergency SMS to all ${routeTickets.length} passengers on the ${from} to ${to} route?`)) {
+          db.collection('broadcasts').add({
+              title: title,
+              message: message,
+              type: 'Emergency Route',
+              target: `${from} to ${to}`,
+              recipientCount: routeTickets.length,
+              timestamp: new Date().toISOString()
+          });
+          routeTickets.forEach(t => {
+              dispatchMultiChannel(t.passengerPhone || t.phone, `EMERGENCY: ${title} - ${message}`);
+          });
+          showNotification(`Emergency alert sent to ${routeTickets.length} passengers`, "success");
+          addActivityLog(`Emergency SMS sent for route ${from}-${to}`);
       }
       return;
   }
@@ -3548,6 +3602,28 @@ function sendNotification(){
   alert('Notification sent successfully!');
   document.getElementById('notificationTitle').value = '';
   document.getElementById('notificationMessage').value = '';
+}
+
+/**
+ * Renders the history of emergency and bulk broadcasts in the Admin panel.
+ */
+function renderBroadcastHistory() {
+    const tbody = document.getElementById('broadcastHistoryBody');
+    if (!tbody) return;
+    
+    if (broadcasts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; opacity:0.5;">No history available</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = broadcasts.map(b => `
+        <tr>
+            <td>${new Date(b.timestamp).toLocaleDateString()} ${new Date(b.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+            <td><span class="badge ${b.type.includes('Emergency') ? 'bg-used' : 'bg-boarded'}" style="font-size:0.55rem;">${b.type}</span><br><small>${b.target}</small></td>
+            <td title="${b.message}">${b.title}</td>
+            <td style="text-align:center; font-weight:bold;">${b.recipientCount}</td>
+        </tr>
+    `).join('');
 }
 
 /**

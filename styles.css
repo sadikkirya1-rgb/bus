@@ -503,7 +503,6 @@ body{
 .status-urgent {
   color: var(--uganda-red);
   font-weight: bold;
-  animation: flash-red 1s infinite;
 }
 
 .status-boarding {
@@ -517,7 +516,6 @@ body{
   padding: 4px 8px;
   border-radius: 4px;
   font-weight: bold;
-  animation: flash-red 0.8s infinite;
 }
 
 .focus-schedule {
@@ -527,7 +525,6 @@ body{
 }
 
 .pulse-live {
-  animation: pulse-yellow 2s infinite;
   box-shadow: 0 0 15px rgba(252, 209, 22, 0.3);
   border: 1px solid var(--uganda-yellow) !important;
   z-index: 5;
@@ -1139,7 +1136,6 @@ input, select, textarea {
   display: inline-block;
   margin-right: 5px;
   box-shadow: 0 0 0 rgba(255, 0, 0, 0.4);
-  animation: pulse 1.5s infinite;
 }
 
 /* Delayed Status Dot */
