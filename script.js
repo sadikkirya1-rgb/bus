@@ -389,9 +389,6 @@ function renderUpcomingJourneys() {
 
     const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
     
-    // Find the "Next" available bus to set as current focus
-    let focusFound = false;
-
     const tripData = trips.find(trip => trip.busName === t.bus);
     const amenities = tripData ? tripData.amenities : [];
 
@@ -403,114 +400,89 @@ function renderUpcomingJourneys() {
     const terminalData = terminals.find(term => term.city === t.from);
     const terminalName = terminalData ? terminalData.name : `Unassigned (${t.from})`;
 
-    const schedulesHtml = terminalTrips.map((tr, slotIndex) => {
+    let focusFound = false;
+    let activeSectionHtml = "";
+
+    const timesRowHtml = terminalTrips.map((tr) => {
         const [hPart, mFull] = (tr.time || "08:00 AM").split(':');
         const [mPart, ampm] = mFull.split(' ');
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
-        
-        // Timer is based on TODAY'S departure time to reflect daily terminal status
         const [y, m_val, d] = (tr.date === 'DAILY' ? todayISO : tr.date).split('-').map(Number);
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-
         const diff = departure - now;
-        
         const manualFinished = tr.manualFinished || false;
         const manualLive = tr.manualLive || false;
-
-        // 1. Auto-hide: Remove from UI if finished for more than 30 minutes
-        if (diff <= -30 * 60 * 1000 || manualFinished) return "";
-
-        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || manualLive; // 10 min window
         const finished = diff <= -10 * 60 * 1000 || manualFinished;
-        const isUrgent = diff > 0 && diff < 5 * 60 * 1000;   // < 5 mins
-        const isBoarding = diff > 0 && diff < 30 * 60 * 1000; // < 30 mins
-        
-        // Highlight if this specific daily slot matches the user's booking (and the date is today)
+        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || manualLive;
+        const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
+        const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
         const isUserSlot = t.date === todayISO && tr.time === t.time && tr.busName === t.bus;
-        
-        let statusText = "";
-        let statusClass = "";
-        let focusClass = "";
 
-        // 2. Current Focus: Highlight the first upcoming bus
-        if (!finished && !isLive && !focusFound) {
-            focusClass = "focus-schedule";
+        let isActive = false;
+        if (!finished && !focusFound) {
+            isActive = true;
             focusFound = true;
-        }
 
-        const todayISOCheck = todayISO;
-        let btnText = finished ? "Book Tomorrow" : "Book Today";
-        if (!finished && t.date > todayISO) btnText = "Book For Tomorrow";
+            let statusText = "";
+            let barWidth = "0%";
+            let barColor = "var(--primary-color)";
+            const windowMs = 24 * 60 * 60 * 1000;
 
-        const btnOnClick = finished 
-            ? `event.stopPropagation(); rebookTomorrow('${t.from}', '${t.to}')` 
-            : `event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')`;
+            if (isLive) {
+                statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
+                barWidth = "100%";
+                barColor = "var(--uganda-red)";
+            } else if (isUrgent) {
+                statusText = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
+                const totalSec = Math.floor(diff / 1000);
+                const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+                const ss = String(totalSec % 60).padStart(2, '0');
+                statusText += ` <small>${mm}:${ss}</small>`;
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                barColor = "var(--uganda-red)";
+            } else if (isBoarding) {
+                statusText = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                barColor = "var(--uganda-yellow)";
+            } else {
+                const totalSec = Math.floor(diff / 1000);
+                const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
+                const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+                const ss = String(totalSec % 60).padStart(2, '0');
+                statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                if (diff / (1000 * 60) < 30) barColor = "var(--uganda-red)";
+            }
 
-        let barWidth = "0%";
-        let barColor = "var(--primary-color)";
-        const windowMs = 24 * 60 * 60 * 1000;
+            let btnText = "Book Today";
+            const btnOnClick = `event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')`;
+            let delayHtml = tr.delayReason ? `<div style="font-size: 0.65rem; color: var(--uganda-yellow); margin-top: 4px;"><i class="fas fa-info-circle"></i> Delay: ${tr.delayReason}</div>` : '';
 
-        if (finished) {
-            statusText = `<span class="status-finished" style="font-size: 0.85rem;"><i class="fas fa-times-circle"></i> FINISHED</span>`;
-            statusClass = "finished-schedule";
-            barWidth = "100%";
-            barColor = "var(--uganda-red)";
-        } else if (isLive) {
-            statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
-            barWidth = "100%";
-            barColor = "var(--uganda-red)";
-        } else if (isUrgent) {
-            statusText = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
-            const totalSec = Math.floor(diff / 1000);
-            const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-            const ss = String(totalSec % 60).padStart(2, '0');
-            statusText += ` <small>${mm}:${ss}</small>`;
-            barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-            barColor = "var(--uganda-red)";
-        } else if (isBoarding) {
-            statusText = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
-            barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-            barColor = "var(--uganda-yellow)";
-        } else {
-            const totalSec = Math.floor(diff / 1000);
-            // Use modulo 24 to ensure timers don't show "too many hours" and stay within a day
-            const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
-            const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-            const ss = String(totalSec % 60).padStart(2, '0');
-            statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-            barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-            if (diff / (1000 * 60) < 30) barColor = "var(--uganda-red)";
-        }
-
-        let delayHtml = tr.delayReason ? `<div style="font-size: 0.65rem; color: var(--uganda-yellow); margin-top: 2px;"><i class="fas fa-info-circle"></i> Delay: ${tr.delayReason}</div>` : '';
-
-        return `
-          <div class="${focusClass}" style="margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 8px; border-radius: 8px;">
-            ${focusClass ? '<div style="font-size: 0.55rem; color: var(--uganda-yellow); font-weight: bold; margin-bottom: 4px;"><i class="fas fa-star"></i> NEXT AVAILABLE</div>' : ''}
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.75rem;">
-              <div style="display: flex; flex-direction: column;">
-                <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Slot #${slotIndex + 1}</span>
-                <span class="${statusClass}" style="font-weight: 700; font-size: 0.9rem; ${isUserSlot ? 'color: var(--uganda-yellow);' : ''}">
-                  <i class="fas fa-clock" style="font-size: 0.8rem;"></i> ${tr.time} - <small>${tr.busName}</small> ${isUserSlot ? '<i class="fas fa-ticket-alt" style="font-size: 0.7rem;"></i>' : ''}
-                </span>
+            activeSectionHtml = `
+              <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid ${isActive ? 'var(--uganda-yellow)' : 'transparent'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <span style="font-size: 0.6rem; color: var(--uganda-yellow); font-weight: bold; text-transform: uppercase;">Next Departure</span>
+                  <div style="font-size: 0.75rem; font-variant-numeric: tabular-nums;">${statusText}</div>
+                </div>
+                <div class="progress-container" style="height: 4px; margin: 6px 0;">
+                  <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
+                </div>
                 ${delayHtml}
+                <button class="view-ticket-btn" style="width: 100%; margin-top: 8px; font-size: 0.65rem; padding: 6px;" onclick="${btnOnClick}">
+                    ${btnText}
+                </button>
               </div>
-              <div style="text-align: right; display: flex; flex-direction: column;">
-                <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 2px;">Timer Status</span>
-                <span style="font-variant-numeric: tabular-nums;">${statusText}</span>
-              </div>
-            </div>
-            <div class="progress-container" style="height: 4px; margin: 4px 0;">
-              <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
-            </div>
-            <button class="view-ticket-btn" style="width: 100%; margin-top: 8px; font-size: 0.65rem; padding: 6px; background: ${finished ? '#718096' : ''};" onclick="${btnOnClick}">
-                ${btnText}
-            </button>
-          </div>
-        `;
-    }).join('');
+            `;
+        }
+
+        const color = finished ? 'var(--uganda-red)' : (isActive ? 'var(--uganda-yellow)' : 'rgba(255,255,255,0.6)');
+        const decor = finished ? 'line-through' : 'none';
+        const weight = isActive ? '800' : '500';
+
+        return `<span style="color: ${color}; text-decoration: ${decor}; font-weight: ${weight}; font-size: 0.8rem; white-space: nowrap;">${tr.time}${isUserSlot ? ' <i class="fas fa-ticket-alt" style="font-size: 0.6rem;"></i>' : ''}</span>`;
+    }).join(' <span style="opacity: 0.1;">|</span> ');
 
     return `
       <div class="upcoming-card" onclick="showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">
@@ -525,8 +497,11 @@ function renderUpcomingJourneys() {
           </div>
           
           <div style="margin-top: 10px;">
-            <p style="font-size: 0.65rem; text-transform: uppercase; color: var(--uganda-yellow); margin: 0; opacity: 0.8;">Active Terminal Schedules (${todayLabelStr})</p>
-            ${schedulesHtml}
+            <p style="font-size: 0.6rem; text-transform: uppercase; color: var(--uganda-yellow); margin: 0 0 5px 0; opacity: 0.8;">Terminal Slots (${todayLabelStr})</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px;">
+              ${timesRowHtml}
+            </div>
+            ${activeSectionHtml}
           </div>
 
           <div class="up-footer" style="display: flex; justify-content: flex-end; margin-top: 5px;">
