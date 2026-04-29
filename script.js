@@ -380,7 +380,9 @@ function renderUpcomingJourneys() {
   const todayISO = new Intl.DateTimeFormat('en-CA', { 
       timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
   }).format(now);
-  const todayLabelStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const todayLabelStr = new Intl.DateTimeFormat('en-GB', { 
+      timeZone: 'Africa/Kampala', day: '2-digit', month: 'short', year: 'numeric' 
+  }).format(now);
 
   container.innerHTML = userTickets.map((t, index) => {
     const dateStr = new Date(t.date).toLocaleDateString('en-GB', { 
@@ -460,10 +462,15 @@ function renderUpcomingJourneys() {
             const btnOnClick = `event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')`;
             let delayHtml = tr.delayReason ? `<div style="font-size: 0.65rem; color: var(--uganda-yellow); margin-top: 4px;"><i class="fas fa-info-circle"></i> Delay: ${tr.delayReason}</div>` : '';
 
+            const timePulseClass = (isUrgent || isLive) ? "pulse-live" : "";
+
             activeSectionHtml = `
               <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid ${isActive ? 'var(--uganda-yellow)' : 'transparent'};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <span style="font-size: 0.6rem; color: var(--uganda-yellow); font-weight: bold; text-transform: uppercase;">Next Departure</span>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 0.6rem; color: var(--uganda-yellow); font-weight: bold; text-transform: uppercase;">Next Departure:</span>
+                    <span class="${timePulseClass}" style="font-size: 0.8rem; color: white; font-weight: 800;">${tr.time}</span>
+                  </div>
                   <div style="font-size: 0.75rem; font-variant-numeric: tabular-nums;">${statusText}</div>
                 </div>
                 <div class="progress-container" style="height: 4px; margin: 6px 0;">
@@ -497,7 +504,10 @@ function renderUpcomingJourneys() {
           </div>
           
           <div style="margin-top: 10px;">
-            <p style="font-size: 0.6rem; text-transform: uppercase; color: var(--uganda-yellow); margin: 0 0 5px 0; opacity: 0.8;">Terminal Slots (${todayLabelStr})</p>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+              <span style="font-size: 0.6rem; color: white; opacity: 0.6; font-weight: 600;">${todayLabelStr}</span>
+              <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--uganda-yellow); font-weight: bold; opacity: 0.8;">Terminal Slots</span>
+            </div>
             <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px;">
               ${timesRowHtml}
             </div>
