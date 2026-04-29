@@ -625,12 +625,8 @@
         <!-- BULK SCHEDULER -->
         <div class="card" style="border-top: 5px solid var(--uganda-yellow);">
           <h3 style="color: white;"><i class="fas fa-magic"></i> One-Click Bulk Scheduler</h3>
-          <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 15px; color: white;">Generate the standard 4 daily slots (8 AM, 11 AM, 2 PM, 6 PM) for a bus route on a specific date.</p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
-            <div>
-              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Target Date</label>
-              <input id="bulkDate" type="date" style="margin:0;">
-            </div>
+          <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 15px; color: white;">Generate the standard 4 daily slots (8 AM, 11 AM, 2 PM, 6 PM) for a bus route.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
             <div>
               <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Bus / Operator</label>
               <select id="selectBusBulk" onfocus="loadBusSelect()" style="margin:0;">
@@ -860,6 +856,13 @@
             </div>
           </div>
           <button class="btn" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+          <div style="margin-top: 20px; display: flex; align-items: center; gap: 10px;">
+            <label class="switch">
+              <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenanceMode(this.checked)">
+              <span class="slider"></span>
+            </label>
+            <span style="font-weight: 600; color: var(--uganda-yellow);">Maintenance Mode (Disable Schedule Creation)</span>
+          </div>
           <div style="margin-top: 20px; padding-top: 20px; border-top: 1px dashed rgba(255,255,255,0.2);">
             <h4 style="color: var(--uganda-yellow);">Database Initialization</h4>
             <button class="btn" style="background: var(--uganda-red);" onclick="seedFirestore()"><i class="fas fa-database"></i> Seed Sample Trips</button>

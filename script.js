@@ -33,6 +33,7 @@ let users = [];
 let notifications = [];
 let refunds = [];
 let terminals = [];
+let maintenanceMode = false;
 
 let terminalSearchQuery = "";
 let html5QrCode = null;
@@ -110,6 +111,13 @@ function setupRealtimeData() {
         terminals = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         populateCityLists();
         if (role === 'admin') loadTerminals();
+    });
+    db.collection('settings').doc('config').onSnapshot(doc => {
+        if (doc.exists) {
+            maintenanceMode = doc.data().maintenanceMode || false;
+            const toggle = document.getElementById('maintenanceToggle');
+            if (toggle) toggle.checked = maintenanceMode;
+        }
     });
 }
 
@@ -1928,6 +1936,11 @@ async function scheduleTrip(){
   if(ac && ac.checked) amenities.push('snowflake');
   if(usb && usb.checked) amenities.push('charging-station');
 
+  if(maintenanceMode) {
+    showNotification("Creation disabled: System is in Maintenance Mode.", "error");
+    return;
+  }
+
   if(!busId || !time) {
     showNotification("Please select a bus and time for daily scheduling.", "error");
     return;
@@ -2020,6 +2033,7 @@ function renderSchedules(){
               </div>
               <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
                 ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start</button>` : ''}
+                ${(!finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">ETD</button>` : ''}
                 ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Finish</button>` : ''}
               </div>
             </div>
@@ -2132,12 +2146,40 @@ function refreshBusSchedules() {
         // Handle Button visibility changes dynamically
         let actionButtonsHtml = `
             ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start Boarding</button>` : ''}
+            ${(!finished) ? `<button class="view-ticket-btn" style="margin:0; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">Update ETD</button>` : ''}
             ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Departure Confirmed</button>` : ''}
             <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
         `;
         if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
     });
 }
+
+/**
+ * Allows an operator to adjust the departure time (ETD) for a specific daily slot.
+ */
+window.updateETD = async function(tripId) {
+    const trip = trips.find(t => t.id === tripId);
+    if (!trip) return;
+    
+    const newTime = prompt(`Adjust Departure Time (ETD) for ${trip.busName}:`, trip.time);
+    if (newTime && newTime !== trip.time) {
+        try {
+            await db.collection('trips').doc(tripId).update({ time: newTime });
+            showNotification("Departure time adjusted successfully!", "success");
+            addActivityLog(`ETD updated for ${trip.busName} to ${newTime}`);
+        } catch (e) {
+            showNotification("Failed to update ETD", "error");
+        }
+    }
+};
+
+window.toggleMaintenanceMode = async function(val) {
+    try {
+        await db.collection('settings').doc('config').set({ maintenanceMode: val }, { merge: true });
+        showNotification(`Maintenance mode ${val ? 'enabled' : 'disabled'}`, val ? "warning" : "success");
+        addActivityLog(`Admin ${val ? 'enabled' : 'disabled'} maintenance mode`);
+    } catch (e) { showNotification("Failed to update status", "error"); }
+};
 
 async function startBoarding(tripId) {
     const trip = trips.find(t => t.id == tripId);
@@ -3698,6 +3740,11 @@ function confirmBoarding(id) {
 async function bulkAddSchedules() {
     const busId = document.getElementById('selectBusBulk').value;
     const city = document.getElementById('bulkCity').value.trim();
+
+    if(maintenanceMode) {
+        showNotification("Bulk generation disabled during Maintenance.", "error");
+        return;
+    }
 
     if (!busId || !city) {
         showNotification("Please fill all fields for bulk generation.", "error");
