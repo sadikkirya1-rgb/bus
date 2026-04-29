@@ -2574,20 +2574,13 @@ window.addEventListener('storage', (e) => {
 /* ADMIN FUNCTIONS */
 function adminTab(section){
   // Hide all admin sections
-  document.getElementById('adminDashboard').classList.add('hidden');
-  document.getElementById('adminUsers').classList.add('hidden');
-  document.getElementById('adminOperators').classList.add('hidden');
-  document.getElementById('adminRoutes').classList.add('hidden');
-  document.getElementById('adminBookings').classList.add('hidden');
-  document.getElementById('adminAnalytics').classList.add('hidden');
-  document.getElementById('adminPayments').classList.add('hidden');
-  document.getElementById('adminNotifications').classList.add('hidden');
-  document.getElementById('adminSettings').classList.add('hidden');
-  document.getElementById('adminActivity').classList.add('hidden');
-  document.getElementById('adminSupportTickets').classList.add('hidden');
-  document.getElementById('adminTicketingDesk').classList.add('hidden');
-  document.getElementById('adminFleetControl').classList.add('hidden');
-  document.getElementById('adminTerminals').classList.add('hidden');
+  const adminSections = ['adminDashboard', 'adminUsers', 'adminOperators', 'adminRoutes', 'adminBookings', 'adminAnalytics', 'adminPayments', 'adminNotifications', 'adminSettings', 'adminActivity', 'adminSupportTickets', 'adminTicketingDesk', 'adminFleetControl', 'adminTerminals'];
+  adminSections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.add('hidden');
+    }
+  });
 
   // Remove active class from all admin nav buttons
   document.querySelectorAll('.sidebar button, .topbar-nav button').forEach(btn => btn.classList.remove('active-tab'));
@@ -2791,6 +2784,16 @@ function loadDashboard(){
   // Calculate revenue
   let revenue = tickets.reduce((sum, ticket) => sum + (ticket.price || 0), 0);
   document.getElementById('statRevenue').textContent = 'UGX ' + revenue.toLocaleString();
+
+  // Calculate Today's Check-ins (Kampala Time)
+  const todayISO = getKampalaDateISO();
+  const todayTickets = tickets.filter(t => t.date === todayISO && t.status !== 'CANCELLED');
+  const boardedCount = todayTickets.filter(t => ['BOARDED', 'USED'].includes(t.status)).length;
+  const totalToday = todayTickets.length;
+  const statCheckIn = document.getElementById('statCheckIn');
+  if (statCheckIn) {
+      statCheckIn.textContent = `${boardedCount} / ${totalToday}`;
+  }
 
   // Booking Distribution (Occupancy)
   const totalSeatsAcrossFleet = trips.length * 28;
