@@ -486,9 +486,6 @@ function renderUpcomingJourneys() {
                   <div class="progress-bar" style="width: ${barWidth}; background: ${barColor};"></div>
                 </div>
                 ${delayHtml}
-                <button class="view-ticket-btn" style="width: 100%; margin-top: 8px; font-size: 0.65rem; padding: 6px;" onclick="${btnOnClick}">
-                    ${btnText}
-                </button>
               </div>
             `;
         }
@@ -525,18 +522,18 @@ function renderUpcomingJourneys() {
           </div>
           
           <div style="margin-top: 10px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap;">
               <span style="font-size: 0.6rem; color: white; opacity: 0.6; font-weight: 600;">${todayLabelStr}</span>
               <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--uganda-yellow); font-weight: bold; opacity: 0.8;">Terminal Slots</span>
+              <div style="margin-left: auto; display: flex; gap: 6px; align-items: center;">
+                <button class="view-ticket-btn" style="margin: 0; font-size: 0.55rem; padding: 2px 8px; background: var(--uganda-yellow); color: black; font-weight: bold;" onclick="event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">BOOK NOW</button>
+                <button class="quick-btn" style="background:#4299e1; width:20px; height:20px; font-size: 0.6rem;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>
+              </div>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px;">
               ${timesRowHtml}
             </div> 
             ${activeSectionHtml}
-          </div>
-
-          <div class="up-footer" style="display: flex; justify-content: flex-end; margin-top: 5px;">
-             <button class="quick-btn" style="background:#4299e1; width:22px; height:22px;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>
           </div>
         </div>
       </div>
@@ -2059,9 +2056,10 @@ function renderSchedules(){
                 </div>
               </div>
               <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
-                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start</button>` : ''}
-                ${(!finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">ETD</button>` : ''}
-                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.6rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Finish</button>` : ''}
+                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start</button>` : ''}
+                ${(!finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">ETD</button>` : ''}
+                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Finish</button>` : ''}
+                ${role === 'admin' ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:var(--uganda-red); color:white;" onclick="deleteDailySlot('${t.id}')" title="Delete Template Slot"><i class="fas fa-trash"></i></button>` : ''}
               </div>
             </div>
             <div class="progress-container" style="height:3px; margin: 5px 0;">
@@ -2180,11 +2178,24 @@ function refreshBusSchedules() {
             ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start Boarding</button>` : ''}
             ${(!finished) ? `<button class="view-ticket-btn" style="margin:0; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">Update ETD</button>` : ''}
             ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Departure Confirmed</button>` : ''}
+            ${role === 'admin' ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="deleteDailySlot('${t.id}')">Delete Slot</button>` : ''}
             <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
         `;
         if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
     });
 }
+
+/**
+ * Allows admins to delete a specific daily recurring slot from the system.
+ */
+window.deleteDailySlot = async function(slotId) {
+    if (confirm("Are you sure you want to remove this recurring schedule slot? New trips will no longer be generated for this time.")) {
+        try {
+            await db.collection('trips').doc(slotId).delete();
+            showNotification("Schedule slot removed", "info");
+        } catch (e) { showNotification("Error removing slot", "error"); }
+    }
+};
 
 /**
  * Allows an operator to adjust the departure time (ETD) for a specific daily slot.
@@ -3776,6 +3787,7 @@ function confirmBoarding(id) {
 async function bulkAddSchedules() {
     const busId = document.getElementById('selectBusBulk').value;
     const city = document.getElementById('bulkCity').value.trim();
+    const customTimesInput = document.getElementById('bulkCustomTimes').value.trim();
 
     if(maintenanceMode) {
         showNotification("Bulk generation disabled during Maintenance.", "error");
@@ -3790,14 +3802,21 @@ async function bulkAddSchedules() {
     const bus = buses.find(b => b.id == busId);
     if (!bus) return;
 
-    // Determine destination from bus primary route
     const routeParts = bus.route.split(' - ').map(s => s.trim());
     const to = routeParts.find(c => c.toLowerCase() !== city.toLowerCase()) || "Destination";
 
-    const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
-    const batch = db.batch();
+    let timesToGenerate = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+    
+    // If custom times are provided, parse them
+    if (customTimesInput) {
+        const custom = customTimesInput.split(',').map(t => t.trim()).filter(t => t);
+        if (custom.length > 0) {
+            timesToGenerate = custom;
+        }
+    }
 
-    standardTimes.forEach(time => {
+    const batch = db.batch();
+    timesToGenerate.forEach(time => {
         const tripRef = db.collection('trips').doc();
         batch.set(tripRef, {
             busId, 

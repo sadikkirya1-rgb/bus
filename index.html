@@ -628,21 +628,28 @@
 
         <!-- BULK SCHEDULER -->
         <div class="card" style="border-top: 5px solid var(--uganda-yellow);">
-          <h3 style="color: white;"><i class="fas fa-magic"></i> One-Click Bulk Scheduler</h3>
-          <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 15px; color: white;">Generate the standard 4 daily slots (8 AM, 11 AM, 2 PM, 6 PM) for a bus route.</p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
-            <div>
-              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Bus / Operator</label>
-              <select id="selectBusBulk" onfocus="loadBusSelect()" style="margin:0;">
-                <option value="">Select Bus</option>
-              </select>
+          <h3 style="color: white;"><i class="fas fa-magic"></i> Bulk Schedule Generator</h3>
+          <p style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 15px; color: white;">Quickly generate multiple daily recurring slots for a route.</p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Bus / Operator</label>
+                <select id="selectBusBulk" onfocus="loadBusSelect()" style="margin:0;">
+                  <option value="">Select Bus</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Departure City</label>
+                <input id="bulkCity" placeholder="e.g. Kampala" list="ugandaCitiesFrom" style="margin:0;">
+              </div>
             </div>
             <div>
-              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Departure City</label>
-              <input id="bulkCity" placeholder="e.g. Kampala" list="ugandaCitiesFrom" style="margin:0;">
+              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Custom Times (Optional, comma-separated)</label>
+              <input id="bulkCustomTimes" placeholder="e.g. 09:00 AM, 01:30 PM, 05:00 PM" style="margin:0;">
+              <small style="font-size: 0.65rem; color: rgba(255,255,255,0.6);">Leave empty to use standard slots (8 AM, 11 AM, 2 PM, 6 PM)</small>
             </div>
-            <button class="btn" onclick="bulkAddSchedules()" style="background: var(--uganda-yellow); color: black; font-weight: 800;">
-              <i class="fas fa-calendar-plus"></i> Generate 4 Slots
+            <button class="btn" onclick="bulkAddSchedules()" style="background: var(--uganda-yellow); color: black; font-weight: 800; width: 100%;">
+              <i class="fas fa-calendar-plus"></i> Generate Schedule Slots
             </button>
           </div>
         </div>
