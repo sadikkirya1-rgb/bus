@@ -127,6 +127,15 @@ function setupRealtimeData() {
     });
 }
 
+// Helper function to get the current date in Kampala timezone (YYYY-MM-DD)
+function getKampalaDateISO(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Kampala',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date);
+}
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
 /**
  * In a production environment, this would call a service like Africa's Talking or Twilio.
@@ -465,7 +474,7 @@ function renderUpcomingJourneys() {
             const timePulseClass = (isUrgent || isLive) ? "pulse-live" : "";
 
             activeSectionHtml = `
-              <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid ${isActive ? 'var(--uganda-yellow)' : 'transparent'};">
+              <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid ${isBoarding ? 'var(--primary-color)' : (isActive ? 'var(--uganda-yellow)' : 'transparent')};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-size: 0.6rem; color: var(--uganda-yellow); font-weight: bold; text-transform: uppercase;">Next Departure:</span>
@@ -484,9 +493,24 @@ function renderUpcomingJourneys() {
             `;
         }
 
-        const color = finished ? 'var(--uganda-red)' : (isActive ? 'var(--uganda-yellow)' : 'rgba(255,255,255,0.6)');
+        let chipColor = 'rgba(255,255,255,0.6)'; // Default color for non-active slots
+        let chipWeight = '500';
+        if (finished) {
+            chipColor = 'var(--uganda-red)';
+        } else if (isLive) {
+            chipColor = 'var(--uganda-red)'; // Keep red for LIVE
+            chipWeight = '800';
+        } else if (isBoarding) {
+            chipColor = 'var(--primary-color)'; // Green for boarding
+            chipWeight = '800';
+        } else { // This covers isUrgent and other scheduled slots
+            chipColor = 'var(--uganda-yellow)'; // Yellow for scheduled/urgent
+            chipWeight = '800';
+        }
+
+        const color = chipColor;
         const decor = finished ? 'line-through' : 'none';
-        const weight = isActive ? '800' : '500';
+        const weight = chipWeight;
 
         return `<span style="color: ${color}; text-decoration: ${decor}; font-weight: ${weight}; font-size: 0.8rem; white-space: nowrap;">${tr.time}${isUserSlot ? ' <i class="fas fa-ticket-alt" style="font-size: 0.6rem;"></i>' : ''}</span>`;
     }).join(' <span style="opacity: 0.1;">|</span> ');
@@ -499,9 +523,6 @@ function renderUpcomingJourneys() {
             <div class="up-terminal">${terminalName}</div>
             <div style="font-weight: 800; color: var(--uganda-yellow); font-size: 0.85rem;">${t.from} → ${t.to}</div>
           </div>
-          <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 2px;">
-            ${dateStr} | ${(amenities || []).map(a => `<i class="fas fa-${a}" style="margin-right: 5px;"></i>`).join('')}
-          </div>
           
           <div style="margin-top: 10px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
@@ -510,7 +531,7 @@ function renderUpcomingJourneys() {
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px;">
               ${timesRowHtml}
-            </div>
+            </div> 
             ${activeSectionHtml}
           </div>
 
@@ -766,7 +787,7 @@ function init(){
   if (role !== null) {
     hideSplashScreen();
   }
-
+  
   // Set default date to today
   const today = new Date().toISOString().split('T')[0];
   if (document.getElementById('date')) document.getElementById('date').value = today;
@@ -1063,13 +1084,14 @@ function setSearchDate(mode) {
   const today = new Date();
   if (mode === 'today') {
     document.getElementById('btnToday').classList.add('active');
-    dateInput.value = today.toISOString().split('T')[0];
+    dateInput.value = getKampalaDateISO(today);
     dateInput.classList.add('hidden');
     document.getElementById('btnOthers').innerText = 'Others';
   } else if (mode === 'tomorrow') {
     document.getElementById('btnTomorrow').classList.add('active');
-    today.setDate(today.getDate() + 1);
-    dateInput.value = today.toISOString().split('T')[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1); // Increment day based on local time, then convert to Kampala ISO
+    dateInput.value = getKampalaDateISO(tomorrow);
     dateInput.classList.add('hidden');
     document.getElementById('btnOthers').innerText = 'Others';
   } else if (mode === 'others') {
@@ -1698,7 +1720,7 @@ async function confirmBooking(){
   selectedSeat = 1; // Auto-assign a default seat as there is no user selection
   const ticketId = Math.floor(100000 + Math.random() * 900000);
   let ticket = { 
-    bus: selectedBus?.name || "Unknown Bus",
+    bus: selectedBus?.name || "Unknown Bus", // Ensure selectedBus is defined
     seat: selectedSeat,
     price: selectedBus?.price || 0,
     date: document.getElementById('date') ? document.getElementById('date').value : new Date().toISOString().split('T')[0],
