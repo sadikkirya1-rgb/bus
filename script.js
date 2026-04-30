@@ -153,6 +153,19 @@ function getMinutesFromMidnight(timeStr) {
     return hrs * 60 + parseInt(mPart);
 }
 
+// Robust helper to get the current "Wall Clock" time in Kampala as a comparable timestamp
+function getKampalaWallClockTime() {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Africa/Kampala',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false
+    });
+    const p = formatter.formatToParts(now).reduce((acc, part) => { acc[part.type] = part.value; return acc; }, {});
+    return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);
+}
+
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
 /**
  * In a production environment, this would call a service like Africa's Talking or Twilio.
@@ -402,11 +415,11 @@ function renderUpcomingJourneys() {
     return;
   }
 
-  const now = new Date();
-  const todayISO = getKampalaDateISO(now);
+  const todayISO = getKampalaDateISO();
+  const kampalaNow = new Date();
   const todayLabelStr = new Intl.DateTimeFormat('en-GB', { 
       timeZone: 'Africa/Kampala', day: '2-digit', month: 'short', year: 'numeric' 
-  }).format(now);
+  }).format(kampalaNow);
 
   container.innerHTML = userTickets.map((t, index) => {
     const dateStr = new Date(t.date).toLocaleDateString('en-GB', { 
@@ -422,10 +435,9 @@ function renderUpcomingJourneys() {
     const terminalTrips = trips.filter(tr => tr.from === t.from && tr.to === t.to && tr.date === 'DAILY')
                                .sort((a,b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
 
-    // Look up real terminal name from admin configuration instead of hard-coding "Terminal"
     const terminalData = terminals.find(term => term.city === t.from);
     const terminalName = terminalData ? terminalData.name : `Unassigned (${t.from})`;
-
+    const nowWall = getKampalaWallClockTime();
     let focusFound = false;
     let activeSectionHtml = "";
 
@@ -436,11 +448,13 @@ function renderUpcomingJourneys() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         const [y, m_val, d] = (tr.date === 'DAILY' ? todayISO : tr.date).split('-').map(Number);
-        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-        const diff = departure - now;
+        
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        const diff = departureWall - nowWall;
+
         const manualFinished = tr.manualFinished || false;
         const manualLive = tr.manualLive || false;
-        const finished = diff <= -10 * 60 * 1000 || manualFinished;
+        const finished = diff <= -15 * 60 * 1000 || manualFinished;
         const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || manualLive;
         const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
         const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
@@ -1424,10 +1438,10 @@ function refreshActiveSchedules() {
     const listContainer = document.getElementById('activeSchedulesList');
     if (!listContainer || !activeSearchSchedules) return;
 
-    const now = new Date();
+    const nowWall = getKampalaWallClockTime();
     const windowMs = 24 * 60 * 60 * 1000;
     let allFinished = true;
-    const todayISO = getKampalaDateISO(now);
+    const todayISO = getKampalaDateISO();
 
     // Auto-update the "Travel Date" header if it exists
     const headerTravel = document.getElementById('headerTravelDate');
@@ -1450,8 +1464,9 @@ function refreshActiveSchedules() {
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
         const [y, m_val, d] = dateToUse.split('-').map(Number);
-        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-        return (departure - now) > -10 * 60 * 1000 && !t.manualFinished;
+        
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        return (departureWall - nowWall) > -10 * 60 * 1000 && !t.manualFinished;
     })?.id;
 
     activeSearchSchedules.data.forEach((t) => {
@@ -1463,8 +1478,9 @@ function refreshActiveSchedules() {
         
         const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
         const [y, m_val, d] = dateToUse.split('-').map(Number);
-        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-        const diffMs = departure - now;
+        
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        const diffMs = departureWall - nowWall;
         
         const timerEl = document.getElementById(`timer-${t.id}`);
         const barEl = document.getElementById(`bar-${t.id}`);
@@ -1500,10 +1516,9 @@ function refreshActiveSchedules() {
                 bookBtn.innerText = "Book Tomorrow";
                 bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
             }
-        } else if (isLive || isBoarding || isUrgent || isNext) {
+        } else if (isLive || isBoarding || isUrgent) {
             timeTextEl.classList.remove('finished-schedule');
             timeTextEl.style.color = 'var(--uganda-yellow)';
-            
             if (isLive) {
             timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
             barEl.style.width = '100%';
@@ -1530,7 +1545,7 @@ function refreshActiveSchedules() {
             }
         } else {
             timeTextEl.classList.remove('finished-schedule');
-            timeTextEl.style.color = 'white';
+            timeTextEl.style.color = isNext ? 'var(--uganda-yellow)' : 'white';
             const hh = String(h).padStart(2, '0');
             const mm = String(m).padStart(2, '0');
             const ss = String(s).padStart(2, '0');
@@ -2124,7 +2139,7 @@ function renderSchedules(){
 function refreshBusSchedules() {
     if (trips.length === 0) return;
 
-    const now = new Date();
+    const nowWall = getKampalaWallClockTime();
     const windowMs = 24 * 60 * 60 * 1000;
 
     trips.forEach(t => {
@@ -2146,11 +2161,12 @@ function refreshBusSchedules() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        const todayISO = getKampalaDateISO(now);
+        const todayISO = getKampalaDateISO();
         const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
         const [y, m_val, d] = dateToUse.split('-').map(Number);
-        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-        const diff = departure - now;
+
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        const diff = departureWall - nowWall;
 
         const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
         const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
