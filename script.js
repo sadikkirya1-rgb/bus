@@ -1510,6 +1510,7 @@ function refreshActiveSchedules() {
         const m = Math.floor((totalSeconds % 3600) / 60);
         const s = totalSeconds % 60;
 
+        let barWidth = '0%';
         let barColor = 'var(--primary-color)'; // Default color
 
         // Check for manual live override from operator
@@ -1575,6 +1576,10 @@ function refreshActiveSchedules() {
             }
         }
 
+        if (barEl) {
+            barEl.style.width = barWidth;
+            barEl.style.background = barColor;
+        }
         if (delayEl) {
             delayEl.innerHTML = t.delayReason ? `<i class="fas fa-info-circle"></i> Delay: ${t.delayReason}` : '';
         }
