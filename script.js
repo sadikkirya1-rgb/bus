@@ -402,10 +402,8 @@ function renderUpcomingJourneys() {
     return;
   }
 
-  const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
-  const todayISO = new Intl.DateTimeFormat('en-CA', { 
-      timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-  }).format(now);
+  const now = new Date();
+  const todayISO = getKampalaDateISO(now);
   const todayLabelStr = new Intl.DateTimeFormat('en-GB', { 
       timeZone: 'Africa/Kampala', day: '2-digit', month: 'short', year: 'numeric' 
   }).format(now);
@@ -495,7 +493,7 @@ function renderUpcomingJourneys() {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-size: 0.6rem; color: var(--uganda-yellow); font-weight: bold; text-transform: uppercase;">Next Departure:</span>
-                    <span class="${timePulseClass}" style="font-size: 0.8rem; color: white; font-weight: 800;">${tr.time}</span>
+                    <span class="${timePulseClass}" style="font-size: 0.8rem; color: var(--uganda-yellow); font-weight: 800;">${tr.time}</span>
                   </div>
                   <div style="font-size: 0.75rem; font-variant-numeric: tabular-nums;">${statusText}</div>
                 </div>
@@ -507,26 +505,19 @@ function renderUpcomingJourneys() {
             `;
         }
 
-        let chipColor = 'rgba(255,255,255,0.6)'; // Default color for non-active slots
-        let chipWeight = '500';
+        let chipColor = 'white';
+        let chipWeight = '400';
+        let decor = 'none';
+
         if (finished) {
             chipColor = 'var(--uganda-red)';
-        } else if (isLive) {
-            chipColor = 'var(--uganda-red)'; // Keep red for LIVE
-            chipWeight = '800';
-        } else if (isBoarding) {
-            chipColor = 'var(--primary-color)'; // Green for boarding
-            chipWeight = '800';
-        } else { // This covers isUrgent and other scheduled slots
-            chipColor = 'var(--uganda-yellow)'; // Yellow for scheduled/urgent
+            decor = 'line-through';
+        } else if (isActive || isLive || isBoarding || isUrgent) {
+            chipColor = 'var(--uganda-yellow)';
             chipWeight = '800';
         }
 
-        const color = chipColor;
-        const decor = finished ? 'line-through' : 'none';
-        const weight = chipWeight;
-
-        return `<span style="color: ${color}; text-decoration: ${decor}; font-weight: ${weight}; font-size: 0.8rem; white-space: nowrap;">${tr.time}${isUserSlot ? ' <i class="fas fa-ticket-alt" style="font-size: 0.6rem;"></i>' : ''}</span>`;
+        return `<span style="color: ${chipColor}; text-decoration: ${decor}; font-weight: ${chipWeight}; font-size: 0.8rem; white-space: nowrap;">${tr.time}${isUserSlot ? ' <i class="fas fa-ticket-alt" style="font-size: 0.6rem;"></i>' : ''}</span>`;
     }).join(' <span style="opacity: 0.1;">|</span> ');
 
     return `
@@ -562,10 +553,10 @@ function renderUpcomingJourneys() {
  * Helper to quickly set search for tomorrow's date
  */
 window.rebookTomorrow = function(from, to) {
-    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const tomorrowStr = getKampalaDateISO(tomorrow);
     
     document.getElementById('from').value = from;
     document.getElementById('to').value = to;
@@ -803,7 +794,7 @@ function init(){
   }
   
   // Set default date to today
-  const today = new Date().toISOString().split('T')[0];
+  const today = getKampalaDateISO();
   if (document.getElementById('date')) document.getElementById('date').value = today;
   if (document.getElementById('tripDate')) document.getElementById('tripDate').value = today;
 
@@ -1433,12 +1424,10 @@ function refreshActiveSchedules() {
     const listContainer = document.getElementById('activeSchedulesList');
     if (!listContainer || !activeSearchSchedules) return;
 
-    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const now = new Date();
     const windowMs = 24 * 60 * 60 * 1000;
     let allFinished = true;
-    const todayISO = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-    }).format(now);
+    const todayISO = getKampalaDateISO(now);
 
     // Auto-update the "Travel Date" header if it exists
     const headerTravel = document.getElementById('headerTravelDate');
@@ -1450,6 +1439,20 @@ function refreshActiveSchedules() {
 
     const searchDate = activeSearchSchedules.searchDate;
     const isFutureSearch = searchDate > todayISO;
+
+    // Identify the Next Departure ID
+    const sortedData = [...activeSearchSchedules.data].sort((a,b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
+    const firstActiveId = sortedData.find(t => {
+        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+        const [mPart, ampm] = mFull.split(' ');
+        let hrs = parseInt(hPart);
+        if (ampm === 'PM' && hrs < 12) hrs += 12;
+        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
+        const [y, m_val, d] = dateToUse.split('-').map(Number);
+        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
+        return (departure - now) > -10 * 60 * 1000 && !t.manualFinished;
+    })?.id;
 
     activeSearchSchedules.data.forEach((t) => {
         const [hPart, mFull] = (t.time || "08:00 AM").split(':');
@@ -1485,21 +1488,26 @@ function refreshActiveSchedules() {
         if (!finished) allFinished = false;
         const isUrgent = diffMs > 0 && diffMs < 5 * 60 * 1000;
         const isBoarding = diffMs > 0 && diffMs < 30 * 60 * 1000;
+        const isNext = (t.id === firstActiveId);
 
         if (finished) {
             timerEl.innerHTML = `<span class="status-finished" style="font-size: 0.85rem;"><i class="fas fa-times-circle"></i> FINISHED</span>`;
             timeTextEl.classList.add('finished-schedule');
+            timeTextEl.style.color = 'var(--uganda-red)';
             barEl.style.width = '100%';
             barEl.style.background = 'var(--uganda-red)';
             if (bookBtn) {
                 bookBtn.innerText = "Book Tomorrow";
                 bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
             }
-        } else if (isLive) {
+        } else if (isLive || isBoarding || isUrgent || isNext) {
+            timeTextEl.classList.remove('finished-schedule');
+            timeTextEl.style.color = 'var(--uganda-yellow)';
+            
+            if (isLive) {
             timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
             barEl.style.width = '100%';
             barEl.style.background = 'var(--uganda-red)';
-            timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
                 let bTxt = isFutureSearch ? "Book For Tomorrow" : "Book Today";
                 bookBtn.innerText = bTxt;
@@ -1519,7 +1527,10 @@ function refreshActiveSchedules() {
             if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
+            }
         } else {
+            timeTextEl.classList.remove('finished-schedule');
+            timeTextEl.style.color = 'white';
             const hh = String(h).padStart(2, '0');
             const mm = String(m).padStart(2, '0');
             const ss = String(s).padStart(2, '0');
@@ -1740,7 +1751,7 @@ async function confirmBooking(){
     bus: selectedBus?.name || "Unknown Bus", // Ensure selectedBus is defined
     seat: selectedSeat,
     price: selectedBus?.price || 0,
-    date: document.getElementById('date') ? document.getElementById('date').value : new Date().toISOString().split('T')[0],
+    date: document.getElementById('date') ? document.getElementById('date').value : getKampalaDateISO(),
     from: document.getElementById('from').value,
     to: document.getElementById('to').value,
     payment: selectedPayment,
@@ -2113,7 +2124,7 @@ function renderSchedules(){
 function refreshBusSchedules() {
     if (trips.length === 0) return;
 
-    const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
+    const now = new Date();
     const windowMs = 24 * 60 * 60 * 1000;
 
     trips.forEach(t => {
@@ -2135,7 +2146,7 @@ function refreshBusSchedules() {
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         
-        const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const todayISO = getKampalaDateISO(now);
         const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
         const [y, m_val, d] = dateToUse.split('-').map(Number);
         const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
@@ -2751,13 +2762,14 @@ function adminQuickBook() {
   const phone = document.getElementById('qbPhone').value;
   const busId = document.getElementById('qbBus').value;
   const date = document.getElementById('qbDate').value;
+  const time = document.getElementById('qbTime').value;
   const bus = buses.find(b => b.id == busId);
 
-  if(!name || !phone || !bus || !date) return alert("Please fill all fields to issue a ticket.");
+  if(!name || !phone || !bus || !date || !time) return alert("Please fill all fields to issue a ticket.");
 
   const ticket = {
     id: Math.floor(100000 + Math.random() * 900000),
-    bus: bus.name, seat: 1, price: bus.price, date: date,
+    bus: bus.name, seat: 1, price: bus.price, date: date, time: time,
     from: bus.route.split(' - ')[0], to: bus.route.split(' - ')[1],
     payment: "ADMIN_MANUAL", passenger: name, passengerPhone: phone,
     email: "admin@smartseat.ug", status: "ACTIVE", timestamp: new Date().toISOString()
@@ -3518,7 +3530,7 @@ function addRoute(){
     id: Date.now(),
     from: from,
     to: to,
-    date: new Date().toISOString().split('T')[0],
+    date: getKampalaDateISO(),
     time: '08:00',
     price: parseInt(price),
     bus: 'New Route Bus',
@@ -3706,9 +3718,7 @@ async function seedFirestore() {
   if (!confirm("This will add sample bus routes to your live database. Continue?")) return;
 
   const batch = db.batch();
-  const todayISO = new Intl.DateTimeFormat('en-CA', { 
-    timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-  }).format(new Date());
+  const todayISO = getKampalaDateISO();
 
   standardOperators.forEach(op => {
     standardTimes.forEach(time => {
