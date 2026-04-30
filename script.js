@@ -459,6 +459,7 @@ function renderUpcomingJourneys() {
     const terminalData = terminals.find(term => term.city === t.from);
     const terminalName = terminalData ? terminalData.name : `Unassigned (${t.from})`;
     const nowWall = getKampalaWallClockTime();
+    const fillWindowMs = 12 * 60 * 60 * 1000; // Fill progress across the upcoming 12-hour window
     let focusFound = false;
     let activeSectionHtml = "";
 
@@ -510,7 +511,11 @@ function renderUpcomingJourneys() {
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-                barWidth = "5%"; // Minimal width for far future trips to be visible
+                if (diff <= fillWindowMs) {
+                    barWidth = Math.max(0, Math.min(100, ((fillWindowMs - diff) / fillWindowMs) * 100)) + "%";
+                } else {
+                    barWidth = "0%";
+                }
                 barColor = "var(--primary-color)"; // Default color
             }
 
@@ -549,7 +554,7 @@ function renderUpcomingJourneys() {
             chipWeight = '800';
         }
 
-        return `<span style="color: ${chipColor}; text-decoration: ${decor}; font-weight: ${chipWeight}; font-size: 0.8rem; white-space: nowrap;">${tr.time}${isUserSlot ? ' <i class="fas fa-ticket-alt" style="font-size: 0.6rem;"></i>' : ''}</span>`;
+        return `<span style="color: ${chipColor}; text-decoration: ${decor}; font-weight: ${chipWeight}; font-size: 0.8rem; white-space: nowrap; flex-shrink: 0;">${tr.time}${isUserSlot ? ' <i class="fas fa-ticket-alt" style="font-size: 0.6rem;"></i>' : ''}</span>`;
     }).join(' <span style="opacity: 0.1;">|</span> ');
 
     return `
@@ -570,7 +575,7 @@ function renderUpcomingJourneys() {
                 <button class="quick-btn" style="background:#4299e1; width:20px; height:20px; font-size: 0.6rem;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>
               </div>
             </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px;">
+            <div style="display: flex; flex-wrap: nowrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; overflow-x: auto; width: 100%;">
               ${timesRowHtml}
             </div> 
             ${activeSectionHtml}
@@ -1438,9 +1443,9 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
                     <div id="bar-${t.id}" class="progress-bar" style="width: 0%; transition: width 1s linear;"></div>
                 </div>
                 
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                    <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums;">--m --s left</span>
-                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0; ${btnStyle}" ${btnDisabled} ${btnAction}>${isSoldOut ? 'Full Capacity' : bTxt}</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px; margin-top:5px; flex-wrap: nowrap;">
+                    <span id="timer-${t.id}" style="font-size:0.75rem; color:var(--uganda-yellow); font-weight:600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;">--m --s left</span>
+                    <button id="book-btn-${t.id}" class='view-ticket-btn' style="margin:0; flex-shrink:0; ${btnStyle}" ${btnDisabled} ${btnAction}>${isSoldOut ? 'Full Capacity' : bTxt}</button>
                 </div>
             </div>
         </div>
@@ -2092,7 +2097,7 @@ function renderSchedules(){
 
   const nowWall = getKampalaWallClockTime();
   const todayISO = getKampalaDateISO();
-  const windowMs = 24 * 60 * 60 * 1000;
+  const boardingWindowMs = 30 * 60 * 1000;
 
   Object.values(groupedSchedules).forEach(group => {
     // Ensure slots are sorted by time so the earliest ones show up first
@@ -2113,10 +2118,13 @@ function renderSchedules(){
 
         const isLive = (diff <= 0 && diff > -15 * 60 * 1000) || t.manualLive;
         const finished = diff <= -15 * 60 * 1000 || t.manualFinished;
+        const isUrgent = diff > 0 && diff <= 5 * 60 * 1000;
+        const isBoarding = diff > 0 && diff <= boardingWindowMs;
 
         let statusText = finished ? "FINISHED" : isLive ? "LIVE" : t.time;
         let statusColor = finished ? "var(--uganda-red)" : isLive ? "var(--uganda-yellow)" : "white";
         let pulseClass = isLive ? "pulse-live" : "";
+        let barColor = finished || isLive ? "var(--uganda-red)" : isUrgent ? "var(--uganda-red)" : isBoarding ? "var(--uganda-yellow)" : "var(--primary-color)";
 
         return `
           <div class="${pulseClass}" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border-left: 3px solid ${statusColor};">
@@ -2141,7 +2149,7 @@ function renderSchedules(){
               </div>
             </div>
             <div class="progress-container" style="height:3px; margin: 5px 0;">
-               <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${finished?'100%':Math.max(0,Math.min(100,((windowMs-diff)/windowMs)*100))}%"></div>
+               <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${finished || isLive ? '100%' : diff <= boardingWindowMs ? Math.max(0, Math.min(100, ((boardingWindowMs - diff) / boardingWindowMs) * 100)) + '%' : '0%'}; background: ${barColor};"></div>
             </div>
           </div>
         `;
@@ -2173,7 +2181,7 @@ function refreshBusSchedules() {
 
     const nowWall = getKampalaWallClockTime();
     const todayISO = getKampalaDateISO();
-    const windowMs = 24 * 60 * 60 * 1000;
+    const boardingWindowMs = 30 * 60 * 1000;
 
     // Identify the "Next Departure" per terminal route to apply yellow highlighting
     const nextDepartures = trips
@@ -2267,8 +2275,12 @@ function refreshBusSchedules() {
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
-                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-            } // For future trips, bar is empty
+                if (diff <= boardingWindowMs) {
+                    barWidth = Math.max(0, Math.min(100, ((boardingWindowMs - diff) / boardingWindowMs) * 100)) + "%";
+                } else {
+                    barWidth = "0%";
+                }
+            } // For future trips, bar fills only in the final boarding window
         }
 
         if (showLateAlert) {

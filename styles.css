@@ -1006,11 +1006,31 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 10px 0;
+  padding: 10px 0 90px;
 }
 
 .upcoming-journey-list::-webkit-scrollbar {
   display: none; /* Hide scrollbar Chrome/Safari */
+}
+
+#upcomingJourneyList .upcoming-card:last-child {
+  margin-bottom: 24px;
+}
+
+#upcomingJourneyList .upcoming-card {
+  min-height: 140px;
+}
+
+#activeSchedulesList {
+  padding-bottom: 90px;
+}
+
+#activeSchedulesList .upcoming-card {
+  min-height: 120px;
+}
+
+#activeSchedulesList .upcoming-card:last-child {
+  margin-bottom: 24px;
 }
 
 .upcoming-card {
