@@ -166,6 +166,25 @@ function getKampalaWallClockTime() {
     return Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);
 }
 
+// Helper function to get the current Date object in Kampala timezone
+function getKampalaDateObject(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Africa/Kampala',
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        hour12: false // Use 24-hour format for easier parsing
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parseInt(parts.find(p => p.type === 'year').value);
+    const month = parseInt(parts.find(p => p.type === 'month').value) - 1; // Month is 0-indexed
+    const day = parseInt(parts.find(p => p.type === 'day').value);
+    const hour = parseInt(parts.find(p => p.type === 'hour').value);
+    const minute = parseInt(parts.find(p => p.type === 'minute').value);
+    const second = parseInt(parts.find(p => p.type === 'second').value);
+
+    return new Date(year, month, day, hour, minute, second);
+}
+
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
 /**
  * In a production environment, this would call a service like Africa's Talking or Twilio.
@@ -450,12 +469,12 @@ function renderUpcomingJourneys() {
         const [y, m_val, d] = (tr.date === 'DAILY' ? todayISO : tr.date).split('-').map(Number);
         
         const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
-        const diff = departureWall - nowWall;
+        const diff = departureWall - nowWall; // Difference in milliseconds
 
         const manualFinished = tr.manualFinished || false;
         const manualLive = tr.manualLive || false;
         const finished = diff <= -15 * 60 * 1000 || manualFinished;
-        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || manualLive;
+        const isLive = (diff <= 0 && diff > -15 * 60 * 1000) || manualLive;
         const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
         const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
         const isUserSlot = t.date === todayISO && tr.time === t.time && tr.busName === t.bus;
@@ -463,7 +482,7 @@ function renderUpcomingJourneys() {
         let isActive = false;
         if (!finished && !focusFound) {
             isActive = true;
-            focusFound = true;
+            focusFound = true; // Mark that we found the first active slot
 
             let statusText = "";
             let barWidth = "0%";
@@ -472,19 +491,19 @@ function renderUpcomingJourneys() {
 
             if (isLive) {
                 statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
-                barWidth = "100%";
+                barWidth = "100%"; // Live means it's already past departure
                 barColor = "var(--uganda-red)";
             } else if (isUrgent) {
                 statusText = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
                 const totalSec = Math.floor(diff / 1000);
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
-                statusText += ` <small>${mm}:${ss}</small>`;
-                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                statusText += ` <small>${mm}m ${ss}s</small>`;
+                barWidth = Math.max(0, Math.min(100, (30 * 60 * 1000 - diff) / (30 * 60 * 1000) * 100)) + "%"; // Progress within 30 min window
                 barColor = "var(--uganda-red)";
             } else if (isBoarding) {
                 statusText = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
-                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                barWidth = Math.max(0, Math.min(100, (30 * 60 * 1000 - diff) / (30 * 60 * 1000) * 100)) + "%"; // Progress within 30 min window
                 barColor = "var(--uganda-yellow)";
             } else {
                 const totalSec = Math.floor(diff / 1000);
@@ -492,7 +511,7 @@ function renderUpcomingJourneys() {
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                barWidth = "0%"; // For times far in the future, bar is empty
                 if (diff / (1000 * 60) < 30) barColor = "var(--uganda-red)";
             }
 
@@ -1438,7 +1457,7 @@ function refreshActiveSchedules() {
     const listContainer = document.getElementById('activeSchedulesList');
     if (!listContainer || !activeSearchSchedules) return;
 
-    const nowWall = getKampalaWallClockTime();
+    const nowWall = getKampalaWallClockTime(); // Use wall clock for consistent comparison
     const windowMs = 24 * 60 * 60 * 1000;
     let allFinished = true;
     const todayISO = getKampalaDateISO();
@@ -1466,7 +1485,7 @@ function refreshActiveSchedules() {
         const [y, m_val, d] = dateToUse.split('-').map(Number);
         
         const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
-        return (departureWall - nowWall) > -10 * 60 * 1000 && !t.manualFinished;
+        return (departureWall - nowWall) > -15 * 60 * 1000 && !t.manualFinished; // Consider "active" if not finished and within 15 min past
     })?.id;
 
     activeSearchSchedules.data.forEach((t) => {
@@ -1480,7 +1499,7 @@ function refreshActiveSchedules() {
         const [y, m_val, d] = dateToUse.split('-').map(Number);
         
         const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
-        const diffMs = departureWall - nowWall;
+        const diffMs = departureWall - nowWall; // Difference in milliseconds
         
         const timerEl = document.getElementById(`timer-${t.id}`);
         const barEl = document.getElementById(`bar-${t.id}`);
@@ -1489,18 +1508,18 @@ function refreshActiveSchedules() {
         const delayEl = document.getElementById(`delay-info-${t.id}`);
         if (!timerEl || !barEl || !timeTextEl) return;
 
-        let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
+        let progress = 0; // Default to 0 for future trips
         const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
         const h = Math.floor(totalSeconds / 3600);
         const m = Math.floor((totalSeconds % 3600) / 60);
         const s = totalSeconds % 60;
 
-        let barColor = 'var(--primary-color)';
+        let barColor = 'var(--primary-color)'; // Default color
         if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
 
         // Check for manual live override from operator
         const isLive = (diffMs <= 0 && diffMs > -15 * 60 * 1000) || t.manualLive;
-        const finished = diffMs <= -10 * 60 * 1000 || t.manualFinished;
+        const finished = diffMs <= -15 * 60 * 1000 || t.manualFinished;
         if (!finished) allFinished = false;
         const isUrgent = diffMs > 0 && diffMs < 5 * 60 * 1000;
         const isBoarding = diffMs > 0 && diffMs < 30 * 60 * 1000;
@@ -1511,7 +1530,7 @@ function refreshActiveSchedules() {
             timeTextEl.classList.add('finished-schedule');
             timeTextEl.style.color = 'var(--uganda-red)';
             barEl.style.width = '100%';
-            barEl.style.background = 'var(--uganda-red)';
+            barEl.style.background = 'var(--uganda-red)'; // Finished is always red
             if (bookBtn) {
                 bookBtn.innerText = "Book Tomorrow";
                 bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
@@ -1520,10 +1539,10 @@ function refreshActiveSchedules() {
             timeTextEl.classList.remove('finished-schedule');
             timeTextEl.style.color = 'var(--uganda-yellow)';
             if (isLive) {
-            timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
-            barEl.style.width = '100%';
-            barEl.style.background = 'var(--uganda-red)';
-            if (bookBtn) {
+                timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
+                barEl.style.width = '100%';
+                barEl.style.background = 'var(--uganda-red)';
+                if (bookBtn) {
                 let bTxt = isFutureSearch ? "Book For Tomorrow" : "Book Today";
                 bookBtn.innerText = bTxt;
                 bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
@@ -1531,7 +1550,7 @@ function refreshActiveSchedules() {
         } else if (isUrgent) {
             timerEl.innerHTML = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
             barEl.style.width = '95%';
-            barEl.style.background = 'var(--uganda-red)';
+            barEl.style.background = 'var(--uganda-red)'; // Urgent is red
             if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
@@ -1539,7 +1558,7 @@ function refreshActiveSchedules() {
             timerEl.innerHTML = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
             barEl.style.width = '80%';
             barEl.style.background = 'var(--uganda-yellow)';
-            if (bookBtn) {
+                if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
             }
@@ -1550,7 +1569,7 @@ function refreshActiveSchedules() {
             const mm = String(m).padStart(2, '0');
             const ss = String(s).padStart(2, '0');
             timerEl.innerHTML = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-            barEl.style.width = progress + '%';
+            barEl.style.width = '0%'; // For future trips, bar is empty
             barEl.style.background = barColor;
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
@@ -2068,24 +2087,27 @@ function renderSchedules(){
         return acc;
     }, {});
 
-  const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
-  const todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const nowWall = getKampalaWallClockTime();
+  const todayISO = getKampalaDateISO();
   const windowMs = 24 * 60 * 60 * 1000;
 
   Object.values(groupedSchedules).forEach(group => {
-    const slotsHtml = group.slots.slice(0, 4).map(t => {
-        const isSoldOut = (t.availableSeats === 0);
+    // Ensure slots are sorted by time so the earliest ones show up first
+    group.slots.sort((a, b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
+
+    const slotsHtml = group.slots.slice(0, 6).map(t => {
         const [hPart, mFull] = (t.time || "08:00 AM").split(':');
         const [mPart, ampm] = mFull.split(' ');
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
         const [y, m_val, d] = todayISO.split('-').map(Number);
-        const departure = new Date(y, m_val - 1, d, hrs, parseInt(mPart), 0, 0);
-        const diff = departure - now;
+        
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        const diff = departureWall - nowWall;
 
-        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
-        const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
+        const isLive = (diff <= 0 && diff > -15 * 60 * 1000) || t.manualLive;
+        const finished = diff <= -15 * 60 * 1000 || t.manualFinished;
 
         let statusText = finished ? "FINISHED" : isLive ? "LIVE" : t.time;
         let statusColor = finished ? "var(--uganda-red)" : isLive ? "var(--uganda-yellow)" : "white";
@@ -2096,16 +2118,21 @@ function renderSchedules(){
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
                 <span id="bus-timer-val-${t.id}" style="font-weight:700; color:${statusColor}">${statusText}</span>
-                <div id="bus-name-text-${t.id}" style="font-size:0.7rem; opacity:0.7;">${t.busName} (${t.availableSeats}/${t.totalSeats})</div>
+                  <div id="bus-name-text-${t.id}" style="font-size:0.7rem; opacity:0.7;">${t.busName} (${t.availableSeats}/${t.totalSeats}) [${t.time}]</div>
                 <div id="bus-delay-text-${t.id}" style="font-size: 0.6rem; color: var(--uganda-yellow); margin-top: 2px;">
                     ${t.delayReason ? `<i class="fas fa-info-circle"></i> ${t.delayReason}` : ''}
                 </div>
               </div>
-              <div id="bus-actions-area-${t.id}" style="display:flex; gap:5px;">
-                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start</button>` : ''}
-                ${(!finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">ETD</button>` : ''}
-                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Finish</button>` : ''}
-                ${role === 'admin' ? `<button class="view-ticket-btn" style="padding:4px 8px; font-size:0.55rem; background:var(--uganda-red); color:white;" onclick="deleteDailySlot('${t.id}')" title="Delete Template Slot"><i class="fas fa-trash"></i></button>` : ''}
+                <div id="bus-actions-area-${t.id}" style="display:flex; flex-direction: column; gap:4px;">
+                  <div style="display:flex; gap:4px;">
+                    <button class="view-ticket-btn" style="padding:2px 6px; font-size:0.5rem; background:var(--uganda-yellow); color:black;" onclick="setTripManualStatus('${t.id}', 'live')" title="Force Live">LIVE</button>
+                    <button class="view-ticket-btn" style="padding:2px 6px; font-size:0.5rem; background:var(--uganda-red); color:white;" onclick="setTripManualStatus('${t.id}', 'finished')" title="Force Finish">FINISH</button>
+                    <button class="view-ticket-btn" style="padding:2px 6px; font-size:0.5rem; background:#4a5568; color:white;" onclick="setTripManualStatus('${t.id}', 'reset')" title="Reset/Fresh">RESET</button>
+                  </div>
+                  <div style="display:flex; gap:4px;">
+                    ${(!finished) ? `<button class="view-ticket-btn" style="padding:2px 6px; font-size:0.5rem; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">ETD</button>` : ''}
+                    ${role === 'admin' ? `<button class="view-ticket-btn" style="padding:2px 6px; font-size:0.5rem; background:var(--uganda-red); color:white;" onclick="deleteDailySlot('${t.id}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+                  </div>
               </div>
             </div>
             <div class="progress-container" style="height:3px; margin: 5px 0;">
@@ -2140,7 +2167,28 @@ function refreshBusSchedules() {
     if (trips.length === 0) return;
 
     const nowWall = getKampalaWallClockTime();
+    const todayISO = getKampalaDateISO();
     const windowMs = 24 * 60 * 60 * 1000;
+
+    // Identify the "Next Departure" per terminal route to apply yellow highlighting
+    const nextDepartures = trips
+        .filter(t => t.date === 'DAILY')
+        .reduce((acc, t) => {
+            const key = `${t.from}-${t.to}`;
+            const [hPart, mFull] = (t.time || "08:00 AM").split(':');
+            const [mPart, ampm] = mFull.split(' ');
+            let hrs = parseInt(hPart);
+            if (ampm === 'PM' && hrs < 12) hrs += 12;
+            if (ampm === 'AM' && hrs === 12) hrs = 0;
+            const departureWall = Date.UTC(todayISO.split('-')[0], todayISO.split('-')[1]-1, todayISO.split('-')[2], hrs, parseInt(mPart), 0);
+            
+            const isFinished = (departureWall - nowWall) <= -15 * 60 * 1000;
+            if (!isFinished && (!acc[key] || getMinutesFromMidnight(t.time) < getMinutesFromMidnight(acc[key].time))) {
+                acc[key] = t;
+            }
+            return acc;
+        }, {});
+    const nextIds = Object.values(nextDepartures).map(t => t.id);
 
     trips.forEach(t => {
         // We update specific elements by ID, which is fine if they are unique per trip
@@ -2166,12 +2214,16 @@ function refreshBusSchedules() {
         const [y, m_val, d] = dateToUse.split('-').map(Number);
 
         const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
-        const diff = departureWall - nowWall;
+        const diff = departureWall - nowWall; // Difference in milliseconds
 
-        const isLive = (diff <= 0 && diff > -10 * 60 * 1000) || t.manualLive;
-        const finished = diff <= -10 * 60 * 1000 || t.manualFinished;
+        const manualFinished = t.manualFinished || false;
+        const manualLive = t.manualLive || false;
+
+        const isLive = (diff <= 0 && diff > -15 * 60 * 1000) || manualLive;
+        const finished = diff <= -15 * 60 * 1000 || manualFinished;
         const isUrgent = diff > 0 && diff < 5 * 60 * 1000;
         const isBoarding = diff > 0 && diff < 30 * 60 * 1000;
+        const isNext = nextIds.includes(t.id);
         const showLateAlert = diff < -5 * 60 * 1000 && !finished && !t.manualLive;
 
         let statusHtml = "";
@@ -2180,11 +2232,14 @@ function refreshBusSchedules() {
 
         if (finished) {
             statusHtml = `<span class="status-finished"><i class="fas fa-times-circle"></i> FINISHED</span>`;
+            timerEl.style.color = 'var(--uganda-red)';
             barWidth = "100%";
             barColor = "var(--uganda-red)";
             nameEl.classList.add('finished-schedule');
         } else {
             nameEl.classList.remove('finished-schedule');
+            timerEl.style.color = (isLive || isBoarding || isUrgent || isNext) ? 'var(--uganda-yellow)' : 'white';
+
             if (isLive) {
                 statusHtml = `<span class="status-live"><span class="live-dot"></span> LIVE</span>`;
                 barWidth = "100%";
@@ -2192,11 +2247,11 @@ function refreshBusSchedules() {
             } else if (isUrgent) {
                 statusHtml = `<span class="status-urgent"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
                 barColor = "var(--uganda-red)";
-                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                barWidth = Math.max(0, Math.min(100, (30 * 60 * 1000 - diff) / (30 * 60 * 1000) * 100)) + "%"; // Progress within 30 min window
             } else if (isBoarding) {
                 statusHtml = `<span class="status-boarding"><i class="fas fa-door-open"></i> BOARDING</span>`;
                 barColor = "var(--uganda-yellow)";
-                barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
+                barWidth = Math.max(0, Math.min(100, (30 * 60 * 1000 - diff) / (30 * 60 * 1000) * 100)) + "%"; // Progress within 30 min window
             } else {
                 const totalSec = Math.floor(diff / 1000);
                 const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
@@ -2204,7 +2259,7 @@ function refreshBusSchedules() {
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
                 barWidth = Math.max(0, Math.min(100, ((windowMs - diff) / windowMs) * 100)) + "%";
-            }
+            } // For future trips, bar is empty
         }
 
         if (showLateAlert) {
@@ -2230,6 +2285,105 @@ function refreshBusSchedules() {
         `;
         if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
     });
+}
+
+/**
+ * Panic Button for Operators: Alerts Admins and specific trip passengers.
+ */
+async function triggerPanicButton() {
+    if (!confirm("EMERGENCY: Are you sure you want to send a Panic Alert? This will notify all SmartSeat Admins and your active passengers immediately.")) return;
+    
+    const opName = currentUser.name;
+    const todayISO = getKampalaDateISO();
+    
+    // Find daily trips for this operator to target passengers
+    const activeTrips = trips.filter(t => t.busName === opName && t.date === 'DAILY');
+    let passengerCount = 0;
+    
+    activeTrips.forEach(async (trip) => {
+        const tripTickets = tickets.filter(tk => tk.bus === trip.busName && tk.date === todayISO && tk.status !== 'CANCELLED');
+        passengerCount += tripTickets.length;
+        
+        tripTickets.forEach(tk => {
+            dispatchMultiChannel(tk.passengerPhone || tk.phone, `EMERGENCY ALERT from ${opName}: We have encountered an incident. Stay calm, help is being notified. Ticket #${tk.id}`, ['sms', 'whatsapp']);
+        });
+    });
+
+    // Notify Admins via Firestore notification
+    await db.collection('notifications').add({
+        title: "!!! PANIC ALERT !!!",
+        message: `Operator ${opName} has triggered a Panic Button alert! Location/Route: ${activeTrips.map(t => t.from + '-' + t.to).join(', ')}`,
+        timestamp: new Date().toISOString(),
+        read: false,
+        type: 'EMERGENCY'
+    });
+
+    showNotification("PANIC ALERT SENT! Help is on the way.", "error");
+    addActivityLog(`PANIC BUTTON TRIGGERED BY OPERATOR: ${opName}`);
+}
+
+/**
+ * Admin/Operator manual status override for testing or clearing stuck trips.
+ */
+window.setTripManualStatus = async function(tripId, status) {
+    const tripRef = db.collection('trips').doc(tripId);
+    let updates = {};
+    
+    if (status === 'live') {
+        updates = { manualLive: true, manualFinished: false };
+    } else if (status === 'finished') {
+        updates = { manualLive: false, manualFinished: true };
+    } else if (status === 'reset') {
+        updates = { 
+            manualLive: firebase.firestore.FieldValue.delete(), 
+            manualFinished: firebase.firestore.FieldValue.delete(),
+            delayReason: firebase.firestore.FieldValue.delete()
+        };
+    }
+
+    try {
+        await tripRef.update(updates);
+        showNotification(`Trip status updated to ${status.toUpperCase()}`, "success");
+    } catch (e) {
+        showNotification("Failed to update status", "error");
+    }
+};
+
+// New function for admin to reset trip statuses
+async function resetTripStatuses() {
+    if (role !== 'admin') {
+        showNotification("Access Denied: Only administrators can perform this action.", "error");
+        return;
+    }
+    if (!confirm("Are you sure you want to reset all trip statuses (manualLive, manualFinished, delayReason)? This will affect all daily recurring trips.")) {
+        return;
+    }
+
+    const batch = db.batch();
+    let count = 0;
+
+    trips.forEach(t => {
+        // Only reset for DAILY trips, as these are the templates
+        if (t.date === 'DAILY') {
+            const tripRef = db.collection('trips').doc(t.id);
+            batch.update(tripRef, {
+                manualLive: firebase.firestore.FieldValue.delete(), // Remove field if it exists
+                manualFinished: firebase.firestore.FieldValue.delete(), // Remove field if it exists
+                delayReason: firebase.firestore.FieldValue.delete() // Remove field if it exists
+            });
+            count++;
+        }
+    });
+
+    if (count > 0) {
+        await batch.commit();
+        showNotification(`Successfully reset statuses for ${count} daily trips.`, "success");
+            addActivityLog(`Admin reset statuses for ${count} daily trips.`);
+            // Force data refresh
+            if (activeSearchSchedules) loadTrips();
+    } else {
+        showNotification("No daily trips found to reset statuses.", "info");
+    }
 }
 
 /**
@@ -2307,6 +2461,41 @@ function confirmDeparture(tripId) {
         showNotification("Departure confirmed for " + trip.busName, "success");
         renderSchedules();
     }
+}
+
+let clockDifferenceMonitorInterval = null;
+
+function startClockDifferenceMonitor() {
+    if (clockDifferenceMonitorInterval) clearInterval(clockDifferenceMonitorInterval);
+
+    const clockDiffEl = document.getElementById('clockDifferenceAlert');
+    if (!clockDiffEl) return;
+
+    const updateClockDiff = () => {
+        const localTime = new Date(); // Local browser time
+        const kampalaTime = getKampalaDateObject(localTime); // Kampala time based on local time
+        
+        // To get the actual difference, we need to compare the UTC milliseconds
+        const localUtcMs = localTime.getTime();
+        const kampalaUtcMs = kampalaTime.getTime();
+
+        const diffMs = localUtcMs - kampalaUtcMs; // Local - Kampala
+        const diffMinutes = Math.round(diffMs / (1000 * 60));
+
+        if (Math.abs(diffMinutes) > 5) { // Alert if difference is more than 5 minutes
+            clockDiffEl.classList.remove('hidden');
+            clockDiffEl.style.background = 'var(--uganda-red)';
+            clockDiffEl.style.color = 'white';
+            clockDiffEl.style.padding = '10px';
+            clockDiffEl.style.borderRadius = '8px';
+            clockDiffEl.style.marginBottom = '20px';
+            clockDiffEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <strong>Clock Sync Warning:</strong> Your local time is ${Math.abs(diffMinutes)} minutes ${diffMinutes > 0 ? 'ahead of' : 'behind'} Kampala time. This may affect schedule accuracy.`;
+        } else {
+            clockDiffEl.classList.add('hidden');
+        }
+    };
+    updateClockDiff(); // Initial check
+    clockDifferenceMonitorInterval = setInterval(updateClockDiff, 30 * 1000); // Check every 30 seconds
 }
 
 /* GENERATE SEAT PREVIEW */
@@ -2903,10 +3092,10 @@ function loadDashboard(){
   }
 
   if (container && !document.getElementById('adminSeedBtn')) {
-    const btnWrap = document.createElement('div');
-    btnWrap.id = 'adminActionSection';
-    btnWrap.style.margin = '20px 0';
-    btnWrap.innerHTML = `
+    adminActionSection = document.createElement('div');
+    adminActionSection.id = 'adminActionSection';
+    adminActionSection.style.margin = '20px 0';
+    adminActionSection.innerHTML = `
       <h4 style="color:white; margin-bottom:10px;"><i class="fas fa-tools"></i> Admin Maintenance</h4>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <button id="adminSeedBtn" class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="seedFirestore()">
@@ -2915,10 +3104,23 @@ function loadDashboard(){
         <button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="deleteExpiredTrips()">
           <i class="fas fa-trash-alt"></i> Delete Old Trips
         </button>
+        <button class="btn" style="margin:0; background:#2b6cb0; color:white; grid-column: span 2;" onclick="resetTripStatuses()">
+          <i class="fas fa-sync-alt"></i> Reset All Trip Statuses
+        </button>
       </div>
     `;
-    container.appendChild(btnWrap);
+    container.appendChild(adminActionSection);
+  } else if (adminActionSection) {
+      // Ensure the clock difference alert is present if the section already exists
+      if (!document.getElementById('clockDifferenceAlert')) {
+          const clockDiffDiv = document.createElement('div');
+          clockDiffDiv.id = 'clockDifferenceAlert';
+          clockDiffDiv.className = 'hidden';
+          clockDiffDiv.style.marginBottom = '15px';
+          adminActionSection.insertBefore(clockDiffDiv, adminActionSection.children[1]); // Insert after h4
+      }
   }
+  startClockDifferenceMonitor(); // Start monitoring when dashboard loads
 }
 
 function loadUsers(){
