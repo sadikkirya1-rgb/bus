@@ -293,17 +293,19 @@ function startInfoTicker() {
 /* ONBOARDING & SPLASH */
 function checkFirstVisit() {
   const welcomeEl = document.getElementById('splashWelcome');
+  const splashScreen = document.getElementById('splashScreen');
+  const onboardingModal = document.getElementById('onboardingModal');
+
   if (currentUser && welcomeEl) {
     welcomeEl.innerText = `Welcome back, ${currentUser.name.split(' ')[0]}!`;
     welcomeEl.classList.add('fade-in');
   }
 
   setTimeout(() => {
-    document.getElementById('splashScreen').style.opacity = '0';
-    setTimeout(() => document.getElementById('splashScreen').classList.add('hidden'), 500);
-    
-    if (!localStorage.getItem("onboarded")) {
-      document.getElementById('onboardingModal').classList.remove('hidden');
+    splashScreen?.style && (splashScreen.style.opacity = '0');
+    setTimeout(() => splashScreen?.classList?.add('hidden'), 500);
+    if (!localStorage.getItem("onboarded") && onboardingModal) {
+      onboardingModal.classList.remove('hidden');
     }
   }, 2000);
 }
@@ -444,9 +446,6 @@ function renderUpcomingJourneys() {
   }).format(kampalaNow);
 
   container.innerHTML = userTickets.map((t, index) => {
-    const dateStr = new Date(t.date).toLocaleDateString('en-GB', { 
-      weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' 
-    });
 
     const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
     
@@ -488,7 +487,6 @@ function renderUpcomingJourneys() {
             let statusText = "";
             let barWidth = "0%";
             let barColor = "var(--primary-color)";
-            const windowMs = 24 * 60 * 60 * 1000;
 
             if (isLive) {
                 statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
@@ -512,8 +510,8 @@ function renderUpcomingJourneys() {
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-                barWidth = "0%"; // For times far in the future, bar is empty
-                if (diff / (1000 * 60) < 30) barColor = "var(--uganda-red)";
+                barWidth = "5%"; // Minimal width for far future trips to be visible
+                barColor = "var(--primary-color)"; // Default color
             }
 
             let btnText = "Book Today";
@@ -1098,7 +1096,8 @@ function populateCityLists() {
 }
 
 function filterToCities() {
-    const fromVal = document.getElementById('from').value;
+    const fromEl = document.getElementById('from');
+    const fromVal = fromEl ? fromEl.value : "";
     const toList = document.getElementById('ugandaCitiesTo');
     if (toList) {
         let source = ugandaCitiesList;
@@ -1512,7 +1511,6 @@ function refreshActiveSchedules() {
         const s = totalSeconds % 60;
 
         let barColor = 'var(--primary-color)'; // Default color
-        if (diffMs > 0 && (diffMs / (1000 * 60)) < 30) barColor = 'var(--uganda-red)';
 
         // Check for manual live override from operator
         const isLive = (diffMs <= 0 && diffMs > -15 * 60 * 1000) || t.manualLive;
@@ -1529,35 +1527,37 @@ function refreshActiveSchedules() {
             barEl.style.width = '100%';
             barEl.style.background = 'var(--uganda-red)'; // Finished is always red
             if (bookBtn) {
-                bookBtn.innerText = "Book Tomorrow";
-                bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
+              bookBtn.innerText = "Book Tomorrow";
+              bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
             }
-        } else if (isLive || isBoarding || isUrgent) {
+        } else if (isLive) {
+            statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
             timeTextEl.classList.remove('finished-schedule');
             timeTextEl.style.color = 'var(--uganda-yellow)';
-            if (isLive) {
-                timerEl.innerHTML = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
-                barEl.style.width = '100%';
-                barEl.style.background = 'var(--uganda-red)';
-                if (bookBtn) {
+            barWidth = '100%';
+            barColor = 'var(--uganda-red)';
+            if (bookBtn) {
                 let bTxt = isFutureSearch ? "Book For Tomorrow" : "Book Today";
                 bookBtn.innerText = bTxt;
                 bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
             }
         } else if (isUrgent) {
-            timerEl.innerHTML = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
-            barEl.style.width = '95%';
-            barEl.style.background = 'var(--uganda-red)'; // Urgent is red
+            statusText = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
+            timeTextEl.classList.remove('finished-schedule');
+            timeTextEl.style.color = 'var(--uganda-yellow)';
+            barWidth = Math.max(0, Math.min(100, (30 * 60 * 1000 - diffMs) / (30 * 60 * 1000) * 100)) + "%";
+            barColor = 'var(--uganda-red)'; // Urgent is red
             if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
         } else if (isBoarding) {
-            timerEl.innerHTML = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
-            barEl.style.width = '80%';
-            barEl.style.background = 'var(--uganda-yellow)';
-                if (bookBtn) {
+            statusText = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
+            timeTextEl.classList.remove('finished-schedule');
+            timeTextEl.style.color = 'var(--uganda-yellow)';
+            barWidth = Math.max(0, Math.min(100, (30 * 60 * 1000 - diffMs) / (30 * 60 * 1000) * 100)) + "%";
+            barColor = 'var(--uganda-yellow)';
+            if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
-            }
             }
         } else {
             timeTextEl.classList.remove('finished-schedule');
@@ -1566,12 +1566,12 @@ function refreshActiveSchedules() {
             const mm = String(m).padStart(2, '0');
             const ss = String(s).padStart(2, '0');
             timerEl.innerHTML = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-            const progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
-            barEl.style.width = progress + '%';
-            barEl.style.background = barColor;
+            barWidth = "5%"; // Minimal width for far future trips to be visible
+            barColor = "var(--primary-color)"; // Default color
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
+                bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
             }
         }
 

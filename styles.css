@@ -1123,9 +1123,8 @@ input, select, textarea {
 
 .progress-bar {
   height: 100%;
-  background: var(--primary-color);
   border-radius: 10px;
-  transition: width 0.5s ease;
+  transition: width 0.5s ease, background 0.5s ease;
 }
 
 .live-dot {
