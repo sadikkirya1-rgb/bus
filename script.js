@@ -2098,6 +2098,7 @@ function renderSchedules(){
   const nowWall = getKampalaWallClockTime();
   const todayISO = getKampalaDateISO();
   const boardingWindowMs = 30 * 60 * 1000;
+  const fillWindowMs = 12 * 60 * 60 * 1000;
 
   Object.values(groupedSchedules).forEach(group => {
     // Ensure slots are sorted by time so the earliest ones show up first
@@ -2149,7 +2150,7 @@ function renderSchedules(){
               </div>
             </div>
             <div class="progress-container" style="height:3px; margin: 5px 0;">
-               <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${finished || isLive ? '100%' : diff <= boardingWindowMs ? Math.max(0, Math.min(100, ((boardingWindowMs - diff) / boardingWindowMs) * 100)) + '%' : '0%'}; background: ${barColor};"></div>
+               <div id="bus-bar-val-${t.id}" class="progress-bar" style="width: ${finished || isLive ? '100%' : isUrgent || isBoarding ? Math.max(0, Math.min(100, ((boardingWindowMs - diff) / boardingWindowMs) * 100)) + '%' : diff <= fillWindowMs ? Math.max(0, Math.min(100, ((fillWindowMs - diff) / fillWindowMs) * 100)) + '%' : '0%'}; background: ${barColor};"></div>
             </div>
           </div>
         `;
@@ -2182,6 +2183,7 @@ function refreshBusSchedules() {
     const nowWall = getKampalaWallClockTime();
     const todayISO = getKampalaDateISO();
     const boardingWindowMs = 30 * 60 * 1000;
+    const fillWindowMs = 12 * 60 * 60 * 1000;
 
     // Identify the "Next Departure" per terminal route to apply yellow highlighting
     const nextDepartures = trips
@@ -2275,12 +2277,9 @@ function refreshBusSchedules() {
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
-                if (diff <= boardingWindowMs) {
-                    barWidth = Math.max(0, Math.min(100, ((boardingWindowMs - diff) / boardingWindowMs) * 100)) + "%";
-                } else {
-                    barWidth = "0%";
-                }
-            } // For future trips, bar fills only in the final boarding window
+                barWidth = "5%"; // Minimal width for far future trips to be visible
+                barColor = "var(--primary-color)"; // Default color
+            } // For future trips, bar fills based on the same countdown window
         }
 
         if (showLateAlert) {
