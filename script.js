@@ -1572,8 +1572,12 @@ function refreshActiveSchedules() {
             const mm = String(m).padStart(2, '0');
             const ss = String(s).padStart(2, '0');
             timerEl.innerHTML = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-            barWidth = "5%"; // Minimal width for far future trips to be visible
             barColor = "var(--primary-color)"; // Default color
+            if (diffMs <= windowMs) {
+                barWidth = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100)) + "%";
+            } else {
+                barWidth = "0%";
+            }
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
@@ -2277,35 +2281,39 @@ function refreshBusSchedules() {
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
                 const ss = String(totalSec % 60).padStart(2, '0');
                 statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
-                barWidth = "5%"; // Minimal width for far future trips to be visible
-                barColor = "var(--primary-color)"; // Default color
-            } // For future trips, bar fills based on the same countdown window
+                if (diff <= fillWindowMs) {
+                    barWidth = Math.max(0, Math.min(100, ((fillWindowMs - diff) / fillWindowMs) * 100)) + "%";
+                } else {
+                    barWidth = "0%";
+                }
+                barColor = "var(--primary-color)";
+            }
+
+            if (showLateAlert) {
+                statusHtml = `<span class="status-delayed-alert"><i class="fas fa-clock"></i> 5M LATE</span>`;
+            }
+
+            // Only update HTML if it changed to prevent unnecessary re-flows
+            if (timerEl.innerHTML !== statusHtml) timerEl.innerHTML = statusHtml;
+            barEl.style.width = barWidth;
+            barEl.style.background = barColor;
+
+            if (busDelayEl) {
+                busDelayEl.innerHTML = t.delayReason ? `<i class="fas fa-info-circle"></i> ${t.delayReason}` : '';
+            }
+
+            // Handle Button visibility changes dynamically
+            let actionButtonsHtml = `
+                ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start Boarding</button>` : ''}
+                ${(!finished) ? `<button class="view-ticket-btn" style="margin:0; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">Update ETD</button>` : ''}
+                ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Departure Confirmed</button>` : ''}
+                ${role === 'admin' ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="deleteDailySlot('${t.id}')">Delete Slot</button>` : ''}
+                <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
+            `;
+            if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
         }
-
-        if (showLateAlert) {
-            statusHtml = `<span class="status-delayed-alert"><i class="fas fa-clock"></i> 5M LATE</span>`;
-        }
-
-        // Only update HTML if it changed to prevent unnecessary re-flows
-        if (timerEl.innerHTML !== statusHtml) timerEl.innerHTML = statusHtml;
-        barEl.style.width = barWidth;
-        barEl.style.background = barColor;
-
-        if (busDelayEl) {
-            busDelayEl.innerHTML = t.delayReason ? `<i class="fas fa-info-circle"></i> ${t.delayReason}` : '';
-        }
-
-        // Handle Button visibility changes dynamically
-        let actionButtonsHtml = `
-            ${(!finished && !isLive) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="startBoarding('${t.id}')">Start Boarding</button>` : ''}
-            ${(!finished) ? `<button class="view-ticket-btn" style="margin:0; background:#2b6cb0; color:white;" onclick="updateETD('${t.id}')">Update ETD</button>` : ''}
-            ${(isLive && !finished) ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="confirmDeparture('${t.id}')">Departure Confirmed</button>` : ''}
-            ${role === 'admin' ? `<button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="deleteDailySlot('${t.id}')">Delete Slot</button>` : ''}
-            <button class="view-ticket-btn" style="margin:0;" onclick="sendManifestToOperator('${t.busName}', '${t.date}')">SMS Manifest</button>
-        `;
-        if (actionsEl.innerHTML !== actionButtonsHtml) actionsEl.innerHTML = actionButtonsHtml;
-    });
-}
+        });
+    }
 
 /**
  * Panic Button for Operators: Alerts Admins and specific trip passengers.
