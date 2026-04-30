@@ -141,6 +141,18 @@ function getKampalaDateISO(date = new Date()) {
         day: '2-digit'
     }).format(date);
 }
+
+// Helper to compare "HH:MM AM/PM" strings chronologically
+function getMinutesFromMidnight(timeStr) {
+    if (!timeStr) return 0;
+    const [hPart, mFull] = timeStr.split(':');
+    const [mPart, ampm] = mFull.split(' ');
+    let hrs = parseInt(hPart);
+    if (ampm === 'PM' && hrs < 12) hrs += 12;
+    if (ampm === 'AM' && hrs === 12) hrs = 0;
+    return hrs * 60 + parseInt(mPart);
+}
+
 // --- SMS GATEWAY INTEGRATION (MOCK) ---
 /**
  * In a production environment, this would call a service like Africa's Talking or Twilio.
@@ -410,7 +422,7 @@ function renderUpcomingJourneys() {
 
     // Get daily scheduled trips for this specific route (Daily Terminal View)
     const terminalTrips = trips.filter(tr => tr.from === t.from && tr.to === t.to && tr.date === 'DAILY')
-                               .sort((a,b) => a.time.localeCompare(b.time));
+                               .sort((a,b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
 
     // Look up real terminal name from admin configuration instead of hard-coding "Terminal"
     const terminalData = terminals.find(term => term.city === t.from);
@@ -1303,16 +1315,17 @@ function loadTrips(){
   } else {
     operatorList.forEach(name => {
       const opTrips = operatorGroups[name];
+      const searchDate = document.getElementById('date').value;
       let d = document.createElement("div");
       d.className = "upcoming-card fade-in";
       d.style.marginBottom = "12px";
-      d.onclick = () => renderOperatorSchedules(name, opTrips);
+      d.onclick = () => renderOperatorSchedules(name, opTrips, 'time', searchDate);
       d.innerHTML = `
         <div class="up-num"><i class="fas fa-building" style="font-size:1.2rem"></i></div>
         <div class="up-center">
           <div class="verified-badge"><i class="fas fa-check-circle"></i> Registered</div>
           <div class="up-terminal">${name}</div>
-          <div class="up-route-inline">${opTrips.length} Schedules Found</div>
+          <div class="up-route-inline">${opTrips.length} Daily Slots Found</div>
         </div>
         <div class="up-right">
           <i class="fas fa-chevron-right" style="color:var(--uganda-yellow); margin-top:5px;"></i>
@@ -1326,13 +1339,13 @@ function loadTrips(){
 /**
  * Displays the detailed schedules for a specific operator with countdowns.
  */
-function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
-    activeSearchSchedules = { name: operatorName, data: opTrips };
+function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', searchDate) {
+    activeSearchSchedules = { name: operatorName, data: opTrips, searchDate: searchDate };
     const tripsContainer = document.getElementById('trips');
     
     // Apply sorting
     if (sortOrder === 'time') {
-        opTrips.sort((a, b) => a.time.localeCompare(b.time));
+        opTrips.sort((a, b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
     } else if (sortOrder === 'price') {
         opTrips.sort((a, b) => a.price - b.price);
     }
@@ -1341,13 +1354,12 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
         timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
     }).format(new Date());
 
-    const kampalaNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
-    const tomorrow = new Date(kampalaNow);
-    tomorrow.setDate(kampalaNow.getDate() + 1);
-    const tomorrowDateStr = tomorrow.toLocaleDateString('en-GB', { 
+    // Format searchDate for display
+    const dateParts = searchDate.split('-');
+    const travelDateObj = new Date(dateParts[0], dateParts[1]-1, dateParts[2]);
+    const travelDateStr = travelDateObj.toLocaleDateString('en-GB', { 
         day: '2-digit', month: 'short', year: 'numeric' 
     });
-
     tripsContainer.innerHTML = `
         <div class="card" style="background: rgba(255,255,255,0.05); margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
@@ -1355,9 +1367,9 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
                     <i class="fas fa-arrow-left"></i> Back
                 </button>
                 <div style="text-align: right; display: flex; flex-direction: column;">
-                    <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Tomorrow Date</span>
+                    <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Travel Date</span>
                         <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
-                            <span id="headerTomorrowDate" style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${tomorrowDateStr}</span>
+                            <span id="headerTravelDate" style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${travelDateStr}</span>
                             <i class="fas fa-calendar-alt" style="cursor: pointer; color: white; font-size: 0.8rem;" onclick="setSearchDate('others')" title="Pick Date"></i>
                         </div>
                         <button id="switchTomorrowBtn" class="view-ticket-btn" style="margin-top: 5px; padding: 2px 8px; font-size: 0.6rem;" onclick="rebookTomorrow('${document.getElementById('from').value}', '${document.getElementById('to').value}')">Switch to Tomorrow</button>
@@ -1369,10 +1381,12 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time') {
         <div id="activeSchedulesList"></div>
     `;
 
+    const isFutureSearch = searchDate > todayISO;
+
     // Initial render of static card skeletons
     const listContainer = document.getElementById('activeSchedulesList');
     listContainer.innerHTML = opTrips.map((t, index) => {
-        let bTxt = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+        let bTxt = isFutureSearch ? "Book For Tomorrow" : "Book Today";
         const isSoldOut = (t.availableSeats === 0);
         const soldOutBadge = isSoldOut ? `<span class="badge bg-used" style="margin-left:10px; font-size:0.6rem;">SOLD OUT</span>` : '';
         const btnDisabled = isSoldOut ? 'disabled' : '';
@@ -1422,14 +1436,20 @@ function refreshActiveSchedules() {
     const now = new Date(new Date().toLocaleString("en-US", {timeZone: "Africa/Kampala"}));
     const windowMs = 24 * 60 * 60 * 1000;
     let allFinished = true;
+    const todayISO = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
+    }).format(now);
 
-    // Auto-update the "Tomorrow Date" header if it exists
-    const headerTomorrow = document.getElementById('headerTomorrowDate');
-    if (headerTomorrow) {
-        const tomorrowDate = new Date(now);
-        tomorrowDate.setDate(now.getDate() + 1);
-        headerTomorrow.innerText = tomorrowDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Auto-update the "Travel Date" header if it exists
+    const headerTravel = document.getElementById('headerTravelDate');
+    if (headerTravel && activeSearchSchedules) {
+        const dateParts = activeSearchSchedules.searchDate.split('-');
+        const travelDateObj = new Date(dateParts[0], dateParts[1]-1, dateParts[2]);
+        headerTravel.innerText = travelDateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     }
+
+    const searchDate = activeSearchSchedules.searchDate;
+    const isFutureSearch = searchDate > todayISO;
 
     activeSearchSchedules.data.forEach((t) => {
         const [hPart, mFull] = (t.time || "08:00 AM").split(':');
@@ -1449,10 +1469,6 @@ function refreshActiveSchedules() {
         const bookBtn = document.getElementById(`book-btn-${t.id}`);
         const delayEl = document.getElementById(`delay-info-${t.id}`);
         if (!timerEl || !barEl || !timeTextEl) return;
-
-        const todayISO = new Intl.DateTimeFormat('en-CA', { 
-            timeZone: 'Africa/Kampala', year: 'numeric', month: '2-digit', day: '2-digit' 
-        }).format(new Date());
 
         let progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
         const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
@@ -1485,7 +1501,7 @@ function refreshActiveSchedules() {
             barEl.style.background = 'var(--uganda-red)';
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
-                let bTxt = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+                let bTxt = isFutureSearch ? "Book For Tomorrow" : "Book Today";
                 bookBtn.innerText = bTxt;
                 bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
             }
@@ -1494,14 +1510,14 @@ function refreshActiveSchedules() {
             barEl.style.width = '95%';
             barEl.style.background = 'var(--uganda-red)';
             if (bookBtn) {
-                bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+                bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
         } else if (isBoarding) {
             timerEl.innerHTML = `<span class="status-boarding" style="font-size: 0.85rem;"><i class="fas fa-door-open"></i> BOARDING</span>`;
             barEl.style.width = '80%';
             barEl.style.background = 'var(--uganda-yellow)';
             if (bookBtn) {
-                bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+                bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
         } else {
             const hh = String(h).padStart(2, '0');
@@ -1512,7 +1528,7 @@ function refreshActiveSchedules() {
             barEl.style.background = barColor;
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
-                bookBtn.innerText = t.date > todayISO ? "Book For Tomorrow" : "Book Today";
+                bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
             }
         }
 
