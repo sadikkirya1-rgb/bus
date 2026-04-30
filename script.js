@@ -145,8 +145,11 @@ function getKampalaDateISO(date = new Date()) {
 // Helper to compare "HH:MM AM/PM" strings chronologically
 function getMinutesFromMidnight(timeStr) {
     if (!timeStr) return 0;
-    const [hPart, mFull] = timeStr.split(':');
-    const [mPart, ampm] = mFull.split(' ');
+    const timeStrClean = timeStr.replace(/\s+/g, '');
+    const [hPart, mFull] = timeStrClean.split(':');
+    if (!mFull || mFull.length < 3) return 0;
+    const mPart = mFull.slice(0, -2);
+    const ampm = mFull.slice(-2).toUpperCase();
     let hrs = parseInt(hPart);
     if (ampm === 'PM' && hrs < 12) hrs += 12;
     if (ampm === 'AM' && hrs === 12) hrs = 0;
@@ -461,14 +464,12 @@ function renderUpcomingJourneys() {
     let activeSectionHtml = "";
 
     const timesRowHtml = terminalTrips.map((tr) => {
-        const [hPart, mFull] = (tr.time || "08:00 AM").split(':');
-        const [mPart, ampm] = mFull.split(' ');
-        let hrs = parseInt(hPart);
-        if (ampm === 'PM' && hrs < 12) hrs += 12;
-        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        const mins = getMinutesFromMidnight(tr.time || "08:00 AM");
+        const hrs = Math.floor(mins / 60);
+        const mPart = mins % 60;
         const [y, m_val, d] = (tr.date === 'DAILY' ? todayISO : tr.date).split('-').map(Number);
         
-        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, mPart, 0);
         const diff = departureWall - nowWall; // Difference in milliseconds
 
         const manualFinished = tr.manualFinished || false;
@@ -1448,6 +1449,8 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
     }).join('');
 
     refreshActiveSchedules();
+
+    refreshActiveSchedules();
 }
 
 /**
@@ -1476,29 +1479,23 @@ function refreshActiveSchedules() {
     // Identify the Next Departure ID
     const sortedData = [...activeSearchSchedules.data].sort((a,b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
     const firstActiveId = sortedData.find(t => {
-        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
-        const [mPart, ampm] = mFull.split(' ');
-        let hrs = parseInt(hPart);
-        if (ampm === 'PM' && hrs < 12) hrs += 12;
-        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        const mins = getMinutesFromMidnight(t.time || "08:00 AM");
         const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
         const [y, m_val, d] = dateToUse.split('-').map(Number);
         
-        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+        const departureWall = Date.UTC(y, m_val - 1, d, Math.floor(mins / 60), mins % 60, 0);
         return (departureWall - nowWall) > -15 * 60 * 1000 && !t.manualFinished; // Consider "active" if not finished and within 15 min past
     })?.id;
 
     activeSearchSchedules.data.forEach((t) => {
-        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
-        const [mPart, ampm] = mFull.split(' ');
-        let hrs = parseInt(hPart);
-        if (ampm === 'PM' && hrs < 12) hrs += 12;
-        if (ampm === 'AM' && hrs === 12) hrs = 0;
+        const mins = getMinutesFromMidnight(t.time || "08:00 AM");
+        const hrs = Math.floor(mins / 60);
+        const mPart = mins % 60;
         
         const dateToUse = (t.date === 'DAILY') ? todayISO : t.date;
         const [y, m_val, d] = dateToUse.split('-').map(Number);
-        
-        const departureWall = Date.UTC(y, m_val - 1, d, hrs, parseInt(mPart), 0);
+
+        const departureWall = Date.UTC(y, m_val - 1, d, hrs, mPart, 0);
         const diffMs = departureWall - nowWall; // Difference in milliseconds
         
         const timerEl = document.getElementById(`timer-${t.id}`);
@@ -1569,7 +1566,8 @@ function refreshActiveSchedules() {
             const mm = String(m).padStart(2, '0');
             const ss = String(s).padStart(2, '0');
             timerEl.innerHTML = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small style="opacity:0.7;">left</small>`;
-            barEl.style.width = '0%'; // For future trips, bar is empty
+            const progress = Math.max(0, Math.min(100, ((windowMs - diffMs) / windowMs) * 100));
+            barEl.style.width = progress + '%';
             barEl.style.background = barColor;
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
@@ -2096,8 +2094,10 @@ function renderSchedules(){
     group.slots.sort((a, b) => getMinutesFromMidnight(a.time) - getMinutesFromMidnight(b.time));
 
     const slotsHtml = group.slots.slice(0, 6).map(t => {
-        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
-        const [mPart, ampm] = mFull.split(' ');
+        const timeStrClean = (t.time || "08:00 AM").replace(/\s+/g, '');
+        const [hPart, mFull] = timeStrClean.split(':');
+        const mPart = mFull.slice(0, -2);
+        const ampm = mFull.slice(-2).toUpperCase();
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
@@ -2175,8 +2175,10 @@ function refreshBusSchedules() {
         .filter(t => t.date === 'DAILY')
         .reduce((acc, t) => {
             const key = `${t.from}-${t.to}`;
-            const [hPart, mFull] = (t.time || "08:00 AM").split(':');
-            const [mPart, ampm] = mFull.split(' ');
+            const timeStrClean = (t.time || "08:00 AM").replace(/\s+/g, '');
+            const [hPart, mFull] = timeStrClean.split(':');
+            const mPart = mFull.slice(0, -2);
+            const ampm = mFull.slice(-2).toUpperCase();
             let hrs = parseInt(hPart);
             if (ampm === 'PM' && hrs < 12) hrs += 12;
             if (ampm === 'AM' && hrs === 12) hrs = 0;
@@ -2203,8 +2205,10 @@ function refreshBusSchedules() {
         
         if (!timerEl || !barEl || !nameEl || !actionsEl) return;
 
-        const [hPart, mFull] = (t.time || "08:00 AM").split(':');
-        const [mPart, ampm] = mFull.split(' ');
+        const timeStrClean = (t.time || "08:00 AM").replace(/\s+/g, '');
+        const [hPart, mFull] = timeStrClean.split(':');
+        const mPart = mFull.slice(0, -2);
+        const ampm = mFull.slice(-2).toUpperCase();
         let hrs = parseInt(hPart);
         if (ampm === 'PM' && hrs < 12) hrs += 12;
         if (ampm === 'AM' && hrs === 12) hrs = 0;
