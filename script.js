@@ -2880,7 +2880,7 @@ function renderTickets(){
         <div class="smart-ticket ${isUsed ? 'used-ticket' : ''}">
           <div class="ticket-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <img src="assests/logo.png" style="width: 35px; height: 35px; border-radius: 50%; border: 1px solid var(--primary-color); object-fit: contain;">
+              <img src="assests/logo.png" style="width: 35px; height: 35px; border-radius: 50%; object-fit: contain;">
               <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS Boarding Pass</div>
             </div>
             <div class="badge ${statusClass}">${statusLabel}</div>
@@ -3990,7 +3990,7 @@ async function printTicketReceipt(id) {
                 ${adminStamp}
                 <div class="ticket-header">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <img src="assests/logo.png" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #007A3D; object-fit: contain;" alt="Logo">
+                        <img src="assests/logo.png" style="width: 50px; height: 50px; border-radius: 50%; object-fit: contain;" alt="Logo">
                         <div>
                             <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">UGBUS TICKETS Boarding Pass</div>
                             <div style="font-size: 0.65rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;">Identity Verified</div>
