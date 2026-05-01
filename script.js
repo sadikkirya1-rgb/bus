@@ -528,7 +528,7 @@ function renderUpcomingJourneys() {
             const timePulseClass = (isUrgent || isLive) ? "pulse-live" : "";
 
             activeSectionHtml = `
-              <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid ${isBoarding ? 'var(--primary-color)' : (isActive ? 'var(--uganda-yellow)' : 'transparent')};">
+              <div style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.4); border-radius: 8px; border: 1px solid rgba(0,0,0,0.3); border-left: 3px solid ${isBoarding ? 'var(--primary-color)' : (isActive ? 'var(--uganda-yellow)' : 'transparent')};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-size: 0.6rem; color: var(--uganda-yellow); font-weight: bold; text-transform: uppercase;">Next Departure:</span>
@@ -570,14 +570,14 @@ function renderUpcomingJourneys() {
           
           <div style="margin-top: 10px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap;">
-              <span style="font-size: 0.6rem; color: white; opacity: 0.6; font-weight: 600;">${todayLabelStr}</span>
+              <span style="font-size: 0.6rem; color: white; opacity: 1; font-weight: 600;">${todayLabelStr}</span>
               <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--uganda-yellow); font-weight: bold; opacity: 0.8;">Terminal Slots</span>
               <div style="margin-left: auto; display: flex; gap: 6px; align-items: center;">
                 <button class="view-ticket-btn" style="margin: 0; font-size: 0.55rem; padding: 2px 8px; background: var(--uganda-yellow); color: black; font-weight: bold;" onclick="event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">BOOK NOW</button>
                 <button class="quick-btn" style="background:#4299e1; width:20px; height:20px; font-size: 0.6rem;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>
               </div>
             </div>
-            <div style="display: flex; flex-wrap: nowrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; overflow-x: auto; width: 100%;">
+            <div style="display: flex; flex-wrap: nowrap; gap: 4px; align-items: center; background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.3); overflow-x: auto; width: 100%;">
               ${timesRowHtml}
             </div> 
             ${activeSectionHtml}
@@ -1425,7 +1425,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
         const btnAction = isSoldOut ? '' : `onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'`;
         
         return `
-        <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.3);">
+        <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.5);">
             <div class="up-num">#${index + 1}</div>
             <div class="up-center">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
@@ -2281,8 +2281,8 @@ function refreshBusSchedules() {
                 const totalSec = Math.floor(diff / 1000);
                 const hh = String(Math.floor((totalSec / 3600) % 24)).padStart(2, '0');
                 const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-                const ss = String(totalSec % 60).padStart(2, '0');
-                statusHtml = `<span style="font-weight:700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`;
+            const ss = String(totalSec % 60).padStart(2, '0'); // Pure white for numbers
+            statusText = `<span style="color: white; font-weight: 700;">${hh}h ${mm}m ${ss}s</span> <small>left</small>`; // Pure white for "left"
                 if (diff <= fillWindowMs) {
                     barWidth = Math.max(0, Math.min(100, ((fillWindowMs - diff) / fillWindowMs) * 100)) + "%";
                 } else {

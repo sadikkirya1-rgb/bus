@@ -286,7 +286,7 @@
 body{
   margin:0;
   font-family: 'Inter', 'Segoe UI', sans-serif;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)), url('assests/background.png');
+  background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.85)), url('assests/background.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -1048,9 +1048,9 @@ input, select, textarea {
 }
 
 .upcoming-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.4);
   border-radius: 12px;
   padding: 15px;
   display: flex;
@@ -1100,12 +1100,12 @@ input, select, textarea {
 }
 
 .up-num {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  font-size: 0.7rem;
-  opacity: 0.5;
-  font-weight: bold;
+  position: absolute; /* Pure white for numbers */
+  top: 5px; /* Pure white for numbers */
+  left: 5px; /* Pure white for numbers */
+  font-size: 0.7rem; /* Pure white for numbers */
+  color: white; /* Pure white for numbers */
+  font-weight: bold; /* Pure white for numbers */
 }
 
 .up-center {
@@ -1120,7 +1120,7 @@ input, select, textarea {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  opacity: 0.7;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .up-route-inline {
