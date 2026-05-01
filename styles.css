@@ -1471,33 +1471,52 @@ input:checked + .slider { background-color: var(--primary-color); }
 input:checked + .slider:before { transform: translateX(14px); }
 
 /* SEARCH SECTION GLASSMORPHISM */
+.search-section {
+  background: #b30000 !important; /* Deeper pure red with reduced brightness */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
 .search-section input {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: white !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  color: black !important;
   padding: 12px 15px !important;
   border-radius: 10px !important;
+  color-scheme: dark; /* Forces browser-rendered datalists and dropdowns to use dark theme */
 }
 
 .search-section input::placeholder {
   color: rgba(255, 255, 255, 0.6) !important;
 }
 
+.search-section .floating-label-group label {
+  color: #4a5568;
+}
+
 .date-btn {
   flex: 1;
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
+  background: var(--uganda-yellow) !important;
+  border: none !important;
+  color: black !important;
   padding: 10px 5px !important;
   font-size: 0.9rem !important;
+  border-radius: 8px !important; /* Added subtle border-radius */
   box-shadow: none !important;
+  transition: var(--transition);
+}
+
+.date-btn:hover:not(.active) {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
 .date-btn.active {
-  background: var(--primary-color) !important;
-  border-color: var(--primary-color) !important;
+  background: white !important;
+  color: #b30000 !important;
+  border: none !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.4) !important;
 }
 
 /* New styles for search controls bottom */
@@ -1511,6 +1530,35 @@ input:checked + .slider:before { transform: translateX(14px); }
 .search-controls-bottom input[type="date"] {
   flex-grow: 1; /* Allow date input to take available space */
   margin: 0; /* Remove default margin from input */
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: none !important;
+  color: white !important;
+  color-scheme: dark; /* Makes the calendar icon white for better contrast on red */
+}
+
+.search-controls-bottom input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* Ensures the icon is pure white across different browsers */
+}
+
+/* Style for the Search Buses button within the red card */
+.search-section .search-controls-bottom .btn {
+  background: var(--uganda-yellow) !important;
+  color: black !important;
+  transition: var(--transition);
+  animation: searchPulse 2s infinite;
+}
+
+@keyframes searchPulse {
+  0% { box-shadow: 0 0 0 0 rgba(252, 209, 22, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(252, 209, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(252, 209, 22, 0); }
+}
+
+.search-section .search-controls-bottom .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+  filter: brightness(1.1);
+  animation: none; /* Stop pulsing when user is about to click */
 }
 
 .swap-btn {
@@ -1518,8 +1566,8 @@ input:checked + .slider:before { transform: translateX(14px); }
   height: 32px;
   border-radius: 50%;
   background: var(--primary-color);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  color: white;
+  border: 2px solid var(--uganda-red); /* Changed from rgba to direct red */
+  background: white; /* Changed background to white */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1533,9 +1581,18 @@ input:checked + .slider:before { transform: translateX(14px); }
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
+.swap-btn i {
+  color: var(--uganda-red); /* Changed icon color to red */
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.swap-btn:active i {
+  transform: rotate(180deg); /* Slight spin when clicked for interaction */
+}
+
 .swap-btn:hover {
   transform: scale(1.1);
-  background: #00a352;
+  background: #fcfcfc; /* Slightly off-white for hover */
 }
 
 input:focus, select:focus, textarea:focus {
