@@ -242,7 +242,7 @@ function validateUgandaPhone(phone) {
 }
 
 function formatTicketSMS(t) {
-  return `SmartSeat TICKET #${t.id}\n` +
+  return `UGBUS TICKETS TICKET #${t.id}\n` +
          `Bus: ${t.bus}\n` +
          `Route: ${t.from} to ${t.to}\n` +
          `Date: ${t.date} @ ${t.time || '08:00'}\n` +
@@ -703,7 +703,7 @@ function scheduleDepartureNotification(ticket) {
   if (delay > 0) {
     notificationTimeouts[ticket.id] = setTimeout(() => {
       if (Notification.permission === "granted") {
-        new Notification("SmartSeat Departure Alert", {
+        new Notification("UGBUS TICKETS Departure Alert", {
           body: `Your bus from ${ticket.from} to ${ticket.to} departs in 15 minutes!`,
           icon: 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png'
         });
@@ -1309,7 +1309,7 @@ function loadTrips(){
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div class="logo" style="margin: 0;">
           <span class="uganda-flag"></span>
-          <h1 style="color: white; font-size: 1.2rem; margin: 0;">SmartSeat</h1>
+          <h1 style="color: white; font-size: 1.2rem; margin: 0;">UGBUS TICKETS</h1>
         </div>
         <div style="text-align: right; color: white;">
           <div style="font-weight: 800; font-size: 1rem; color: var(--uganda-yellow);">${from} → ${to}</div>
@@ -1896,7 +1896,7 @@ function renderRefunds() {
 function downloadTicket(index){
   let t = tickets[index];
   let ticketText = `
-UG Bus Premium Ticket
+UGBUS TICKETS Ticket
 =====================
 Ticket #: ${index+1}
 Bus: ${t.bus}
@@ -1911,7 +1911,7 @@ Booked on: ${new Date(t.timestamp).toLocaleString()}
 
 async function shareTicket(index) {
   const t = tickets[index];
-  const shareText = `My SmartSeat Ticket: ${t.from} to ${t.to} on ${t.date}. Bus: ${t.bus}, Seat: ${t.seat}.`;
+  const shareText = `My UGBUS TICKETS Ticket: ${t.from} to ${t.to} on ${t.date}. Bus: ${t.bus}, Seat: ${t.seat}.`;
 
   try {
     // Get ticket data for rendering
@@ -1973,7 +1973,7 @@ async function shareTicket(index) {
     ctx.fillStyle = '#007A3D';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('SmartSeat Boarding Pass', 100, 50);
+    ctx.fillText('UGBUS TICKETS Boarding Pass', 100, 50);
 
     // Status badge
     const statusColors = {
@@ -2129,12 +2129,12 @@ async function shareTicket(index) {
 
     const dataUrl = canvas.toDataURL('image/png');
     const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], `SmartSeat-Ticket-${t.id}.png`, { type: 'image/png' });
+    const file = new File([blob], `UGBUS-TICKETS-Ticket-${t.id}.png`, { type: 'image/png' });
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: 'My SmartSeat Ticket',
+        title: 'My UGBUS TICKETS Ticket',
         text: shareText
       });
     } else {
@@ -2145,7 +2145,7 @@ async function shareTicket(index) {
   } catch (err) {
     console.error("Sharing failed:", err);
     if (navigator.share) {
-      navigator.share({ title: 'My SmartSeat Ticket', text: shareText }).catch(console.error);
+      navigator.share({ title: 'My UGBUS TICKETS Ticket', text: shareText }).catch(console.error);
     } else {
       navigator.clipboard.writeText(shareText);
       showNotification("Ticket details copied to clipboard!", "success");
@@ -2718,7 +2718,7 @@ async function startBoarding(tripId) {
             const contact = t.passengerPhone || t.phone;
             if (contact) {
                 await dispatchMultiChannel(contact, 
-                    `SmartSeat Boarding Alert: Boarding for your ${trip.busName} bus from ${trip.from} to ${trip.to} has started. Please proceed to the boarding area immediately. Ticket #${t.id}`, 
+                    `UGBUS TICKETS Boarding Alert: Boarding for your ${trip.busName} bus from ${trip.from} to ${trip.to} has started. Please proceed to the boarding area immediately. Ticket #${t.id}`, 
                     ['whatsapp']
                 );
             }
@@ -2874,7 +2874,7 @@ function renderTickets(){
           <div class="ticket-header">
             <div style="display: flex; align-items: center; gap: 10px;">
               <img src="${photoUrl}" style="width: 35px; height: 35px; border-radius: 6px; border: 1px solid var(--primary-color); object-fit: cover;">
-              <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">SmartSeat Boarding Pass</div>
+              <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS Boarding Pass</div>
             </div>
             <div class="badge ${statusClass}">${statusLabel}</div>
           </div>
@@ -3009,7 +3009,7 @@ async function downloadTicketAsImage(index, event) {
         ctx.fillStyle = '#007A3D';
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('SmartSeat Boarding Pass', 100, 50);
+        ctx.fillText('UGBUS TICKETS Boarding Pass', 100, 50);
 
         // Status badge
         const statusColors = {
@@ -3168,7 +3168,7 @@ async function downloadTicketAsImage(index, event) {
         console.log("Generated data URL length:", dataUrl.length);
 
         const link = document.createElement('a');
-        link.download = `SmartSeat-Ticket-${t.id}.png`;
+        link.download = `UGBUS-TICKETS-Ticket-${t.id}.png`;
         link.href = dataUrl;
         link.click();
 
@@ -3177,7 +3177,7 @@ async function downloadTicketAsImage(index, event) {
         // Fallback: create a simple text-based ticket
         try {
             const ticketText = `
-SMARTSEAT BOARDING PASS
+UGBUS TICKETS BOARDING PASS
 ========================
 Passenger: ${t.passenger}
 From: ${t.from} To: ${t.to}
@@ -3194,7 +3194,7 @@ Scan QR Code: TICKET:${t.id}
 
             const blob = new Blob([ticketText], { type: 'text/plain' });
             const link = document.createElement('a');
-            link.download = `SmartSeat-Ticket-${t.id}.txt`;
+            link.download = `UGBUS-TICKETS-Ticket-${t.id}.txt`;
             link.href = URL.createObjectURL(blob);
             link.click();
             URL.revokeObjectURL(link.href);
@@ -3978,7 +3978,7 @@ async function printTicketReceipt(id) {
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <img src="${photoUrl}" style="width: 50px; height: 50px; border-radius: 8px; border: 2px solid #007A3D; object-fit: cover;" alt="Passenger">
                         <div>
-                            <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">SmartSeat Boarding Pass</div>
+                            <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">UGBUS TICKETS Boarding Pass</div>
                             <div style="font-size: 0.65rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;">Identity Verified</div>
                         </div>
                     </div>
@@ -4059,7 +4059,7 @@ function generateRevenueReport() {
   const reportHtml = `
     <div style="font-family: 'Inter', sans-serif; padding: 30px; color: #333; max-width: 800px; margin: auto;">
       <div style="border-bottom: 2px solid #007A3D; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="color: #007A3D; margin: 0;">SmartSeat Revenue Report</h2>
+        <h2 style="color: #007A3D; margin: 0;">UGBUS TICKETS Revenue Report</h2>
         <span>Generated: ${reportDate}</span>
       </div>
       <p style="margin-top: 20px;"><strong>Status:</strong> ${filter.toUpperCase()}</p>
@@ -4283,7 +4283,7 @@ function loadNotifications(){
 
 function loadSettings(){
   // Load current settings from localStorage or set defaults
-  let settings = JSON.parse(localStorage.getItem('appSettings') || '{"appName": "UG Bus Premium", "supportEmail": "support@ugbus.ug", "supportPhone": "+256 414 123 456", "bookingFee": 2}');
+  let settings = JSON.parse(localStorage.getItem('appSettings') || '{"appName": "UGBUS TICKETS", "supportEmail": "support@ugbus.ug", "supportPhone": "+256 414 123 456", "bookingFee": 2}');
   document.getElementById('appName').value = settings.appName;
   document.getElementById('supportEmail').value = settings.supportEmail;
   document.getElementById('supportPhone').value = settings.supportPhone;

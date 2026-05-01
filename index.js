@@ -15,7 +15,7 @@ exports.onTicketStatusUpdate = functions.region('europe-west3').firestore
         // Check if the status has changed
         if (before.status !== after.status) {
             const phone = after.passengerPhone || after.phone;
-            const message = `SmartSeat Update: Your ticket #${after.id} for ${after.bus} is now ${after.status}. Safe journey!`;
+            const message = `UGBUS TICKETS Update: Your ticket #${after.id} for ${after.bus} is now ${after.status}. Safe journey!`;
             
             console.log(`[Cloud Function] Status update for ${phone}: ${message}`);
             // Integration point for SMS API (e.g., Africa's Talking, Twilio, or Yo! Payments)
