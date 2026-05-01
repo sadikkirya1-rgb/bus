@@ -1298,6 +1298,7 @@ input, select, textarea {
   font-size: 1.1rem;
   font-weight: 600;
   text-align: center;
+  text-shadow: 0 0 8px rgba(252, 209, 22, 0.6);
   flex: 1;
   display: flex;
   flex-direction: column;
