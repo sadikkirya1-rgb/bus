@@ -225,12 +225,14 @@
               <button type="button" class="btn date-btn active" id="btnToday" onclick="setSearchDate('today')">Today</button>
               <button type="button" class="btn date-btn" id="btnTomorrow" onclick="setSearchDate('tomorrow')">Tomorrow</button>
               <button type="button" class="btn date-btn" id="btnOthers" onclick="setSearchDate('others')">Others</button>
-            </div>
-            <input id="date" type="date" class="hidden" onchange="updateOthersText()">
+            </div>            
             <datalist id="ugandaCitiesFrom"></datalist>
             <datalist id="ugandaCitiesTo"></datalist>
           </div>
-          <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
+          <div class="search-controls-bottom">
+            <input id="date" type="date" class="hidden" onchange="updateOthersText()">
+            <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search Buses</button>
+          </div>
           
           <div id="recentSearches" class="recent-searches-container hidden">
             <p style="font-size: 0.8rem; opacity: 0.8; margin: 10px 0 5px 0;">Recent Searches</p>

@@ -1500,6 +1500,19 @@ input:checked + .slider:before { transform: translateX(14px); }
   border-color: var(--primary-color) !important;
 }
 
+/* New styles for search controls bottom */
+.search-controls-bottom {
+  display: flex;
+  align-items: center; /* Vertically align items */
+  gap: 10px; /* Space between date input and button */
+  margin-top: 15px; /* Add some space from elements above */
+}
+
+.search-controls-bottom input[type="date"] {
+  flex-grow: 1; /* Allow date input to take available space */
+  margin: 0; /* Remove default margin from input */
+}
+
 .swap-btn {
   width: 32px;
   height: 32px;
