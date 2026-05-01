@@ -782,7 +782,7 @@ body{
 .main{
   flex:1;
   padding: 20px;
-  padding-top: calc(130px + env(safe-area-inset-top)); /* Adjusted to account for header height + desired 50px gap */
+  padding-top: calc(100px + env(safe-area-inset-top)); /* Reduced gap from 130px */
   padding-bottom: 100px;
   overflow-y: auto;
 }
@@ -1500,7 +1500,7 @@ input:checked + .slider:before { transform: translateX(14px); }
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  margin-top: 50px;
+  margin-top: 15px; /* Reduced from 50px to tighten the gap */
 }
 
 .search-section input {
@@ -1778,7 +1778,7 @@ input:focus, select:focus, textarea:focus {
   }
   .main {
     padding: 20px;
-    padding-top: calc(130px + env(safe-area-inset-top));
+    padding-top: calc(100px + env(safe-area-inset-top)); /* Matching desktop adjustment for mobile */
     padding-bottom: 100px;
     width: 100%;
   }
