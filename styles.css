@@ -781,7 +781,9 @@ body{
 /* MAIN */
 .main{
   flex:1;
-  padding: 30px;
+  padding: 20px;
+  padding-top: calc(200px + env(safe-area-inset-top));
+  padding-bottom: 100px;
   overflow-y: auto;
 }
 
@@ -792,19 +794,22 @@ body{
   align-items: center;
   gap: 15px;
   flex-wrap: wrap;
-  margin-bottom: 30px;
-  padding: 15px 25px;
-  background: transparent;
-  position: relative;
+  margin: 0;
+  padding: calc(10px + env(safe-area-inset-top)) 20px 10px 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   background: #b30000 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border-radius: var(--border-radius);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   color: white;
+  border-bottom: 1px solid var(--uganda-yellow);
 }
 
 .topbar-brand {
@@ -1263,14 +1268,21 @@ input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(20px + env(safe-area-inset-top)) 15px 15px 15px;
-  margin: 10px 15px 20px 15px;
-  position: relative;
+  padding: calc(15px + env(safe-area-inset-top)) 20px 15px 20px;
+  margin: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   color: white;
   background: #b30000 !important;
-  border-radius: var(--border-radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(252, 209, 22, 0.3);
+  border-bottom: 1px solid var(--uganda-yellow);
+  border-top: none;
+  border-left: none;
+  border-right: none;
 }
 
 .header-avatar {
@@ -1488,6 +1500,7 @@ input:checked + .slider:before { transform: translateX(14px); }
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  margin-top: 20px;
 }
 
 .search-section input {
@@ -1729,7 +1742,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .active-tab{
-  color: var(--primary-color);
+  color: var(--uganda-yellow);
   font-weight: bold;
   background: rgba(102, 126, 234, 0.1);
 }
