@@ -1911,35 +1911,31 @@ async function shareTicket(index) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // Set canvas size (portrait orientation)
-    canvas.width = 400;
-    canvas.height = 650;
+    // Set canvas size for a borderless ticket (360x610 content area)
+    canvas.width = 360;
+    canvas.height = 610;
+    
+    // Store original dimensions for coordinate logic compatibility
+    const origW = 400;
+    const origH = 650;
 
-    // Background with rounded corners effect
-    ctx.fillStyle = '#1a202c'; // Dark background like the app
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Shift drawing context to remove margins for borderless output
+    ctx.translate(-20, -20);
 
     // Main ticket background
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
-    ctx.fill();
-
-    // Ticket border
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
-    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(20, 20, 360, 610);
 
     // Header background
     ctx.fillStyle = 'rgba(0, 122, 61, 0.05)';
-    ctx.fillRect(20, 20, canvas.width - 40, 80);
+    ctx.fillRect(20, 20, origW - 40, 80);
 
     // Header bottom border
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
     ctx.moveTo(20, 100);
-    ctx.lineTo(canvas.width - 20, 100);
+    ctx.lineTo(origW - 20, 100);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -1972,13 +1968,13 @@ async function shareTicket(index) {
     const statusColor = statusColors[statusLabel] || '#6b7280';
 
     ctx.fillStyle = statusColor;
-    roundRect(ctx, canvas.width - 120, 40, 80, 25, 12);
+    roundRect(ctx, origW - 120, 40, 80, 25, 12);
     ctx.fill();
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(statusLabel, canvas.width - 80, 55);
+    ctx.fillText(statusLabel, origW - 80, 55);
 
     // Route section
     const routeY = 130;
@@ -1997,22 +1993,22 @@ async function shareTicket(index) {
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 24px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(t.to.substring(0, 3).toUpperCase(), canvas.width - 40, routeY);
+    ctx.fillText(t.to.substring(0, 3).toUpperCase(), origW - 40, routeY);
 
     ctx.fillStyle = '#666666';
     ctx.font = '14px sans-serif';
-    ctx.fillText(t.to, canvas.width - 40, routeY + 20);
+    ctx.fillText(t.to, origW - 40, routeY + 20);
 
     // Bus icon (simple representation)
     ctx.fillStyle = '#007A3D';
     ctx.font = 'bold 20px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🚌', canvas.width / 2, routeY + 5);
+    ctx.fillText('🚌', origW / 2, routeY + 5);
 
     // Info grid
     const infoY = 200;
     const leftX = 40;
-    const rightX = canvas.width / 2 + 20;
+    const rightX = origW / 2 + 20;
 
     // Left column
     ctx.fillStyle = '#999999';
@@ -2062,7 +2058,7 @@ async function shareTicket(index) {
 
     // QR Code section background
     ctx.fillStyle = '#f8fafc';
-    roundRect(ctx, 40, canvas.height - 220, canvas.width - 80, 120, 12);
+    roundRect(ctx, 40, origH - 220, origW - 80, 120, 12);
     ctx.fill();
 
     // QR Code
@@ -2083,7 +2079,7 @@ async function shareTicket(index) {
 
         const qrCanvas = tempDiv.querySelector('canvas');
         if (qrCanvas) {
-            ctx.drawImage(qrCanvas, canvas.width / 2 - 40, canvas.height - 200, 80, 80);
+            ctx.drawImage(qrCanvas, origW / 2 - 40, origH - 200, 80, 80);
         }
 
         document.body.removeChild(tempDiv);
@@ -2093,24 +2089,24 @@ async function shareTicket(index) {
         ctx.fillStyle = '#000000';
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`TICKET:${t.id}`, canvas.width / 2, canvas.height - 160);
+        ctx.fillText(`TICKET:${t.id}`, origW / 2, origH - 160);
     }
 
     // QR label
     ctx.fillStyle = '#64748b';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', canvas.width / 2, canvas.height - 120);
+    ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', origW / 2, origH - 120);
 
     // Footer
     ctx.fillStyle = '#007A3D';
-    ctx.fillRect(20, canvas.height - 80, canvas.width - 40, 60);
+    ctx.fillRect(20, origH - 80, origW - 40, 60);
 
     // Footer content
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 40, canvas.height - 45);
+    ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 40, origH - 45);
 
     const dataUrl = canvas.toDataURL('image/png');
     const blob = await (await fetch(dataUrl)).blob();
@@ -2951,35 +2947,31 @@ async function downloadTicketAsImage(index, event) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size (portrait orientation)
-        canvas.width = 400;
-        canvas.height = 650;
+        // Set canvas size for a borderless ticket (360x610 content area)
+        canvas.width = 360;
+        canvas.height = 610;
+        
+        // Store original dimensions for coordinate logic compatibility
+        const origW = 400;
+        const origH = 650;
 
-        // Background with rounded corners effect
-        ctx.fillStyle = '#1a202c'; // Dark background like the app
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Shift drawing context to remove margins for borderless output
+        ctx.translate(-20, -20);
 
         // Main ticket background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
-        ctx.fill();
-
-        // Ticket border
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.lineWidth = 1;
-        roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
-        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(20, 20, 360, 610);
 
         // Header background
         ctx.fillStyle = 'rgba(0, 122, 61, 0.05)';
-        ctx.fillRect(20, 20, canvas.width - 40, 80);
+        ctx.fillRect(20, 20, origW - 40, 80);
 
         // Header bottom border
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
         ctx.setLineDash([5, 5]);
         ctx.beginPath();
         ctx.moveTo(20, 100);
-        ctx.lineTo(canvas.width - 20, 100);
+        ctx.lineTo(origW - 20, 100);
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -3012,13 +3004,13 @@ async function downloadTicketAsImage(index, event) {
         const statusColor = statusColors[statusLabel] || '#6b7280';
 
         ctx.fillStyle = statusColor;
-        roundRect(ctx, canvas.width - 120, 40, 80, 25, 12);
+        roundRect(ctx, origW - 120, 40, 80, 25, 12);
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(statusLabel, canvas.width - 80, 55);
+        ctx.fillText(statusLabel, origW - 80, 55);
 
         // Route section
         const routeY = 130;
@@ -3037,22 +3029,22 @@ async function downloadTicketAsImage(index, event) {
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 24px sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(t.to.substring(0, 3).toUpperCase(), canvas.width - 40, routeY);
+        ctx.fillText(t.to.substring(0, 3).toUpperCase(), origW - 40, routeY);
 
         ctx.fillStyle = '#666666';
         ctx.font = '14px sans-serif';
-        ctx.fillText(t.to, canvas.width - 40, routeY + 20);
+        ctx.fillText(t.to, origW - 40, routeY + 20);
 
         // Bus icon (simple representation)
         ctx.fillStyle = '#007A3D';
         ctx.font = 'bold 20px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('🚌', canvas.width / 2, routeY + 5);
+        ctx.fillText('🚌', origW / 2, routeY + 5);
 
         // Info grid
         const infoY = 200;
         const leftX = 40;
-        const rightX = canvas.width / 2 + 20;
+        const rightX = origW / 2 + 20;
 
         // Left column
         ctx.fillStyle = '#999999';
@@ -3102,7 +3094,7 @@ async function downloadTicketAsImage(index, event) {
 
         // QR Code section background
         ctx.fillStyle = '#f8fafc';
-        roundRect(ctx, 40, canvas.height - 220, canvas.width - 80, 120, 12);
+        roundRect(ctx, 40, origH - 220, origW - 80, 120, 12);
         ctx.fill();
 
         // QR Code
@@ -3123,7 +3115,7 @@ async function downloadTicketAsImage(index, event) {
 
             const qrCanvas = tempDiv.querySelector('canvas');
             if (qrCanvas) {
-                ctx.drawImage(qrCanvas, canvas.width / 2 - 40, canvas.height - 200, 80, 80);
+                ctx.drawImage(qrCanvas, origW / 2 - 40, origH - 200, 80, 80);
             }
 
             document.body.removeChild(tempDiv);
@@ -3133,24 +3125,24 @@ async function downloadTicketAsImage(index, event) {
             ctx.fillStyle = '#000000';
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`TICKET:${t.id}`, canvas.width / 2, canvas.height - 160);
+            ctx.fillText(`TICKET:${t.id}`, origW / 2, origH - 160);
         }
 
         // QR label
         ctx.fillStyle = '#64748b';
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', canvas.width / 2, canvas.height - 120);
+        ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', origW / 2, origH - 120);
 
         // Footer
         ctx.fillStyle = '#007A3D';
-        ctx.fillRect(20, canvas.height - 80, canvas.width - 40, 60);
+        ctx.fillRect(20, origH - 80, origW - 40, 60);
 
         // Footer content
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 40, canvas.height - 45);
+        ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 40, origH - 45);
 
         // Download
         const dataUrl = canvas.toDataURL('image/png');
