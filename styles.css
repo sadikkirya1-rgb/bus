@@ -41,7 +41,9 @@
   width: 80px;
   height: 80px;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: 0;
+  box-shadow: none !important;
+  filter: none !important;
   animation: logoGlow 2s infinite alternate ease-in-out;
 }
 
@@ -359,7 +361,6 @@ body{
 .logo .app-logo {
   width: 45px;
   height: 45px;
-  border-radius: 8px;
 }
 
 .tagline {

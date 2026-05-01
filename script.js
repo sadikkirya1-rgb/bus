@@ -1308,7 +1308,7 @@ function loadTrips(){
       </button>
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div class="logo" style="margin: 0;">
-          <img src="assests/logo.png" alt="Logo" style="width: 35px; height: 35px; border-radius: 6px; object-fit: contain;">
+          <img src="assests/logo.png" alt="Logo" style="width: 35px; height: 35px; object-fit: contain;">
           <h1 style="color: white; font-size: 1.2rem; margin: 0;">UGBUS TICKETS</h1>
         </div>
         <div style="text-align: right; color: white;">
@@ -1963,12 +1963,7 @@ async function shareTicket(index) {
     logoImg.src = 'assests/logo.png';
     await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
     if (logoImg.complete && logoImg.naturalWidth > 0) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(60, 60, 25, 0, Math.PI * 2);
-        ctx.clip();
         ctx.drawImage(logoImg, 35, 35, 50, 50);
-        ctx.restore();
     } else {
         ctx.fillStyle = '#007A3D';
         ctx.beginPath();
@@ -2880,7 +2875,7 @@ function renderTickets(){
         <div class="smart-ticket ${isUsed ? 'used-ticket' : ''}">
           <div class="ticket-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <img src="assests/logo.png" style="width: 35px; height: 35px; border-radius: 50%; object-fit: contain;">
+              <img src="assests/logo.png" style="width: 35px; height: 35px; object-fit: contain;">
               <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS Boarding Pass</div>
             </div>
             <div class="badge ${statusClass}">${statusLabel}</div>
@@ -3006,12 +3001,7 @@ async function downloadTicketAsImage(index, event) {
         logoImg.src = 'assests/logo.png';
         await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
         if (logoImg.complete && logoImg.naturalWidth > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(60, 60, 25, 0, Math.PI * 2);
-            ctx.clip();
             ctx.drawImage(logoImg, 35, 35, 50, 50);
-            ctx.restore();
         } else {
             ctx.fillStyle = '#007A3D';
             ctx.beginPath();
@@ -3990,7 +3980,7 @@ async function printTicketReceipt(id) {
                 ${adminStamp}
                 <div class="ticket-header">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <img src="assests/logo.png" style="width: 50px; height: 50px; border-radius: 50%; object-fit: contain;" alt="Logo">
+                        <img src="assests/logo.png" style="width: 50px; height: 50px; object-fit: contain;" alt="Logo">
                         <div>
                             <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">UGBUS TICKETS Boarding Pass</div>
                             <div style="font-size: 0.65rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;">Identity Verified</div>
