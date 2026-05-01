@@ -344,19 +344,21 @@ function saveRecentSearch(from, to) {
 function renderRecentSearches() {
   const searches = JSON.parse(localStorage.getItem("recentSearches") || "[]");
   const container = document.getElementById('recentSearchChips');
-  const wrapper = document.getElementById('recentSearches');
   
-  if (searches.length === 0) {
-    wrapper.classList.add('hidden');
+  if (!container) return;
+
+  if (searches.length === 0 || !searches[0]) {
+    container.classList.add('hidden');
     return;
   }
   
-  wrapper.classList.remove('hidden');
-  container.innerHTML = searches.map(s => `
+  container.classList.remove('hidden');
+  const s = searches[0];
+  container.innerHTML = `
     <div class="search-chip" onclick="reRunSearch('${s.from}', '${s.to}')">
       <i class="fas fa-history"></i> ${s.from} → ${s.to}
     </div>
-  `).join('');
+  `;
 }
 
 function reRunSearch(from, to) {
