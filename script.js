@@ -573,7 +573,7 @@ function renderUpcomingJourneys() {
               <span style="font-size: 0.6rem; color: white; opacity: 1; font-weight: 600;">${todayLabelStr}</span>
               <span style="font-size: 0.6rem; text-transform: uppercase; color: var(--uganda-yellow); font-weight: bold; opacity: 0.8;">Terminal Slots</span>
               <div style="margin-left: auto; display: flex; gap: 6px; align-items: center;">
-                <button class="view-ticket-btn" style="margin: 0; font-size: 0.55rem; padding: 2px 8px; background: var(--uganda-yellow); color: black; font-weight: bold;" onclick="event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">BOOK NOW</button>
+                <button class="view-ticket-btn" style="margin: 0; font-size: 0.55rem; padding: 2px 8px; background: var(--uganda-yellow); color: black; font-weight: bold; box-shadow: 0 0 10px rgba(252, 209, 22, 0.5);" onclick="event.stopPropagation(); showTerminalBuses('${t.from}', '${t.to}', '${t.date}')">BOOK NOW</button>
                 <button class="quick-btn" style="background:#4299e1; width:20px; height:20px; font-size: 0.6rem;" onclick="event.stopPropagation(); shareETA(${t.id})" title="Share ETA"><i class="fas fa-share-nodes"></i></button>
               </div>
             </div>
@@ -1421,7 +1421,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
         const isSoldOut = (t.availableSeats === 0);
         const soldOutBadge = isSoldOut ? `<span class="badge bg-used" style="margin-left:10px; font-size:0.6rem;">SOLD OUT</span>` : '';
         const btnDisabled = isSoldOut ? 'disabled' : '';
-        const btnStyle = isSoldOut ? 'background: #718096; cursor: not-allowed; opacity: 0.7;' : '';
+        const btnStyle = isSoldOut ? 'background: #718096; cursor: not-allowed; opacity: 0.7;' : 'box-shadow: 0 0 10px rgba(252, 209, 22, 0.5);';
         const btnAction = isSoldOut ? '' : `onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'`;
         
         return `

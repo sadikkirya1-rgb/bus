@@ -1050,7 +1050,7 @@ input, select, textarea {
 .upcoming-card {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(252, 209, 22, 0.35);
   border-radius: 12px;
   padding: 15px;
   display: flex;
@@ -1062,6 +1062,7 @@ input, select, textarea {
   width: 100%;
   cursor: pointer;
   transition: var(--transition);
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6), 0 0 20px rgba(252, 209, 22, 0.25);
 }
 
 .up-actions-left {
@@ -1571,12 +1572,13 @@ input:checked + .slider:before { transform: translateX(14px); }
   color: black !important;
   transition: var(--transition);
   animation: searchPulse 2s infinite;
+  box-shadow: 0 0 15px rgba(252, 209, 22, 0.5);
 }
 
 @keyframes searchPulse {
-  0% { box-shadow: 0 0 0 0 rgba(252, 209, 22, 0.6); }
-  70% { box-shadow: 0 0 0 10px rgba(252, 209, 22, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(252, 209, 22, 0); }
+  0% { box-shadow: 0 0 15px rgba(252, 209, 22, 0.5), 0 0 0 0 rgba(252, 209, 22, 0.6); }
+  70% { box-shadow: 0 0 15px rgba(252, 209, 22, 0.5), 0 0 0 15px rgba(252, 209, 22, 0); }
+  100% { box-shadow: 0 0 15px rgba(252, 209, 22, 0.5), 0 0 0 0 rgba(252, 209, 22, 0); }
 }
 
 .search-section .search-controls-bottom .btn:hover {
