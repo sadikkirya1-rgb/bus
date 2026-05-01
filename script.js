@@ -1308,7 +1308,7 @@ function loadTrips(){
       </button>
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div class="logo" style="margin: 0;">
-          <span class="uganda-flag"></span>
+          <img src="assests/logo.png" alt="Logo" style="width: 35px; height: 35px; border-radius: 6px; object-fit: contain;">
           <h1 style="color: white; font-size: 1.2rem; margin: 0;">UGBUS TICKETS</h1>
         </div>
         <div style="text-align: right; color: white;">
@@ -1958,16 +1958,23 @@ async function shareTicket(index) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Profile photo placeholder (circle)
-    ctx.fillStyle = '#007A3D';
-    ctx.beginPath();
-    ctx.arc(60, 60, 25, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // Profile photo border
-    ctx.strokeStyle = '#007A3D';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // App Logo on Ticket
+    const logoImg = new Image();
+    logoImg.src = 'assests/logo.png';
+    await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
+    if (logoImg.complete && logoImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(60, 60, 25, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logoImg, 35, 35, 50, 50);
+        ctx.restore();
+    } else {
+        ctx.fillStyle = '#007A3D';
+        ctx.beginPath();
+        ctx.arc(60, 60, 25, 0, 2 * Math.PI);
+        ctx.fill();
+    }
 
     // Header title
     ctx.fillStyle = '#007A3D';
@@ -2873,7 +2880,7 @@ function renderTickets(){
         <div class="smart-ticket ${isUsed ? 'used-ticket' : ''}">
           <div class="ticket-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <img src="${photoUrl}" style="width: 35px; height: 35px; border-radius: 6px; border: 1px solid var(--primary-color); object-fit: cover;">
+              <img src="assests/logo.png" style="width: 35px; height: 35px; border-radius: 50%; border: 1px solid var(--primary-color); object-fit: contain;">
               <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS Boarding Pass</div>
             </div>
             <div class="badge ${statusClass}">${statusLabel}</div>
@@ -2994,16 +3001,23 @@ async function downloadTicketAsImage(index, event) {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Profile photo placeholder (circle)
-        ctx.fillStyle = '#007A3D';
-        ctx.beginPath();
-        ctx.arc(60, 60, 25, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // Profile photo border
-        ctx.strokeStyle = '#007A3D';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // App Logo on Ticket
+        const logoImg = new Image();
+        logoImg.src = 'assests/logo.png';
+        await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
+        if (logoImg.complete && logoImg.naturalWidth > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(60, 60, 25, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(logoImg, 35, 35, 50, 50);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = '#007A3D';
+            ctx.beginPath();
+            ctx.arc(60, 60, 25, 0, 2 * Math.PI);
+            ctx.fill();
+        }
 
         // Header title
         ctx.fillStyle = '#007A3D';
@@ -3976,7 +3990,7 @@ async function printTicketReceipt(id) {
                 ${adminStamp}
                 <div class="ticket-header">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <img src="${photoUrl}" style="width: 50px; height: 50px; border-radius: 8px; border: 2px solid #007A3D; object-fit: cover;" alt="Passenger">
+                        <img src="assests/logo.png" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid #007A3D; object-fit: contain;" alt="Logo">
                         <div>
                             <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">UGBUS TICKETS Boarding Pass</div>
                             <div style="font-size: 0.65rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;">Identity Verified</div>

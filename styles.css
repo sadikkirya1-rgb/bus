@@ -37,6 +37,15 @@
   gap: 10px;
 }
 
+.app-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 12px;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+  animation: logoGlow 2s infinite alternate ease-in-out;
+}
+
 .splash-content .uganda-flag {
   margin-right: 0;
 }
@@ -305,6 +314,11 @@ body{
   min-height: 100vh;
 }
 
+@keyframes logoGlow {
+  from { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3)); transform: scale(1); }
+  to { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); transform: scale(1.05); }
+}
+
 /* LOGIN */
 .login{
   min-height: 100vh; /* This class will be dynamically added to #loginPage when it's active */
@@ -341,6 +355,12 @@ body{
   font-weight: 700;
   color: #ffffff;
   margin: 0;
+}
+
+.logo .app-logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
 }
 
 .tagline {

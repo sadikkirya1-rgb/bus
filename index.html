@@ -6,6 +6,7 @@
 <title>UGBUS TICKETS</title>
 <link rel="stylesheet" href="styles.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="assests/logo.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -24,7 +25,7 @@
 <div id="splashScreen" class="splash-screen">
   <div class="splash-content">
     <div class="logo">
-      <span class="uganda-flag"></span>
+      <img src="assests/logo.png" alt="UGBUS Logo" class="app-logo">
       <h1 style="color: white;">UGBUS TICKETS</h1>
     </div>
     <div id="splashWelcome" style="color: white; margin-top: 15px; font-weight: 600; font-size: 1.1rem; min-height: 1.5rem;"></div>
@@ -63,7 +64,7 @@
   </button>
   <div class="login-header">
     <div class="logo">
-      <span class="uganda-flag"></span>
+      <img src="assests/logo.png" alt="UGBUS Logo" class="app-logo">
       <h1>UGBUS TICKETS</h1>
     </div>
   </div>
@@ -111,7 +112,10 @@
 
     <!-- REGISTER FORM CARD -->
     <div id="registerFormCard" class="login-card hidden">
-      <h2><span class="uganda-flag"></span> Create Account</h2>
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <img src="assests/logo.png" alt="UGBUS Logo" style="width: 45px; height: 45px; border-radius: 8px; object-fit: contain;">
+        <h2 style="margin: 0;">Create Account</h2>
+      </div>
       <input id="regPhone" placeholder="Phone Number (+256)" required>
       <input id="regName" placeholder="Full Name" required>
       <input id="regEmail" type="email" placeholder="Email Address (Optional)">
