@@ -1890,20 +1890,117 @@ Booked on: ${new Date(t.timestamp).toLocaleString()}
   alert("Ticket downloaded (simulated):\n" + ticketText);
 }
 
-function shareTicket(index){
-  let t = tickets[index];
-  let shareText = `UG Bus Ticket: ${t.from} to ${t.to} on ${t.date}. Bus: ${t.bus}, Seat: ${t.seat}.`;
-  
-  if (navigator.share) {
-    navigator.share({
-      title: 'My UG Bus Ticket',
-      text: shareText,
-      url: window.location.href
-    }).catch(console.error);
-  } else {
-    // Fallback: Copy to clipboard
-    navigator.clipboard.writeText(shareText);
-    showNotification("Ticket details copied to clipboard!", "success");
+async function shareTicket(index) {
+  const t = tickets[index];
+  const shareText = `My SmartSeat Ticket: ${t.from} to ${t.to} on ${t.date}. Bus: ${t.bus}, Seat: ${t.seat}.`;
+
+  try {
+    // Create ticket image using canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = 600;
+    canvas.height = 400;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#007A3D';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+    ctx.fillStyle = '#007A3D';
+    ctx.fillRect(10, 10, canvas.width - 20, 60);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('SMARTSEAT BOARDING PASS', canvas.width / 2, 40);
+
+    const statusColors = {
+        'ACTIVE': '#10B981',
+        'VERIFIED': '#10B981',
+        'BOARDED': '#F59E0B',
+        'USED': '#EF4444',
+        'PAID': '#3B82F6',
+        'PENDING': '#6B7280'
+    };
+    const statusColor = statusColors[t.status] || '#6B7280';
+    ctx.fillStyle = statusColor;
+    ctx.fillRect(canvas.width - 110, 25, 80, 25);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText(t.status || 'PENDING', canvas.width - 70, 40);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(t.from.toUpperCase(), 30, 100);
+    ctx.textAlign = 'right';
+    ctx.fillText(t.to.toUpperCase(), canvas.width - 30, 100);
+
+    ctx.textAlign = 'center';
+    ctx.fillText('→', canvas.width / 2, 100);
+
+    ctx.fillStyle = '#333333';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Passenger: ${t.passenger}`, 30, 140);
+    ctx.fillText(`Seat: #${t.seat}`, 30, 165);
+    ctx.fillText(`Bus: ${t.bus}`, 30, 190);
+    ctx.fillText(`Date: ${t.date} | Time: ${t.time || '08:00'}`, 30, 215);
+    ctx.fillText(`Booking ID: #${t.id}`, 30, 240);
+
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 30, 275);
+
+    try {
+        const qrCanvas = document.createElement('canvas');
+        new QRCode(qrCanvas, {
+            text: `TICKET:${t.id}`,
+            width: 120,
+            height: 120,
+            colorDark: '#000000',
+            colorLight: '#ffffff'
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+        ctx.drawImage(qrCanvas, canvas.width - 150, 120, 120, 120);
+
+        ctx.fillStyle = '#666666';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Scan at Boarding', canvas.width - 90, 260);
+    } catch (qrError) {
+        console.warn("QR code generation failed:", qrError);
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`TICKET:${t.id}`, canvas.width - 90, 200);
+    }
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], `SmartSeat-Ticket-${t.id}.png`, { type: 'image/png' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'My SmartSeat Ticket',
+        text: shareText
+      });
+    } else {
+      // Fallback: Share via WhatsApp Web/App link
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+      window.open(whatsappUrl, '_blank');
+    }
+  } catch (err) {
+    console.error("Sharing failed:", err);
+    if (navigator.share) {
+      navigator.share({ title: 'My SmartSeat Ticket', text: shareText }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(shareText);
+      showNotification("Ticket details copied to clipboard!", "success");
+    }
   }
 }
 
@@ -2662,6 +2759,12 @@ function renderTickets(){
         </div>
       `;
       hiddenCards.appendChild(d);
+
+      // Generate QR code for the hidden card so it's ready for exports (Download/Share)
+      const qrTarget = d.querySelector('.qr-container');
+      if (qrTarget) {
+          new QRCode(qrTarget, { text: `TICKET:${t.id}`, width: 120, height: 120 });
+      }
   });
   ticketsDiv.appendChild(table);
   ticketsDiv.appendChild(hiddenCards);
@@ -2686,12 +2789,108 @@ function closeFullscreenTicket() {
 
 async function downloadTicketAsImage(index, event) {
     if(event) event.stopPropagation();
-    const element = document.getElementById(`ticket-card-${index}`);
-    const canvas = await html2canvas(element);
-    const link = document.createElement('a');
-    link.download = `SmartSeat-Ticket-${tickets[index].id}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
+
+    const t = tickets[index];
+    if (!t) {
+        alert("Ticket not found. Please try again.");
+        return;
+    }
+
+    try {
+        // Create a simple canvas-based ticket
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 600;
+        canvas.height = 400;
+
+        // Background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Border
+        ctx.strokeStyle = '#007A3D';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+        // Header
+        ctx.fillStyle = '#007A3D';
+        ctx.fillRect(10, 10, canvas.width - 20, 60);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SMARTSEAT BOARDING PASS', canvas.width / 2, 40);
+
+        // Route
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(t.from.toUpperCase(), 30, 100);
+        ctx.textAlign = 'right';
+        ctx.fillText(t.to.toUpperCase(), canvas.width - 30, 100);
+        ctx.textAlign = 'center';
+        ctx.fillText('→', canvas.width / 2, 100);
+
+        // Info
+        ctx.fillStyle = '#333333';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Passenger: ${t.passenger}`, 30, 140);
+        ctx.fillText(`Seat: #${t.seat}`, 30, 165);
+        ctx.fillText(`Bus: ${t.bus}`, 30, 190);
+        ctx.fillText(`Date: ${t.date} | Time: ${t.time || '08:00'}`, 30, 215);
+        ctx.fillText(`Booking ID: #${t.id}`, 30, 240);
+        ctx.fillText(`Fare: UGX ${t.price.toLocaleString()}`, 30, 265);
+
+        // QR Code text
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`TICKET:${t.id}`, canvas.width - 90, 200);
+        ctx.fillText('Scan at Boarding', canvas.width - 90, 220);
+
+        // Download
+        const dataUrl = canvas.toDataURL('image/png');
+        console.log("Generated data URL length:", dataUrl.length);
+
+        const link = document.createElement('a');
+        link.download = `SmartSeat-Ticket-${t.id}.png`;
+        link.href = dataUrl;
+        link.click();
+
+    } catch (error) {
+        console.error("Error generating ticket image:", error);
+        // Fallback: create a simple text-based ticket
+        try {
+            const ticketText = `
+SMARTSEAT BOARDING PASS
+========================
+Passenger: ${t.passenger}
+From: ${t.from} To: ${t.to}
+Date: ${t.date} Time: ${t.time || '08:00'}
+Seat: #${t.seat}
+Bus: ${t.bus}
+Plate: ${t.plate || 'UAX 456Z'}
+Booking ID: #${t.id}
+Total Fare: UGX ${t.price.toLocaleString()}
+Status: ${t.status || 'PENDING'}
+
+Scan QR Code: TICKET:${t.id}
+            `;
+
+            const blob = new Blob([ticketText], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.download = `SmartSeat-Ticket-${t.id}.txt`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            alert("Image download failed. Downloaded as text file instead.");
+        } catch (fallbackError) {
+            console.error("Fallback download also failed:", fallbackError);
+            alert("Failed to download ticket. Please try again or contact support.");
+        }
+    }
 }
 
 /* SHOW REGISTER */
