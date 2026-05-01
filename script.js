@@ -1895,88 +1895,222 @@ async function shareTicket(index) {
   const shareText = `My SmartSeat Ticket: ${t.from} to ${t.to} on ${t.date}. Bus: ${t.bus}, Seat: ${t.seat}.`;
 
   try {
-    // Create ticket image using canvas
+    // Get ticket data for rendering
+    let statusClass = "bg-secondary";
+    let statusLabel = t.status || "PENDING";
+    if(statusLabel === "ACTIVE") statusClass = "bg-active";
+    else if(statusLabel === "VERIFIED") statusClass = "bg-active";
+    else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
+    else if(statusLabel === "USED") statusClass = "bg-used";
+    else if(statusLabel === "PAID") statusClass = "bg-paid";
+    else if(statusLabel === "PENDING") statusClass = "bg-paid";
+
+    const isUsed = statusLabel === "USED";
+
+    // Create canvas with proper dimensions
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    canvas.width = 600;
-    canvas.height = 400;
+    // Set canvas size (portrait orientation)
+    canvas.width = 400;
+    canvas.height = 650;
 
-    ctx.fillStyle = '#ffffff';
+    // Background with rounded corners effect
+    ctx.fillStyle = '#1a202c'; // Dark background like the app
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = '#007A3D';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    // Main ticket background
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
+    ctx.fill();
 
+    // Ticket border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
+    ctx.stroke();
+
+    // Header background
+    ctx.fillStyle = 'rgba(0, 122, 61, 0.05)';
+    ctx.fillRect(20, 20, canvas.width - 40, 80);
+
+    // Header bottom border
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(20, 100);
+    ctx.lineTo(canvas.width - 20, 100);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Profile photo placeholder (circle)
     ctx.fillStyle = '#007A3D';
-    ctx.fillRect(10, 10, canvas.width - 20, 60);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('SMARTSEAT BOARDING PASS', canvas.width / 2, 40);
+    ctx.beginPath();
+    ctx.arc(60, 60, 25, 0, 2 * Math.PI);
+    ctx.fill();
 
+    // Profile photo border
+    ctx.strokeStyle = '#007A3D';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Header title
+    ctx.fillStyle = '#007A3D';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('SmartSeat Boarding Pass', 100, 50);
+
+    // Status badge
     const statusColors = {
-        'ACTIVE': '#10B981',
-        'VERIFIED': '#10B981',
-        'BOARDED': '#F59E0B',
-        'USED': '#EF4444',
-        'PAID': '#3B82F6',
-        'PENDING': '#6B7280'
+        'ACTIVE': '#48bb78',
+        'VERIFIED': '#48bb78',
+        'BOARDED': '#4299e1',
+        'USED': '#a0aec0',
+        'PAID': '#ed8936',
+        'PENDING': '#ed8936'
     };
-    const statusColor = statusColors[t.status] || '#6B7280';
+    const statusColor = statusColors[statusLabel] || '#6b7280';
+
     ctx.fillStyle = statusColor;
-    ctx.fillRect(canvas.width - 110, 25, 80, 25);
+    roundRect(ctx, canvas.width - 120, 40, 80, 25, 12);
+    ctx.fill();
+
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px Arial';
-    ctx.fillText(t.status || 'PENDING', canvas.width - 70, 40);
-
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(t.from.toUpperCase(), 30, 100);
-    ctx.textAlign = 'right';
-    ctx.fillText(t.to.toUpperCase(), canvas.width - 30, 100);
-
+    ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('→', canvas.width / 2, 100);
+    ctx.fillText(statusLabel, canvas.width - 80, 55);
 
-    ctx.fillStyle = '#333333';
-    ctx.font = '16px Arial';
+    // Route section
+    const routeY = 130;
+
+    // From city
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`Passenger: ${t.passenger}`, 30, 140);
-    ctx.fillText(`Seat: #${t.seat}`, 30, 165);
-    ctx.fillText(`Bus: ${t.bus}`, 30, 190);
-    ctx.fillText(`Date: ${t.date} | Time: ${t.time || '08:00'}`, 30, 215);
-    ctx.fillText(`Booking ID: #${t.id}`, 30, 240);
+    ctx.fillText(t.from.substring(0, 3).toUpperCase(), 40, routeY);
 
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 30, 275);
+    ctx.fillStyle = '#666666';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(t.from, 40, routeY + 20);
 
+    // To city
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(t.to.substring(0, 3).toUpperCase(), canvas.width - 40, routeY);
+
+    ctx.fillStyle = '#666666';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(t.to, canvas.width - 40, routeY + 20);
+
+    // Bus icon (simple representation)
+    ctx.fillStyle = '#007A3D';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🚌', canvas.width / 2, routeY + 5);
+
+    // Info grid
+    const infoY = 200;
+    const leftX = 40;
+    const rightX = canvas.width / 2 + 20;
+
+    // Left column
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+
+    ctx.fillText('PASSENGER', leftX, infoY);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(t.passenger, leftX, infoY + 15);
+
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('SEAT', leftX, infoY + 40);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`#${t.seat}`, leftX, infoY + 55);
+
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('BUS', leftX, infoY + 80);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(t.bus, leftX, infoY + 95);
+
+    // Right column
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('PLATE', rightX, infoY);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(t.plate || 'UAX 456Z', rightX, infoY + 15);
+
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('DEPARTURE', rightX, infoY + 40);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`${t.date} | ${t.time || '08:00'}`, rightX, infoY + 55);
+
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('BOOKING ID', rightX, infoY + 80);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(`#${t.id}`, rightX, infoY + 95);
+
+    // QR Code section background
+    ctx.fillStyle = '#f8fafc';
+    roundRect(ctx, 40, canvas.height - 220, canvas.width - 80, 120, 12);
+    ctx.fill();
+
+    // QR Code
     try {
-        const qrCanvas = document.createElement('canvas');
-        new QRCode(qrCanvas, {
+        const tempDiv = document.createElement('div');
+        tempDiv.style.display = 'none';
+        document.body.appendChild(tempDiv);
+
+        new QRCode(tempDiv, {
             text: `TICKET:${t.id}`,
-            width: 120,
-            height: 120,
+            width: 80,
+            height: 80,
             colorDark: '#000000',
             colorLight: '#ffffff'
         });
 
-        await new Promise(resolve => setTimeout(resolve, 100));
-        ctx.drawImage(qrCanvas, canvas.width - 150, 120, 120, 120);
+        await new Promise(resolve => setTimeout(resolve, 200));
 
-        ctx.fillStyle = '#666666';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Scan at Boarding', canvas.width - 90, 260);
+        const qrCanvas = tempDiv.querySelector('canvas');
+        if (qrCanvas) {
+            ctx.drawImage(qrCanvas, canvas.width / 2 - 40, canvas.height - 200, 80, 80);
+        }
+
+        document.body.removeChild(tempDiv);
     } catch (qrError) {
         console.warn("QR code generation failed:", qrError);
+        // Draw text QR placeholder
         ctx.fillStyle = '#000000';
-        ctx.font = '12px Arial';
+        ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`TICKET:${t.id}`, canvas.width - 90, 200);
+        ctx.fillText(`TICKET:${t.id}`, canvas.width / 2, canvas.height - 160);
     }
+
+    // QR label
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', canvas.width / 2, canvas.height - 120);
+
+    // Footer
+    ctx.fillStyle = '#007A3D';
+    ctx.fillRect(20, canvas.height - 80, canvas.width - 40, 60);
+
+    // Footer content
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 40, canvas.height - 45);
 
     const dataUrl = canvas.toDataURL('image/png');
     const blob = await (await fetch(dataUrl)).blob();
@@ -2797,57 +2931,226 @@ async function downloadTicketAsImage(index, event) {
     }
 
     try {
-        // Create a simple canvas-based ticket
+        // Get ticket data for rendering
+        let statusClass = "bg-secondary";
+        let statusLabel = t.status || "PENDING";
+        if(statusLabel === "ACTIVE") statusClass = "bg-active";
+        else if(statusLabel === "VERIFIED") statusClass = "bg-active";
+        else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
+        else if(statusLabel === "USED") statusClass = "bg-used";
+        else if(statusLabel === "PAID") statusClass = "bg-paid";
+        else if(statusLabel === "PENDING") statusClass = "bg-paid";
+
+        const isUsed = statusLabel === "USED";
+
+        // Find associated user to retrieve profile photo
+        const passengerUser = users.find(u => u.email === t.email || u.name === t.passenger);
+        const photoUrl = passengerUser?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.passenger)}&background=007A3D&color=fff`;
+
+        // Create canvas with proper dimensions
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        canvas.width = 600;
-        canvas.height = 400;
+        // Set canvas size (portrait orientation)
+        canvas.width = 400;
+        canvas.height = 650;
 
-        // Background
-        ctx.fillStyle = '#ffffff';
+        // Background with rounded corners effect
+        ctx.fillStyle = '#1a202c'; // Dark background like the app
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Border
-        ctx.strokeStyle = '#007A3D';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+        // Main ticket background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
+        ctx.fill();
 
-        // Header
+        // Ticket border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        roundRect(ctx, 20, 20, canvas.width - 40, canvas.height - 40, 20);
+        ctx.stroke();
+
+        // Header background
+        ctx.fillStyle = 'rgba(0, 122, 61, 0.05)';
+        ctx.fillRect(20, 20, canvas.width - 40, 80);
+
+        // Header bottom border
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(20, 100);
+        ctx.lineTo(canvas.width - 20, 100);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Profile photo placeholder (circle)
         ctx.fillStyle = '#007A3D';
-        ctx.fillRect(10, 10, canvas.width - 20, 60);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('SMARTSEAT BOARDING PASS', canvas.width / 2, 40);
+        ctx.beginPath();
+        ctx.arc(60, 60, 25, 0, 2 * Math.PI);
+        ctx.fill();
 
-        // Route
+        // Profile photo border
+        ctx.strokeStyle = '#007A3D';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Header title
+        ctx.fillStyle = '#007A3D';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('SmartSeat Boarding Pass', 100, 50);
+
+        // Status badge
+        const statusColors = {
+            'ACTIVE': '#48bb78',
+            'VERIFIED': '#48bb78',
+            'BOARDED': '#4299e1',
+            'USED': '#a0aec0',
+            'PAID': '#ed8936',
+            'PENDING': '#ed8936'
+        };
+        const statusColor = statusColors[statusLabel] || '#6b7280';
+
+        ctx.fillStyle = statusColor;
+        roundRect(ctx, canvas.width - 120, 40, 80, 25, 12);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(statusLabel, canvas.width - 80, 55);
+
+        // Route section
+        const routeY = 130;
+
+        // From city
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 24px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(t.from.toUpperCase(), 30, 100);
-        ctx.textAlign = 'right';
-        ctx.fillText(t.to.toUpperCase(), canvas.width - 30, 100);
-        ctx.textAlign = 'center';
-        ctx.fillText('→', canvas.width / 2, 100);
+        ctx.fillText(t.from.substring(0, 3).toUpperCase(), 40, routeY);
 
-        // Info
-        ctx.fillStyle = '#333333';
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(`Passenger: ${t.passenger}`, 30, 140);
-        ctx.fillText(`Seat: #${t.seat}`, 30, 165);
-        ctx.fillText(`Bus: ${t.bus}`, 30, 190);
-        ctx.fillText(`Date: ${t.date} | Time: ${t.time || '08:00'}`, 30, 215);
-        ctx.fillText(`Booking ID: #${t.id}`, 30, 240);
-        ctx.fillText(`Fare: UGX ${t.price.toLocaleString()}`, 30, 265);
+        ctx.fillStyle = '#666666';
+        ctx.font = '14px sans-serif';
+        ctx.fillText(t.from, 40, routeY + 20);
 
-        // QR Code text
+        // To city
         ctx.fillStyle = '#000000';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(t.to.substring(0, 3).toUpperCase(), canvas.width - 40, routeY);
+
+        ctx.fillStyle = '#666666';
+        ctx.font = '14px sans-serif';
+        ctx.fillText(t.to, canvas.width - 40, routeY + 20);
+
+        // Bus icon (simple representation)
+        ctx.fillStyle = '#007A3D';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🚌', canvas.width / 2, routeY + 5);
+
+        // Info grid
+        const infoY = 200;
+        const leftX = 40;
+        const rightX = canvas.width / 2 + 20;
+
+        // Left column
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'left';
+
+        ctx.fillText('PASSENGER', leftX, infoY);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(t.passenger, leftX, infoY + 15);
+
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('SEAT', leftX, infoY + 40);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(`#${t.seat}`, leftX, infoY + 55);
+
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('BUS', leftX, infoY + 80);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(t.bus, leftX, infoY + 95);
+
+        // Right column
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('PLATE', rightX, infoY);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(t.plate || 'UAX 456Z', rightX, infoY + 15);
+
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('DEPARTURE', rightX, infoY + 40);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(`${t.date} | ${t.time || '08:00'}`, rightX, infoY + 55);
+
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('BOOKING ID', rightX, infoY + 80);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(`#${t.id}`, rightX, infoY + 95);
+
+        // QR Code section background
+        ctx.fillStyle = '#f8fafc';
+        roundRect(ctx, 40, canvas.height - 220, canvas.width - 80, 120, 12);
+        ctx.fill();
+
+        // QR Code
+        try {
+            const tempDiv = document.createElement('div');
+            tempDiv.style.display = 'none';
+            document.body.appendChild(tempDiv);
+
+            new QRCode(tempDiv, {
+                text: `TICKET:${t.id}`,
+                width: 80,
+                height: 80,
+                colorDark: '#000000',
+                colorLight: '#ffffff'
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            const qrCanvas = tempDiv.querySelector('canvas');
+            if (qrCanvas) {
+                ctx.drawImage(qrCanvas, canvas.width / 2 - 40, canvas.height - 200, 80, 80);
+            }
+
+            document.body.removeChild(tempDiv);
+        } catch (qrError) {
+            console.warn("QR code generation failed:", qrError);
+            // Draw text QR placeholder
+            ctx.fillStyle = '#000000';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`TICKET:${t.id}`, canvas.width / 2, canvas.height - 160);
+        }
+
+        // QR label
+        ctx.fillStyle = '#64748b';
         ctx.font = '12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`TICKET:${t.id}`, canvas.width - 90, 200);
-        ctx.fillText('Scan at Boarding', canvas.width - 90, 220);
+        ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', canvas.width / 2, canvas.height - 120);
+
+        // Footer
+        ctx.fillStyle = '#007A3D';
+        ctx.fillRect(20, canvas.height - 80, canvas.width - 40, 60);
+
+        // Footer content
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Total Fare: UGX ${t.price.toLocaleString()}`, 40, canvas.height - 45);
 
         // Download
         const dataUrl = canvas.toDataURL('image/png');
@@ -2891,6 +3194,21 @@ Scan QR Code: TICKET:${t.id}
             alert("Failed to download ticket. Please try again or contact support.");
         }
     }
+}
+
+// Helper function to draw rounded rectangles
+function roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
 }
 
 /* SHOW REGISTER */
