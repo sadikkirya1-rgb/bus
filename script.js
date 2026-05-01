@@ -1140,8 +1140,12 @@ function setSearchDate(mode) {
     document.getElementById('btnOthers').innerText = 'Others';
   } else if (mode === 'others') {
     document.getElementById('btnOthers').classList.add('active');
-    dateInput.classList.remove('hidden');
-    dateInput.focus();
+    try {
+      dateInput.showPicker();
+    } catch (error) {
+      dateInput.classList.remove('hidden');
+      dateInput.focus();
+    }
   }
 }
 
@@ -1536,7 +1540,22 @@ function refreshActiveSchedules() {
             barEl.style.background = 'var(--uganda-red)'; // Finished is always red
             if (bookBtn) {
               bookBtn.innerText = "Book Tomorrow";
-              bookBtn.onclick = (e) => { e.stopPropagation(); rebookTomorrow(t.from, t.to); };
+              bookBtn.onclick = (e) => { 
+                e.stopPropagation(); 
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = getKampalaDateISO(tomorrow);
+                
+                // Update travel date so booking is recorded for tomorrow
+                document.getElementById('date').value = tomorrowStr;
+                const btns = document.querySelectorAll('.date-btn');
+                btns.forEach(b => b.classList.remove('active'));
+                document.getElementById('btnOthers').classList.add('active');
+                document.getElementById('btnOthers').innerText = tomorrowStr;
+                
+                // Proceed directly to booking details for this bus
+                showBusDetails(t.busName, t.price, t.amenities);
+              };
             }
         } else if (isLive) {
             statusText = `<span class="status-live" style="font-size: 0.85rem;"><span class="live-dot"></span> LIVE</span>`;
