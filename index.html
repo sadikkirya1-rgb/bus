@@ -89,6 +89,10 @@
         <button type="submit" class="btn login-btn">
           <i class="fas fa-sign-in-alt"></i> Login
         </button>
+        <button type="button" class="btn" style="background: white; color: #444; margin-top: 10px; border: 1px solid #ddd;" onclick="loginWithGoogle()">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px; vertical-align:middle; margin-right:8px;">
+          Login with Google
+        </button>
       </form>
       <div class="quick-login">
         <p>Quick login as:</p>
@@ -143,19 +147,22 @@
   <div id="sidebar" class="sidebar hidden">
     <h3><i class="fas fa-cog"></i> <span>Admin Panel</span></h3>
     <button onclick="adminTab('dashboard')" id="a1" title="Dashboard"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></button>
+    <hr style="opacity: 0.1; margin: 10px 0;">
     <button onclick="adminTab('users')" id="a2" title="Users"><i class="fas fa-users"></i> <span>Users</span></button>
     <button onclick="adminTab('operators')" id="a3" title="Operators"><i class="fas fa-bus"></i> <span>Operators</span></button>
+    <button onclick="adminTab('fleetControl')" id="a13" title="Fleet Control"><i class="fas fa-bus-alt"></i> <span>Fleet Control</span></button>
+    <button onclick="adminTab('terminals')" id="a14" title="Terminals"><i class="fas fa-map-marker-alt"></i> <span>Terminals</span></button>
     <button onclick="adminTab('routes')" id="a4" title="Routes"><i class="fas fa-route"></i> <span>Routes</span></button>
+    <hr style="opacity: 0.1; margin: 10px 0;">
     <button onclick="adminTab('bookings')" id="a5" title="Bookings"><i class="fas fa-ticket-alt"></i> <span>Bookings</span></button>
     <button onclick="adminTab('ticketingDesk')" id="a11" title="Ticketing"><i class="fas fa-search-dollar"></i> <span>Ticketing</span></button>
-    <button onclick="adminTab('fleetControl')" id="a13" title="Fleet Control"><i class="fas fa-bus-alt"></i> <span>Fleet Control</span></button>
+    <button onclick="adminTab('supportTickets')" id="a12" title="Support"><i class="fas fa-headset"></i> <span>Support</span></button>
+    <hr style="opacity: 0.1; margin: 10px 0;">
     <button onclick="adminTab('analytics')" id="a6" title="Analytics"><i class="fas fa-chart-bar"></i> <span>Analytics</span></button>
+    <button onclick="adminTab('activity')" id="a10" title="Activity"><i class="fas fa-history"></i> <span>Activity</span></button>
     <button onclick="adminTab('payments')" id="a7" title="Payments"><i class="fas fa-credit-card"></i> <span>Payments</span></button>
     <button onclick="adminTab('notifications')" id="a8" title="Notifications"><i class="fas fa-bell"></i> <span>Notifications</span></button>
     <button onclick="adminTab('settings')" id="a9" title="Settings"><i class="fas fa-cogs"></i> <span>Settings</span></button>
-    <button onclick="adminTab('activity')" id="a10" title="Activity"><i class="fas fa-history"></i> <span>Activity</span></button>
-    <button onclick="adminTab('supportTickets')" id="a12" title="Support"><i class="fas fa-headset"></i> <span>Support</span></button>
-    <button onclick="adminTab('terminals')" id="a14" title="Terminals"><i class="fas fa-map-marker-alt"></i> <span>Terminals</span></button>
     <button onclick="toggleDarkMode()" title="Theme"><i class="fas fa-moon"></i> <span>Theme</span></button>
   </div>
 
@@ -177,6 +184,16 @@
       <div id="topbarNav" class="topbar-nav"></div>
       <div class="topbar-actions" id="topbarActions">
         <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+      </div>
+    </div>
+
+    <!-- PENDING APPROVAL UI -->
+    <div id="pendingApprovalUI" class="hidden fade-in" style="padding: 20px; text-align: center; color: white;">
+      <div class="card" style="background: rgba(0,0,0,0.6); padding: 40px;">
+        <i class="fas fa-user-clock" style="font-size: 4rem; color: var(--uganda-yellow); margin-bottom: 20px;"></i>
+        <h2>Approval Pending</h2>
+        <p>Your account is currently waiting for admin approval. You will be granted access once an administrator verifies your profile.</p>
+        <button class="logout-btn" style="margin-top: 20px;" onclick="logout()">Logout</button>
       </div>
     </div>
 
@@ -534,41 +551,43 @@
 
       <!-- DASHBOARD -->
       <div id="adminDashboard">
-        <div class="grid">
-          <div class="card">
+        <div class="stats-grid">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-users"></i> Users</h3>
             <div id="statUsers" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
             <p>Active users this month</p>
           </div>
-          <div class="card">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-bus"></i> Buses</h3>
             <div id="statBuses" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
             <p>Registered buses</p>
           </div>
-          <div class="card">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-ticket-alt"></i> Bookings</h3>
             <div id="statBookings" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
             <p>Monthly bookings</p>
           </div>
-          <div class="card">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-dollar-sign"></i> Revenue</h3>
             <div id="statRevenue" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">UGX 0</div>
             <p>Total revenue</p>
           </div>
-          <div class="card">
+        </div>
+        <div class="stats-grid">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-route"></i> Active Trips</h3>
             <div id="statTrips" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0</div>
             <p>Trips in progress</p>
           </div>
-          <div class="card">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-times-circle"></i> Cancelled</h3>
             <div id="statCancelled" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">12</div>
-            <p>Cancellation rate: 2%</p>
+            <p>Total Cancelled</p>
           </div>
-          <div class="card">
+          <div class="card" style="text-align: center;">
             <h3><i class="fas fa-user-check"></i> Today's Check-in</h3>
             <div id="statCheckIn" style="font-size: 1.5rem; color: var(--primary-color); font-weight: bold;">0 / 0</div>
-            <p>Boarded vs Total Passengers</p>
+            <p>Boarded / Total</p>
           </div>
         </div>
 
@@ -617,6 +636,28 @@
             <!-- Operators will be populated here -->
           </div>
         </div>
+      </div>
+
+      <!-- FLEET CONTROL -->
+      <div id="adminFleetControl" class="hidden">
+          <div class="grid">
+              <div class="card">
+                <h3><i class="fas fa-calendar-plus"></i> Master Scheduler</h3>
+                <select id="selectBusAdmin" onfocus="loadBusSelect()">
+                  <option value="">Select Any Registered Bus</option>
+                </select>
+                <input id="departureTimeAdmin" type="time">
+                <button class="btn" onclick="scheduleTrip()"><i class="fas fa-plus"></i> Create Global Schedule</button>
+              </div>
+              <div class="card">
+                <h3><i class="fas fa-bus"></i> Global Fleet Status</h3>
+                <div id="fleetAdmin" class="grid" style="max-height: 300px; overflow-y: auto;"></div>
+              </div>
+          </div>
+          <div class="card" style="margin-top: 20px;">
+             <h3><i class="fas fa-clock"></i> Live Terminal Monitor</h3>
+             <div id="schedulesAdmin" class="grid"></div>
+          </div>
       </div>
 
       <!-- TERMINAL MANAGEMENT -->
@@ -756,28 +797,6 @@
          </div>
       </div>
 
-      <!-- ADMIN FLEET CONTROL (OPERATOR SIDE TASKS) -->
-      <div id="adminFleetControl" class="hidden">
-          <div class="grid">
-              <div class="card">
-                <h3><i class="fas fa-calendar-plus"></i> Master Scheduler</h3>
-                <select id="selectBusAdmin" onfocus="loadBusSelect()">
-                  <option value="">Select Any Registered Bus</option>
-                </select>
-                <input id="departureTimeAdmin" type="time">
-                <button class="btn" onclick="scheduleTrip()"><i class="fas fa-plus"></i> Create Global Schedule</button>
-              </div>
-              <div class="card">
-                <h3><i class="fas fa-bus"></i> Global Fleet Status</h3>
-                <div id="fleetAdmin" class="grid" style="max-height: 300px; overflow-y: auto;"></div>
-              </div>
-          </div>
-          <div class="card" style="margin-top: 20px;">
-             <h3><i class="fas fa-clock"></i> Live Terminal Monitor</h3>
-             <div id="schedulesAdmin" class="grid"></div>
-          </div>
-      </div>
-
       <!-- ANALYTICS -->
       <div id="adminAnalytics" class="hidden">
         <div class="grid">
@@ -836,6 +855,13 @@
 
       <!-- NOTIFICATIONS -->
       <div id="adminNotifications" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-inbox"></i> System Inbox</h3>
+          <div id="adminInboxList" style="max-height: 300px; overflow-y: auto; text-align: left;">
+            <!-- Notifications will be populated here -->
+          </div>
+        </div>
+
         <div class="card">
           <h3><i class="fas fa-bell"></i> Send Notification</h3>
           <select id="notificationType" onchange="toggleBulkTripSelect()">

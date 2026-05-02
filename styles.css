@@ -944,6 +944,43 @@ body{
   max-width: 500px;
 }
 
+/* Admin Panel Overrides for Full screen content */
+#adminUI .card {
+    max-width: 100% !important;
+    width: 100%;
+    text-align: left;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 25px;
+    padding: 20px;
+}
+
+#adminUI .card h3 {
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+}
+
+#adminUI .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+#adminUI .chart-container {
+    height: 180px;
+}
+
 #userHome .card h3 {
   color: #ffffff;
 }
@@ -2266,11 +2303,7 @@ input:focus, select:focus, textarea:focus {
 
 /* ADMIN REDUCED SIZING */
 #adminUI {
-    font-size: 0.9rem;
-}
-
-#adminUI .card p, #adminUI .card div {
-    font-size: 0.85rem;
+    font-size: 1rem;
 }
 
 #adminUI .btn-sm {

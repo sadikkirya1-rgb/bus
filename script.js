@@ -52,15 +52,28 @@ auth.onAuthStateChanged(async (user) => {
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
             currentUser = { ...userDoc.data(), uid: user.uid };
-            role = currentUser.role;
+            
+            // Normalize role to lowercase for consistent logic comparison
+            role = (currentUser.role || 'user').toLowerCase();
+
+            // Force 'pending' role if account is not approved (except for admins)
+            if (currentUser.isApproved === false && role !== 'admin') {
+                role = 'pending';
+            }
+
+            // Request Browser Notification permission for admins
+            if (role === 'admin' && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
             console.log("onAuthStateChanged: User logged in, role is", role);
             
             // Start Real-time Listeners for Production Data
-            setupRealtimeData();
+            setupRealtimeData(user);
             init();
         } else {
-            console.warn("User authenticated but no profile found in Firestore.");
-            logout();
+            // New Google users won't have a profile yet; loginWithGoogle() will create it.
+            console.log("onAuthStateChanged: No profile found yet. Waiting for registration...");
         }
     } else {
         currentUser = null;
@@ -85,12 +98,20 @@ function formatTimeAMPM(timeStr) {
     return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
 }
 
-function setupRealtimeData() {
+function setupRealtimeData(user) {
     // Sync Firestore collections to local arrays in real-time
-    db.collection('tickets').onSnapshot(snap => {
+    
+    // SCOPED TICKETS: Regular users only listen to their own tickets to satisfy security rules
+    let ticketsQuery = db.collection('tickets');
+    if (role !== 'admin') {
+        ticketsQuery = ticketsQuery.where('uid', '==', user.uid);
+    }
+
+    ticketsQuery.onSnapshot(snap => {
         tickets = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         if (role === 'user') renderUpcomingJourneys();
-    });
+    }, err => console.error("Tickets Listener Error:", err));
+
     db.collection('trips').onSnapshot(snap => {
         trips = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         
@@ -111,28 +132,50 @@ function setupRealtimeData() {
             }
         }
         if (role === 'admin' || role === 'bus') renderSchedules();
-    });
+    }, err => console.error("Trips Listener Error:", err));
+
     db.collection('buses').onSnapshot(snap => {
         buses = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         if (role === 'admin' || role === 'bus') { loadBusSelect(); renderFleet(); }
-    });
-    db.collection('users').onSnapshot(snap => {
+    }, err => console.error("Buses Listener Error:", err));
+
+    // ADMIN ONLY: Only listen to the full users collection if user is an admin
+    if (role === 'admin') {
+        db.collection('users').onSnapshot(snap => {
+        // Alert admin of new registrations via Browser Notification if tab is hidden
+        snap.docChanges().forEach(change => {
+            if (change.type === "added" && role === 'admin' && document.hidden) {
+                const newUser = change.doc.data();
+                const regTime = new Date(newUser.timestamp).getTime();
+                if (Date.now() - regTime < 10000) { // Only notify for real-time additions
+                    showBrowserNotification("New Registration", `${newUser.name} is awaiting approval.`);
+                }
+            }
+        });
         users = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         if (role === 'admin' && !document.getElementById('adminUsers').classList.contains('hidden')) loadUsers();
-    });
+        }, err => console.error("Users Listener Error:", err));
+    }
+
     db.collection('notifications').onSnapshot(snap => {
         notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         updateNotificationBadge();
-    });
-    db.collection('broadcasts').orderBy('timestamp', 'desc').onSnapshot(snap => {
-        broadcasts = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        if (role === 'admin' && !document.getElementById('adminNotifications').classList.contains('hidden')) renderBroadcastHistory();
-    });
+    }, err => console.error("Notifications Listener Error:", err));
+
+    // ADMIN ONLY: Broadcast history is usually only relevant for admins
+    if (role === 'admin') {
+        db.collection('broadcasts').orderBy('timestamp', 'desc').onSnapshot(snap => {
+            broadcasts = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            if (role === 'admin' && !document.getElementById('adminNotifications').classList.contains('hidden')) renderBroadcastHistory();
+        }, err => console.error("Broadcasts Listener Error:", err));
+    }
+
     db.collection('terminals').onSnapshot(snap => {
         terminals = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         populateCityLists();
         if (role === 'admin') loadTerminals();
-    });
+    }, err => console.error("Terminals Listener Error:", err));
+
     db.collection('settings').doc('config').onSnapshot(doc => {
         if (doc.exists) {
             maintenanceMode = doc.data().maintenanceMode || false;
@@ -145,7 +188,18 @@ function setupRealtimeData() {
                 else banner.classList.add('hidden');
             }
         }
-    });
+    }, err => console.error("Settings Listener Error:", err));
+}
+
+/* DESKTOP BROWSER NOTIFICATIONS */
+function showBrowserNotification(title, message) {
+    if (Notification.permission === "granted") {
+        new Notification(title, {
+            body: message,
+            icon: 'assests/logo.png',
+            badge: 'assests/logo.png'
+        });
+    }
 }
 
 // Helper function to get the current date in Kampala timezone (YYYY-MM-DD)
@@ -386,13 +440,29 @@ function reRunSearch(from, to) {
 
 function updateNotificationBadge() {
   const badge = document.getElementById('notifBadge');
-  if (!badge) return;
   const count = notifications.filter(n => !n.read).length;
-  if (count > 0) {
-    badge.innerText = count > 99 ? '99+' : count;
-    badge.classList.remove('hidden');
-  } else {
-    badge.classList.add('hidden');
+
+  if (badge) {
+      if (count > 0) {
+        badge.innerText = count > 99 ? '99+' : count;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+  }
+
+  // Admin Sidebar badge update
+  const adminNotifBtn = document.getElementById('a8');
+  if (adminNotifBtn && role === 'admin') {
+      let badgeEl = adminNotifBtn.querySelector('.sidebar-badge');
+      if (!badgeEl) {
+          badgeEl = document.createElement('span');
+          badgeEl.className = 'sidebar-badge';
+          badgeEl.style.cssText = 'background:var(--uganda-red); color:white; border-radius:50%; padding:2px 6px; font-size:0.6rem; margin-left:auto; font-weight:bold;';
+          adminNotifBtn.appendChild(badgeEl);
+      }
+      if (count > 0) { badgeEl.innerText = count; badgeEl.classList.remove('hidden'); }
+      else { badgeEl.classList.add('hidden'); }
   }
 }
 
@@ -812,10 +882,63 @@ async function register(){
       await db.collection('users').doc(cred.user.uid).set({
           name, email, phone, role: userRole, password, isApproved: false, status: 'Active', id: cred.user.uid, timestamp: new Date().toISOString()
       });
+
+      // Notify admins of new registration
+      await db.collection('notifications').add({
+          title: "New Registration",
+          message: `${name} (${userRole}) has registered and is pending approval.`,
+          timestamp: new Date().toISOString(),
+          read: false,
+          type: 'REGISTRATION'
+      });
+
       showNotification("Registration successful!", "success");
       showLogin();
   } catch (error) {
       alert("Registration failed: " + error.message);
+  }
+}
+
+/* GOOGLE LOGIN */
+async function loginWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+      const result = await auth.signInWithPopup(provider);
+      const user = result.user;
+      
+      // Check if firestore profile exists
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) {
+          await db.collection('users').doc(user.uid).set({
+              name: user.displayName || user.email.split('@')[0],
+              email: user.email || "",
+              phone: user.phoneNumber || "",
+              role: 'user', // Default to passenger
+              isApproved: false, // Must be approved by admin
+              status: 'Active',
+              id: user.uid,
+              timestamp: new Date().toISOString(),
+              photo: user.photoURL
+          });
+
+          // Notify admins of new Google registration
+          await db.collection('notifications').add({
+              title: "New Google User",
+              message: `${user.displayName} joined via Google and is pending approval.`,
+              timestamp: new Date().toISOString(),
+              read: false,
+              type: 'REGISTRATION'
+          });
+
+          // Manually set local state so the UI updates to 'Pending' immediately
+          currentUser = { name: user.displayName || user.email.split('@')[0], email: user.email || "", role: 'user', isApproved: false, id: user.uid };
+          role = 'pending';
+          init();
+
+          showNotification("Account created! Please wait for admin approval.", "info");
+      }
+  } catch (error) {
+      alert("Google Login failed: " + error.message);
   }
 }
 
@@ -861,6 +984,7 @@ function init(){
   document.getElementById('loginPage').classList.remove("login"); // Ensure login styling is removed when hidden
 
   userUI.classList.add("hidden"); // Hide all main UIs initially
+  pendingApprovalUI.classList.add("hidden");
   busUI.classList.add("hidden");
   adminUI.classList.add("hidden");
 
@@ -900,6 +1024,8 @@ function init(){
 
   if (role === null) { // Guest user
     showAuthPage(); // Force login on landing
+  } else if (role === "pending") {
+    pendingApprovalUI.classList.remove("hidden");
   } else if (role === "user") {
     userUI.classList.remove("hidden");
     bottomNav.classList.remove("hidden");
@@ -2238,7 +2364,13 @@ function renderSchedules(){
 
   // Group trips by Terminal (from) and Date for organized Admin View
   // Filter for daily schedules and group by Terminal city
-  const groupedSchedules = trips
+  const visibleTrips = role === 'admin' ? trips : trips.filter(t => {
+      // Only show trips belonging to buses owned by this operator
+      const bus = buses.find(b => b.id === t.busId);
+      return bus && bus.operator === currentUser.name;
+  });
+
+  const groupedSchedules = visibleTrips
     .filter(t => t.date === 'DAILY')
     .reduce((acc, t) => {
         const key = t.from;
@@ -2704,11 +2836,14 @@ function renderTickets(){
 
   ticketsDiv.innerHTML="";
   
-  let filteredTickets = tickets.filter(t => 
-    t.id.toString().includes(searchQuery) || 
-    t.to.toLowerCase().includes(searchQuery) ||
-    t.from.toLowerCase().includes(searchQuery)
-  );
+  let filteredTickets = tickets.filter(t => {
+    const matchesSearch = t.id.toString().includes(searchQuery) || 
+                          t.to.toLowerCase().includes(searchQuery) ||
+                          t.from.toLowerCase().includes(searchQuery);
+    if (role === 'admin') return matchesSearch;
+    // Users should only see tickets linked to their UID or Email
+    return matchesSearch && (t.uid === currentUser.uid || t.email === currentUser.email);
+  });
 
   if(filteredTickets.length === 0) {
     ticketsDiv.innerHTML = "<p style='color:white;'>No boarding passes found. Start your journey today!</p>";
@@ -3345,14 +3480,14 @@ function loadDashboard(){
   if (container && !document.getElementById('adminSeedBtn')) {
     adminActionSection = document.createElement('div');
     adminActionSection.id = 'adminActionSection';
-    adminActionSection.style.margin = '20px 0';
+    adminActionSection.style.margin = '25px 0';
     adminActionSection.innerHTML = `
-      <h4 style="color:white; margin-bottom:10px;"><i class="fas fa-tools"></i> Admin Maintenance</h4>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <button id="adminSeedBtn" class="view-ticket-btn" style="margin:0; background:var(--uganda-yellow); color:black;" onclick="seedFirestore()">
+      <h4 style="color:white; margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;"><i class="fas fa-tools"></i> Admin Maintenance</h4>
+      <div class="grid">
+        <button id="adminSeedBtn" class="btn" style="margin:0; background:var(--uganda-yellow); color:black; font-size:0.9rem;" onclick="seedFirestore()">
           <i class="fas fa-calendar-plus"></i> Populate Schedule
         </button>
-        <button class="view-ticket-btn" style="margin:0; background:var(--uganda-red); color:white;" onclick="deleteExpiredTrips()">
+        <button class="btn" style="margin:0; background:var(--uganda-red); color:white; font-size:0.9rem;" onclick="deleteExpiredTrips()">
           <i class="fas fa-trash-alt"></i> Delete Old Trips
         </button>
         <button class="btn" style="margin:0; background:#2b6cb0; color:white; grid-column: span 2;" onclick="resetTripStatuses()">
@@ -3377,14 +3512,31 @@ function loadDashboard(){
 function loadUsers(){
   let userList = document.getElementById('userList');
   if (!userList) return;
-  userList.innerHTML = '';
   
-  let query = document.getElementById('userSearch') ? document.getElementById('userSearch').value.toLowerCase() : '';
+  // Clear the table before rendering to avoid duplicates
+  userList.innerHTML = '<p style="color:white; padding:10px;">Loading users...</p>';
+
+  const query = (document.getElementById('userSearch')?.value || "").trim().toLowerCase();
   
-  let filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(query) || 
-    user.email.toLowerCase().includes(query)
-  );
+  // Filter users based on query
+  const filteredUsers = (users || []).filter(u => {
+    if (!u) return false;
+    const nameMatch = String(u.name || "").toLowerCase().includes(query);
+    const emailMatch = String(u.email || "").toLowerCase().includes(query);
+    return nameMatch || emailMatch;
+  });
+
+  // Calculate statistics from the full users array
+  const totalCount = users.length;
+  const pendingCount = users.filter(u => (u.isApproved === false || u.isApproved === undefined) && (u.role || "").toLowerCase() !== 'admin').length;
+  
+  console.log(`User Management Update: ${totalCount} users in state. Rendering ${filteredUsers.length} after filter.`);
+
+  // Update header with counts for transparency
+  const header = document.querySelector('#adminUsers h3');
+  if (header) {
+      header.innerHTML = `<i class="fas fa-users"></i> User Management <small style="font-size:0.7rem; opacity:0.6; margin-left:10px;">(${totalCount} Total, ${pendingCount} Pending)</small>`;
+  }
   
   userList.innerHTML = `
     <table class="ticket-table">
@@ -3400,19 +3552,23 @@ function loadUsers(){
       </thead>
       <tbody>
         ${filteredUsers.map((u, idx) => {
-          const isApproved = u.isApproved === true;
-          const status = u.status || 'Active';
-          
-          return `
+          try {
+            const uRole = String(u.role || 'user').toLowerCase();
+            const isApproved = u.isApproved === true || uRole === 'admin';
+            const status = u.status || 'Active';
+            const userId = u.id || u.uid || `temp-${idx}`;
+            const password = u.password || '********';
+            
+            return `
           <tr>
-            <td>${u.name}</td>
-            <td>${u.email}</td>
-            <td>${u.role}</td>
+            <td>${u.name || 'Anonymous'}</td>
+            <td>${u.email || 'No Email'}</td>
+            <td style="text-transform: capitalize;">${uRole}</td>
             <td>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span id="pass-${u.id}" style="font-family: monospace;">********</span>
-                <button class="btn btn-sm" style="background:transparent; color:white; padding:0; border:none; width:auto;" onclick="toggleUserPassword('${u.id}')">
-                  <i id="eye-${u.id}" class="fas fa-eye"></i>
+                <span id="pass-${userId}" style="font-family: monospace; font-size: 0.8rem;">********</span>
+                <button class="btn btn-sm" style="background:transparent; color:white; padding:0; border:none; width:auto;" onclick="toggleUserPassword('${userId}')">
+                  <i id="eye-${userId}" class="fas fa-eye"></i>
                 </button>
               </div>
             </td>
@@ -3422,20 +3578,25 @@ function loadUsers(){
               </span>
             </td>
             <td style="display:flex; gap:5px;">
-              ${!isApproved ? `
-                <button class="btn btn-sm" style="background:#48bb78" onclick="approveUser('${u.id}')" title="Approve"><i class="fas fa-check"></i></button>
-                <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="rejectUser('${u.id}')" title="Reject"><i class="fas fa-times"></i></button>
+              ${!isApproved && uRole !== 'admin' ? `
+                <button class="btn btn-sm" style="background:#48bb78" onclick="approveUser('${userId}')" title="Approve"><i class="fas fa-check"></i></button>
+                <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="rejectUser('${userId}')" title="Reject"><i class="fas fa-times"></i></button>
               ` : `
                 ${status === 'Active' ? 
-                  `<button class="btn btn-sm" style="background:#f6ad55" onclick="setUserStatus('${u.id}', 'Suspended')" title="Suspend Account (Inactive)"><i class="fas fa-user-slash"></i></button>` : 
-                  `<button class="btn btn-sm" style="background:#48bb78" onclick="setUserStatus('${u.id}', 'Active')" title="Activate Account"><i class="fas fa-user-check"></i></button>`
+                  `<button class="btn btn-sm" style="background:#f6ad55" onclick="setUserStatus('${userId}', 'Suspended')" title="Suspend Account (Inactive)"><i class="fas fa-user-slash"></i></button>` : 
+                  `<button class="btn btn-sm" style="background:#48bb78" onclick="setUserStatus('${userId}', 'Active')" title="Activate Account"><i class="fas fa-user-check"></i></button>`
                 }
               `}
-              <button class="btn btn-sm" style="background:#2b6cb0" onclick="editUser('${u.id}')" title="Edit"><i class="fas fa-edit"></i></button>
-              <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteUser('${u.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+              <button class="btn btn-sm" style="background:#2b6cb0" onclick="editUser('${userId}')" title="Edit"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteUser('${userId}')" title="Delete" ${uRole === 'admin' ? 'disabled style="opacity:0.3"' : ''}><i class="fas fa-trash"></i></button>
             </td>
           </tr>
-        `}).join('')}
+        `;
+          } catch (err) {
+            console.error("Error rendering user row:", err, u);
+            return `<tr><td colspan="6" style="color:var(--uganda-red);">Error loading record ${idx}</td></tr>`;
+          }
+        }).join('') || '<tr><td colspan="6" style="text-align:center; padding:20px; opacity:0.5;">No users found matching your search.</td></tr>'}
       </tbody>
     </table>
   `;
@@ -4029,7 +4190,38 @@ function loadPaymentSettings(){
 }
 
 function loadNotifications(){
-  // This section is for sending notifications, no loading needed
+  // Render Inbox for Admin
+  const inbox = document.getElementById('adminInboxList');
+  if (!inbox) return;
+
+  if (notifications.length === 0) {
+      inbox.innerHTML = '<p style="opacity:0.5; padding: 20px; text-align: center;">No new alerts.</p>';
+      return;
+  }
+
+  inbox.innerHTML = notifications
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .map(n => `
+      <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <strong style="color:var(--uganda-yellow); font-size:0.85rem;">${n.title}</strong>
+            <small style="opacity:0.5; font-size:0.65rem;">${new Date(n.timestamp).toLocaleTimeString()}</small>
+        </div>
+        <p style="margin:5px 0; font-size:0.8rem; line-height:1.3;">${n.message}</p>
+        <div style="text-align:right;">
+            <button class="view-ticket-btn" style="padding:2px 8px; font-size:0.55rem; background:transparent; border:1px solid rgba(255,255,255,0.2);" onclick="deleteAdminNotification('${n.id}')">Dismiss</button>
+        </div>
+      </div>
+    `).join('');
+}
+
+async function deleteAdminNotification(id) {
+    try {
+        await db.collection('notifications').doc(id).delete();
+        showNotification("Notification dismissed", "info");
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 function loadSettings(){

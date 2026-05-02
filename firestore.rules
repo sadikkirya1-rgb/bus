@@ -2,31 +2,79 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is admin
-    function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // --- HELPER FUNCTIONS ---
+    function isAuthenticated() {
+      return request.auth != null;
     }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isOperator() {
+      return hasRole('bus');
+    }
+
+    // --- COLLECTION RULES ---
 
     // User Profiles
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // Anyone can create (register). Owner and Admin can read/update.
+      allow create: if true;
+      allow read, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
 
     // Tickets
     match /tickets/{ticketId} {
-      allow read: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if request.auth != null;
-      allow update, delete: if isAdmin();
+      // Read: Owner (by UID or Email), Admin, or Operator (to verify) can read.
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || 
+        resource.data.email == request.auth.token.email ||
+        isAdmin() || isOperator()
+      );
+      // Any authenticated user can book.
+      allow create: if isAuthenticated();
+      // Admin and Operator (for boarding) can update.
+      allow update: if isAdmin() || isOperator();
+      allow delete: if isAdmin();
     }
 
-    // Trips & Buses (Publicly readable for booking, writable by admin/operator)
-    match /{collection}/{docId} {
+    // Buses & Trips
+    // Publicly readable for scheduling/booking. 
+    // Writable by Admin or any Operator.
+    match /buses/{busId} {
       allow read: if true;
-      allow write: if isAdmin() || 
-        (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'bus');
-      
-      match /trips/{tripId} { allow write: if isAdmin(); }
+      allow write: if isAdmin() || isOperator();
+    }
+
+    match /trips/{tripId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator();
+    }
+
+    // Terminals & Points
+    match /terminals/{terminalId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // System Notifications & Broadcasts
+    match /notifications/{id} { allow read, write: if isAuthenticated(); }
+    match /broadcasts/{id} { allow read: if true; allow write: if isAdmin(); }
+
+    // System Settings (e.g., Maintenance Mode)
+    match /settings/config {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
