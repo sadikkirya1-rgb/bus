@@ -1945,14 +1945,17 @@ async function shareTicket(index) {
 
     const isUsed = statusLabel === "USED";
 
-    // Create canvas with proper dimensions
+    const scale = 3; // 3x resolution for High Definition output
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    // Set canvas size for a borderless ticket (360x610 content area)
-    canvas.width = 360;
-    canvas.height = 610;
+    // Set canvas size for a borderless ticket (360x610 content area) multiplied by scale
+    canvas.width = 360 * scale;
+    canvas.height = 610 * scale;
     
+    // Apply scaling to the context for high-quality rendering of text and shapes
+    ctx.scale(scale, scale);
+
     // Store original dimensions for coordinate logic compatibility
     const origW = 400;
     const origH = 650;
@@ -2123,8 +2126,8 @@ async function shareTicket(index) {
 
         new QRCode(tempDiv, {
             text: `TICKET:${t.id}`,
-            width: 80,
-            height: 80,
+            width: 80 * scale,
+            height: 80 * scale,
             colorDark: '#000000',
             colorLight: '#ffffff'
         });
@@ -3066,14 +3069,17 @@ async function downloadTicketAsImage(index, event) {
         const passengerUser = users.find(u => u.email === t.email || u.name === t.passenger);
         const photoUrl = passengerUser?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.passenger)}&background=007A3D&color=fff`;
 
-        // Create canvas with proper dimensions
+        const scale = 3; // 3x resolution for High Definition output
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size for a borderless ticket (360x610 content area)
-        canvas.width = 360;
-        canvas.height = 610;
+        // Set canvas size for a borderless ticket multiplied by scale
+        canvas.width = 360 * scale;
+        canvas.height = 610 * scale;
         
+        // Apply scaling for high-quality rendering
+        ctx.scale(scale, scale);
+
         // Store original dimensions for coordinate logic compatibility
         const origW = 400;
         const origH = 650;
@@ -3244,8 +3250,8 @@ async function downloadTicketAsImage(index, event) {
 
             new QRCode(tempDiv, {
                 text: `TICKET:${t.id}`,
-                width: 80,
-                height: 80,
+                width: 80 * scale,
+                height: 80 * scale,
                 colorDark: '#000000',
                 colorLight: '#ffffff'
             });
