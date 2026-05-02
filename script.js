@@ -118,6 +118,7 @@ function setupRealtimeData() {
     });
     db.collection('users').onSnapshot(snap => {
         users = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        if (role === 'admin' && !document.getElementById('adminUsers').classList.contains('hidden')) loadUsers();
     });
     db.collection('notifications').onSnapshot(snap => {
         notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -809,7 +810,7 @@ async function register(){
       const cred = await auth.createUserWithEmailAndPassword(email || `${phone}@bus.ug`, password);
       // Store user role in Firestore
       await db.collection('users').doc(cred.user.uid).set({
-          name, email, phone, role: userRole, id: cred.user.uid, timestamp: new Date().toISOString()
+          name, email, phone, role: userRole, password, isApproved: false, status: 'Active', id: cred.user.uid, timestamp: new Date().toISOString()
       });
       showNotification("Registration successful!", "success");
       showLogin();
@@ -3351,6 +3352,7 @@ function loadDashboard(){
 
 function loadUsers(){
   let userList = document.getElementById('userList');
+  if (!userList) return;
   userList.innerHTML = '';
   
   let query = document.getElementById('userSearch') ? document.getElementById('userSearch').value.toLowerCase() : '';
@@ -3363,15 +3365,53 @@ function loadUsers(){
   userList.innerHTML = `
     <table class="ticket-table">
       <thead>
-        <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Actions</th></tr>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Password</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
       </thead>
       <tbody>
-        ${filteredUsers.map(u => `
+        ${filteredUsers.map((u, idx) => {
+          const isApproved = u.isApproved === true;
+          const status = u.status || 'Active';
+          
+          return `
           <tr>
-            <td>${u.name}</td><td>${u.email}</td><td>${u.phone}</td><td>${u.role}</td>
-            <td><button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button></td>
+            <td>${u.name}</td>
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span id="pass-${u.id}" style="font-family: monospace;">********</span>
+                <button class="btn btn-sm" style="background:transparent; color:white; padding:0; border:none; width:auto;" onclick="toggleUserPassword('${u.id}')">
+                  <i id="eye-${u.id}" class="fas fa-eye"></i>
+                </button>
+              </div>
+            </td>
+            <td>
+              <span class="badge ${!isApproved ? 'bg-paid' : (status === 'Active' ? 'bg-active' : 'bg-secondary')}">
+                ${!isApproved ? 'PENDING' : status.toUpperCase()}
+              </span>
+            </td>
+            <td style="display:flex; gap:5px;">
+              ${!isApproved ? `
+                <button class="btn btn-sm" style="background:#48bb78" onclick="approveUser('${u.id}')" title="Approve"><i class="fas fa-check"></i></button>
+                <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="rejectUser('${u.id}')" title="Reject"><i class="fas fa-times"></i></button>
+              ` : `
+                ${status === 'Active' ? 
+                  `<button class="btn btn-sm" style="background:#f6ad55" onclick="setUserStatus('${u.id}', 'Suspended')" title="Suspend Account (Inactive)"><i class="fas fa-user-slash"></i></button>` : 
+                  `<button class="btn btn-sm" style="background:#48bb78" onclick="setUserStatus('${u.id}', 'Active')" title="Activate Account"><i class="fas fa-user-check"></i></button>`
+                }
+              `}
+              <button class="btn btn-sm" style="background:#2b6cb0" onclick="editUser('${u.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deleteUser('${u.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
           </tr>
-        `).join('')}
+        `}).join('')}
       </tbody>
     </table>
   `;
@@ -4211,13 +4251,78 @@ async function seedFirestore() {
   }
 }
 
-function deleteUser(userId){
-  if(confirm('Are you sure you want to delete this user?')) {
-    users = users.filter(u => u.id !== userId);
-    localStorage.setItem('users', JSON.stringify(users));
-    loadUsers();
-    alert('User deleted successfully!');
+async function deleteUser(userId){
+  if(confirm('Are you sure you want to delete this user permanently?')) {
+      try {
+          await db.collection('users').doc(userId).delete();
+          showNotification("User account deleted.", "success");
+          addActivityLog(`Admin deleted user ID: ${userId}`);
+      } catch (error) {
+          showNotification("Error deleting user: " + error.message, "error");
+      }
   }
+}
+
+async function approveUser(userId) {
+    try {
+        await db.collection('users').doc(userId).update({ isApproved: true });
+        showNotification("User approved!", "success");
+        addActivityLog(`Admin approved user ID: ${userId}`);
+    } catch (e) { showNotification("Approval failed", "error"); }
+}
+
+async function rejectUser(userId) {
+    if (confirm("Reject this user registration and delete the record?")) {
+        deleteUser(userId);
+    }
+}
+
+async function setUserStatus(userId, status) {
+    try {
+        await db.collection('users').doc(userId).update({ status: status });
+        const msg = status === 'Active' ? "Account activated" : "Account suspended (Inactive)";
+        showNotification(msg, status === 'Active' ? "success" : "info");
+        addActivityLog(`Admin set user ${userId} status to ${status}`);
+    } catch (e) { showNotification("Status update failed", "error"); }
+}
+
+function toggleUserPassword(id) {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+    const realPass = user.password || 'N/A';
+    const span = document.getElementById(`pass-${id}`);
+    const icon = document.getElementById(`eye-${id}`);
+    if (span.innerText === "********") {
+        span.innerText = realPass;
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        span.innerText = "********";
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+
+async function editUser(userId) {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const newName = prompt("Edit Full Name:", user.name);
+    const newEmail = prompt("Edit Email Address:", user.email);
+    const newPhone = prompt("Edit Phone Number:", user.phone);
+    const newRole = prompt("Edit Role (admin/user/bus):", user.role);
+
+    if (newName && newEmail && newPhone && newRole) {
+        try {
+            await db.collection('users').doc(userId).update({
+                name: newName,
+                email: newEmail,
+                phone: newPhone,
+                role: newRole
+            });
+            showNotification("User profile updated.", "success");
+        } catch (e) {
+            showNotification("Failed to update user: " + e.message, "error");
+        }
+    }
 }
 
 function viewOperatorBuses(operator){
