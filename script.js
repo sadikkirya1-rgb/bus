@@ -3032,7 +3032,11 @@ window.addEventListener('storage', (e) => {
 
 /* ADMIN FUNCTIONS */
 function adminTab(section){
-  // Hide all admin sections
+  // Hide the sidebar completely when a section is selected
+  if (!sidebar.classList.contains('collapsed')) {
+      toggleSidebar();
+  }
+
   const adminSections = ['adminDashboard', 'adminUsers', 'adminOperators', 'adminRoutes', 'adminBookings', 'adminAnalytics', 'adminPayments', 'adminNotifications', 'adminSettings', 'adminActivity', 'adminSupportTickets', 'adminTicketingDesk', 'adminFleetControl', 'adminTerminals'];
   adminSections.forEach(id => {
     const el = document.getElementById(id);
@@ -3052,19 +3056,19 @@ function adminTab(section){
   // Update Breadcrumb Trail
   const sectionLabels = {
     'dashboard': 'Dashboard',
-    'users': 'User Management',
-    'operators': 'Bus Operators',
-    'routes': 'Route Management',
-    'bookings': 'Booking Management',
+    'users': 'Users',
+    'operators': 'Operators',
+    'routes': 'Routes',
+    'bookings': 'Bookings',
     'analytics': 'Analytics',
-    'payments': 'Payment Settings',
+    'payments': 'Payments',
     'notifications': 'Notifications',
-    'settings': 'System Settings',
-    'activity': 'Activity Log',
-    'supportTickets': 'Support Tickets',
-    'ticketingDesk': 'Passenger Ticketing Service',
-    'fleetControl': 'Fleet & Terminal Control',
-    'terminals': 'Terminal Management'
+    'settings': 'Settings',
+    'activity': 'Activity',
+    'supportTickets': 'Support',
+    'ticketingDesk': 'Ticketing',
+    'fleetControl': 'Fleet Control',
+    'terminals': 'Terminals'
   };
   title.innerHTML = `<span style="opacity: 0.6; font-weight: 400; font-size: 0.9rem;">Admin</span> <i class="fas fa-chevron-right" style="font-size: 0.7rem; margin: 0 8px; opacity: 0.4;"></i> ${sectionLabels[section] || section}`;
 
