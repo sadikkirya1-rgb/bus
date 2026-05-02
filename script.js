@@ -70,6 +70,21 @@ auth.onAuthStateChanged(async (user) => {
     }
 });
 
+// Helper to format time strings (HH:MM or HH:MM AM/PM) into standard AM/PM format
+function formatTimeAMPM(timeStr) {
+    if (!timeStr) return "08:00 AM";
+    const cleanTime = timeStr.trim().toUpperCase();
+    if (cleanTime.includes("AM") || cleanTime.includes("PM")) return cleanTime;
+    
+    let [hours, minutes] = timeStr.split(':');
+    hours = parseInt(hours);
+    if (isNaN(hours)) return timeStr;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; 
+    return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+}
+
 function setupRealtimeData() {
     // Sync Firestore collections to local arrays in real-time
     db.collection('tickets').onSnapshot(snap => {
@@ -1426,7 +1441,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
         const soldOutBadge = isSoldOut ? `<span class="badge bg-used" style="margin-left:10px; font-size:0.6rem;">SOLD OUT</span>` : '';
         const btnDisabled = isSoldOut ? 'disabled' : '';
         const btnStyle = isSoldOut ? 'background: #718096; cursor: not-allowed; opacity: 0.7;' : 'box-shadow: 0 0 10px rgba(252, 209, 22, 0.5);';
-        const btnAction = isSoldOut ? '' : `onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])})'`;
+        const btnAction = isSoldOut ? '' : `onclick='showBusDetails("${t.busName}", ${t.price}, ${JSON.stringify(t.amenities || [])}, "${t.time}")'`;
         
         return `
         <div class="upcoming-card" style="margin-bottom: 12px; background: rgba(0,0,0,0.5);">
@@ -1554,7 +1569,7 @@ function refreshActiveSchedules() {
                 document.getElementById('btnOthers').innerText = tomorrowStr;
                 
                 // Proceed directly to booking details for this bus
-                showBusDetails(t.busName, t.price, t.amenities);
+                showBusDetails(t.busName, t.price, t.amenities, t.time);
               };
             }
         } else if (isLive) {
@@ -1566,7 +1581,7 @@ function refreshActiveSchedules() {
             if (bookBtn) {
                 let bTxt = isFutureSearch ? "Book For Tomorrow" : "Book Today";
                 bookBtn.innerText = bTxt;
-                bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
+                bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities, t.time); };
             }
         } else if (isUrgent) {
             statusText = `<span class="status-urgent" style="font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> URGENT</span>`;
@@ -1602,7 +1617,7 @@ function refreshActiveSchedules() {
             timeTextEl.classList.remove('finished-schedule');
             if (bookBtn) {
                 bookBtn.innerText = isFutureSearch ? "Book For Tomorrow" : "Book Today";
-                bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities); };
+                bookBtn.onclick = (e) => { e.stopPropagation(); showBusDetails(t.busName, t.price, t.amenities, t.time); };
             }
         }
 
@@ -1631,8 +1646,8 @@ function refreshActiveSchedules() {
 }
 
 /* BUS DETAILS SCREEN */
-function showBusDetails(name, price, amenities) {
-    selectedBus = { name, price, amenities };
+function showBusDetails(name, price, amenities, time) {
+    selectedBus = { name, price, amenities, time, duration: "3h 45m" };
     showUserScreen('busDetailsBox');
     
     document.getElementById('detailsBusName').innerText = name;
@@ -1816,6 +1831,10 @@ async function confirmBooking(){
   const ticketId = Math.floor(100000 + Math.random() * 900000);
   let ticket = { 
     bus: selectedBus?.name || "Unknown Bus", // Ensure selectedBus is defined
+    time: selectedBus?.time || "08:00 AM",
+    duration: selectedBus?.duration || "3h 45m",
+    boardingPoint: document.getElementById('boardingPoint').value,
+    droppingPoint: document.getElementById('droppingPoint').value,
     seat: selectedSeat,
     price: selectedBus?.price || 0,
     date: document.getElementById('date') ? document.getElementById('date').value : getKampalaDateISO(),
@@ -1975,16 +1994,16 @@ async function shareTicket(index) {
     ctx.fillStyle = '#007A3D';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('UGBUS TICKETS Boarding Pass', 100, 50);
+    ctx.fillText('UGBUS TICKETS', 100, 50);
 
     // Status badge
     const statusColors = {
-        'ACTIVE': '#48bb78',
-        'VERIFIED': '#48bb78',
-        'BOARDED': '#4299e1',
-        'USED': '#a0aec0',
-        'PAID': '#ed8936',
-        'PENDING': '#ed8936'
+        'ACTIVE': '#2f855a',
+        'VERIFIED': '#2f855a',
+        'BOARDED': '#2b6cb0',
+        'USED': '#4a5568',
+        'PAID': '#c05621',
+        'PENDING': '#c05621'
     };
     const statusColor = statusColors[statusLabel] || '#6b7280';
 
@@ -2068,7 +2087,7 @@ async function shareTicket(index) {
     ctx.fillText('DEPARTURE', rightX, infoY + 40);
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 14px sans-serif';
-    ctx.fillText(`${t.date} | ${t.time || '08:00'}`, rightX, infoY + 55);
+    ctx.fillText(`${t.date} | ${formatTimeAMPM(t.time)}`, rightX, infoY + 55);
 
     ctx.fillStyle = '#999999';
     ctx.font = 'bold 10px sans-serif';
@@ -2076,6 +2095,20 @@ async function shareTicket(index) {
     ctx.fillStyle = '#000000';
     ctx.font = 'bold 14px sans-serif';
     ctx.fillText(`#${t.id}`, rightX, infoY + 95);
+
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('BOARDING', leftX, infoY + 120);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(t.boardingPoint || 'Main Terminal', leftX, infoY + 135);
+
+    ctx.fillStyle = '#999999';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.fillText('EST. DURATION', leftX, infoY + 160);
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(t.duration || '3h 45m', leftX, infoY + 175);
 
     // QR Code section background
     ctx.fillStyle = '#f8fafc';
@@ -2118,6 +2151,62 @@ async function shareTicket(index) {
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', origW / 2, origH - 120);
+
+    // Digital Stamp for BOARDED or USED (Physical ink stamp style with bleed and timestamp)
+    if (statusLabel === 'BOARDED' || statusLabel === 'USED') {
+        const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
+        const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
+
+        ctx.save();
+        ctx.translate(origW / 2, origH - 160);
+        ctx.rotate(-15 * Math.PI / 180);
+        ctx.globalAlpha = 1.0;
+        
+        // Simulation of physical ink bleed on canvas
+        ctx.shadowBlur = 1.5;
+        ctx.shadowColor = statusColor;
+
+        ctx.font = '900 24px "Courier New", Courier, monospace';
+        const textWidth = ctx.measureText(statusLabel).width;
+        const w = Math.max(textWidth, 100) + 40;
+        const h = 75;
+
+        // Draw Oval border (Rough look with double stroke)
+        ctx.strokeStyle = statusColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, w/2, h/2, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, w/2 - 5, h/2 - 5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = statusColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(statusLabel, 0, -8);
+
+        ctx.font = 'bold 9px "Courier New", Courier, monospace';
+        ctx.fillText(`VERIFIED: ${vTimeStr}`, 0, 15);
+
+        // Add ink splatter specks
+        ctx.fillStyle = statusColor;
+        for (let i = 0; i < 25; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = (Math.random() * 10) + (w / 2 - 15);
+            const sx = Math.cos(angle) * dist;
+            const sy = Math.sin(angle) * dist;
+            const size = Math.random() * 1.5;
+            ctx.beginPath();
+            ctx.arc(sx, sy, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
 
     // Footer
     ctx.fillStyle = '#007A3D';
@@ -2841,6 +2930,16 @@ function renderTickets(){
       else if(statusLabel === "PAID") statusClass = "bg-paid";
       else if(statusLabel === "PENDING") statusClass = "bg-paid";
       
+      const statusColors = {
+        'ACTIVE': '#2f855a', 'VERIFIED': '#2f855a', 'BOARDED': '#2b6cb0',
+        'USED': '#4a5568', 'PAID': '#c05621', 'PENDING': '#c05621'
+      };
+      const statusColorHex = statusColors[statusLabel] || '#718096';
+      const hasStamp = statusLabel === "USED" || statusLabel === "BOARDED";
+
+      const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
+      const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
+
       const isUsed = statusLabel === "USED";
 
       // Find associated user to retrieve profile photo for design parity
@@ -2876,7 +2975,7 @@ function renderTickets(){
           <div class="ticket-header">
             <div style="display: flex; align-items: center; gap: 10px;">
               <img src="assests/logo.png" style="width: 35px; height: 35px; object-fit: contain;">
-              <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS Boarding Pass</div>
+              <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS</div>
             </div>
             <div class="badge ${statusClass}">${statusLabel}</div>
           </div>
@@ -2888,14 +2987,17 @@ function renderTickets(){
             </div>
             <div class="ticket-info-grid">
               <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
-              <div class="info-item"><label>Seat</label><span>#${t.seat}</span></div>
               <div class="info-item"><label>Bus</label><span>${t.bus}</span></div>
-              <div class="info-item"><label>Plate</label><span>${t.plate || 'UAX 456Z'}</span></div>
-              <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
+              <div class="info-item"><label>Departure</label><span>${t.date} | ${formatTimeAMPM(t.time)}</span></div>
+              <div class="info-item"><label>Est. Duration</label><span>${t.duration || '3h 45m'}</span></div>
+              <div class="info-item"><label>Boarding</label><span>${t.boardingPoint || 'Main Terminal'}</span></div>
+              <div class="info-item"><label>Dropping</label><span>${t.droppingPoint || 'Destination'}</span></div>
+              <div class="info-item"><label>Seat</label><span>#${t.seat || '1'}</span></div>
               <div class="info-item"><label>Booking ID</label><span>#${t.id}</span></div>
             </div>
-            <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''}">
+            <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''} position: relative; overflow: hidden;">
               <div class="qr-container"></div>
+              ${hasStamp ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; z-index: 5; pointer-events: none; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 0 0 1px rgba(0,0,0,0.2), 2px 2px 2px ${statusColorHex}44, -2px -2px 2px ${statusColorHex}22; white-space: nowrap; filter: blur(0.25px) contrast(140%); text-align: center; line-height: 1.1; background: rgba(255,255,255,0.98);"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel}</div><div style="font-size: 0.55rem; font-weight: bold; border-top: 1px solid ${statusColorHex}; margin-top: 2px; padding-top: 2px;">VERIFIED: ${vTimeStr}</div></div>` : ''}
               <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
             </div>
             ${scheduleSummaryHtml}
@@ -3013,16 +3115,16 @@ async function downloadTicketAsImage(index, event) {
         ctx.fillStyle = '#007A3D';
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('UGBUS TICKETS Boarding Pass', 100, 50);
+        ctx.fillText('UGBUS TICKETS', 100, 50);
 
         // Status badge
         const statusColors = {
-            'ACTIVE': '#48bb78',
-            'VERIFIED': '#48bb78',
-            'BOARDED': '#4299e1',
-            'USED': '#a0aec0',
-            'PAID': '#ed8936',
-            'PENDING': '#ed8936'
+            'ACTIVE': '#2f855a',
+            'VERIFIED': '#2f855a',
+            'BOARDED': '#2b6cb0',
+            'USED': '#4a5568',
+            'PAID': '#c05621',
+            'PENDING': '#c05621'
         };
         const statusColor = statusColors[statusLabel] || '#6b7280';
 
@@ -3106,7 +3208,7 @@ async function downloadTicketAsImage(index, event) {
         ctx.fillText('DEPARTURE', rightX, infoY + 40);
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 14px sans-serif';
-        ctx.fillText(`${t.date} | ${t.time || '08:00'}`, rightX, infoY + 55);
+        ctx.fillText(`${t.date} | ${formatTimeAMPM(t.time)}`, rightX, infoY + 55);
 
         ctx.fillStyle = '#999999';
         ctx.font = 'bold 10px sans-serif';
@@ -3114,6 +3216,20 @@ async function downloadTicketAsImage(index, event) {
         ctx.fillStyle = '#000000';
         ctx.font = 'bold 14px sans-serif';
         ctx.fillText(`#${t.id}`, rightX, infoY + 95);
+
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('BOARDING', leftX, infoY + 120);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(t.boardingPoint || 'Main Terminal', leftX, infoY + 135);
+
+        ctx.fillStyle = '#999999';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('EST. DURATION', leftX, infoY + 160);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(t.duration || '3h 45m', leftX, infoY + 175);
 
         // QR Code section background
         ctx.fillStyle = '#f8fafc';
@@ -3157,6 +3273,62 @@ async function downloadTicketAsImage(index, event) {
         ctx.textAlign = 'center';
         ctx.fillText(isUsed ? 'This ticket has already been used' : 'Scan at Boarding', origW / 2, origH - 120);
 
+        // Digital Stamp for BOARDED or USED (Physical ink stamp style with bleed and timestamp)
+        if (statusLabel === 'BOARDED' || statusLabel === 'USED') {
+            const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
+            const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
+
+            ctx.save();
+            ctx.translate(origW / 2, origH - 160);
+            ctx.rotate(-15 * Math.PI / 180);
+            ctx.globalAlpha = 1.0;
+            
+            // Simulation of physical ink bleed on canvas
+            ctx.shadowBlur = 1.5;
+            ctx.shadowColor = statusColor;
+
+            ctx.font = '900 24px "Courier New", Courier, monospace';
+            const textWidth = ctx.measureText(statusLabel).width;
+            const w = Math.max(textWidth, 100) + 40;
+            const h = 75;
+
+            // Draw Oval border (Rough look with double stroke)
+            ctx.strokeStyle = statusColor;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w/2, h/2, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w/2 - 5, h/2 - 5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.fillStyle = statusColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(statusLabel, 0, -8);
+
+            ctx.font = 'bold 9px "Courier New", Courier, monospace';
+            ctx.fillText(`VERIFIED: ${vTimeStr}`, 0, 15);
+
+            // Add ink splatter specks
+            ctx.fillStyle = statusColor;
+            for (let i = 0; i < 25; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = (Math.random() * 10) + (w / 2 - 15);
+                const sx = Math.cos(angle) * dist;
+                const sy = Math.sin(angle) * dist;
+                const size = Math.random() * 1.5;
+                ctx.beginPath();
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
         // Footer
         ctx.fillStyle = '#007A3D';
         ctx.fillRect(20, origH - 80, origW - 40, 60);
@@ -3181,7 +3353,7 @@ async function downloadTicketAsImage(index, event) {
         // Fallback: create a simple text-based ticket
         try {
             const ticketText = `
-UGBUS TICKETS BOARDING PASS
+UGBUS TICKETS
 ========================
 Passenger: ${t.passenger}
 From: ${t.from} To: ${t.to}
@@ -3951,6 +4123,16 @@ async function printTicketReceipt(id) {
     const statusLabel = t.status || "PAID";
     const statusClass = statusLabel === "ACTIVE" ? "bg-active" : statusLabel === "BOARDED" ? "bg-boarded" : statusLabel === "USED" ? "bg-used" : "bg-paid";
 
+    const statusColors = {
+        'ACTIVE': '#2f855a', 'VERIFIED': '#2f855a', 'BOARDED': '#2b6cb0',
+        'USED': '#4a5568', 'PAID': '#c05621', 'PENDING': '#c05621'
+    };
+    const statusColorHex = statusColors[statusLabel] || '#718096';
+    const hasStamp = statusLabel === "USED" || statusLabel === "BOARDED";
+
+    const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
+    const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
+
     const printHtml = `
         <html>
         <head>
@@ -3969,6 +4151,7 @@ async function printTicketReceipt(id) {
                 .info-item label { display: block; font-size: 0.7rem; text-transform: uppercase; color: #718096; letter-spacing: 1px; }
                 .info-item span { font-weight: 700; font-size: 0.95rem; }
                 .ticket-footer { padding: 15px 20px; background: #007A3D; color: white; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+                .ticket-qr-section { text-align: center; padding: 20px; background: #f8fafc; border-radius: 12px; margin-top: 15px; position: relative; }
                 .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
                 .bg-active { background: #48bb78; color: white; }
                 .bg-paid { background: #ed8936; color: white; }
@@ -3982,7 +4165,7 @@ async function printTicketReceipt(id) {
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <img src="assests/logo.png" style="width: 50px; height: 50px; object-fit: contain;" alt="Logo">
                         <div>
-                            <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">UGBUS TICKETS Boarding Pass</div>
+                            <div style="font-weight:bold; color:#007A3D; line-height: 1.2;">UGBUS TICKETS</div>
                             <div style="font-size: 0.65rem; color: #718096; text-transform: uppercase; letter-spacing: 0.5px;">Identity Verified</div>
                         </div>
                     </div>
@@ -3998,7 +4181,15 @@ async function printTicketReceipt(id) {
                         <div class="info-item"><label>Passenger</label><span>${t.passenger}</span></div>
                         <div class="info-item"><label>Seat</label><span>#${t.seat || '1'}</span></div>
                         <div class="info-item"><label>Bus</label><span>${t.bus}</span></div>
-                        <div class="info-item"><label>Departure</label><span>${t.date} | ${t.time || '08:00'}</span></div>
+                        <div class="info-item"><label>Departure</label><span>${t.date} | ${formatTimeAMPM(t.time)}</span></div>
+                        <div class="info-item"><label>Est. Duration</label><span>${t.duration || '3h 45m'}</span></div>
+                        <div class="info-item"><label>Boarding</label><span>${t.boardingPoint || 'Main Terminal'}</span></div>
+                        <div class="info-item"><label>Dropping</label><span>${t.droppingPoint || 'Destination'}</span></div>
+                    </div>
+                    <div class="ticket-qr-section">
+                        <div style="border: 2px solid #e2e8f0; border-radius: 8px; width: 100px; height: 100px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: white; color: #cbd5e0; font-size: 2rem;"><i class="fas fa-qrcode"></i></div>
+                        ${hasStamp ? `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 2px 2px 2px ${statusColorHex}44; white-space: nowrap; filter: blur(0.25px) contrast(140%); text-align: center; line-height: 1.1; background: rgba(255,255,255,0.98);"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel}</div><div style="font-size: 0.55rem; font-weight: bold; border-top: 1px solid ${statusColorHex}; margin-top: 2px; padding-top: 2px;">VERIFIED: ${vTimeStr}</div></div>` : ''}
+                        <p style="margin:8px 0 0 0; font-size:0.7rem; color:#64748b;">${statusLabel === 'USED' ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
                     </div>
                 </div>
                 <div class="ticket-footer">
