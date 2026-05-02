@@ -1999,12 +1999,32 @@ async function renderTicketToCanvas(t, scale = 3) {
     ctx.fillText(statusLabel === 'USED' ? 'Already Used' : 'Scan at Boarding', 200, 535);
 
     // Stamp
-    if (statusLabel === 'BOARDED' || statusLabel === 'USED') {
+    const stampedStatuses = ['ACTIVE', 'VERIFIED', 'BOARDED', 'USED'];
+    if (stampedStatuses.includes(statusLabel)) {
+        const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
+        const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
+        const stampTxt = statusLabel === 'ACTIVE' ? 'VERIFIED' : statusLabel;
+
         ctx.save(); ctx.translate(200, 490); ctx.rotate(-15 * Math.PI / 180);
-        ctx.strokeStyle = statusColor; ctx.lineWidth = 3; ctx.font = '900 24px "Courier New", Courier, monospace';
-        const wStr = ctx.measureText(statusLabel).width + 40;
-        ctx.beginPath(); ctx.ellipse(0, 0, wStr/2, 35, 0, 0, Math.PI*2); ctx.stroke();
-        ctx.fillStyle = statusColor; ctx.fillText(statusLabel, 0, 0); ctx.restore();
+        ctx.strokeStyle = statusColor; ctx.lineWidth = 3; 
+        
+        ctx.font = '900 24px "Courier New", Courier, monospace';
+        const labelW = ctx.measureText(stampTxt).width;
+        ctx.font = '800 12px "Courier New", Courier, monospace';
+        const dateW = ctx.measureText(vTimeStr).width;
+        const maxW = Math.max(labelW, dateW) + 50;
+
+        ctx.beginPath(); ctx.ellipse(0, 0, maxW/2, 45, 0, 0, Math.PI*2);
+        ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
+        
+        ctx.fillStyle = statusColor; 
+        ctx.textAlign = 'center';
+        ctx.font = '900 24px "Courier New", Courier, monospace';
+        ctx.fillText(stampTxt, 0, 0); 
+        
+        ctx.font = '800 12px "Courier New", Courier, monospace';
+        ctx.fillText(vTimeStr, 0, 20);
+        ctx.restore();
     }
 
     // Footer
@@ -2726,7 +2746,7 @@ function renderTickets(){
         'USED': '#4a5568', 'PAID': '#c05621', 'PENDING': '#c05621'
       };
       const statusColorHex = statusColors[statusLabel] || '#718096';
-      const hasStamp = statusLabel === "USED" || statusLabel === "BOARDED";
+      const hasStamp = ["ACTIVE", "VERIFIED", "BOARDED", "USED"].includes(statusLabel);
 
       const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
       const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
@@ -2788,7 +2808,7 @@ function renderTickets(){
             </div>
             <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''} position: relative; overflow: hidden;">
               <div class="qr-container"></div>
-              ${hasStamp ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; z-index: 5; pointer-events: none; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 0 0 1px rgba(0,0,0,0.2), 2px 2px 2px ${statusColorHex}44, -2px -2px 2px ${statusColorHex}22; white-space: nowrap; filter: blur(0.25px) contrast(140%); text-align: center; line-height: 1.1; background: rgba(255,255,255,0.98);"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel}</div><div style="font-size: 0.55rem; font-weight: bold; border-top: 1px solid ${statusColorHex}; margin-top: 2px; padding-top: 2px;">VERIFIED: ${vTimeStr}</div></div>` : ''}
+              ${hasStamp ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; z-index: 5; pointer-events: none; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 2px 2px 2px ${statusColorHex}44; white-space: nowrap; text-align: center; line-height: 1.1; background: white;"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel === 'ACTIVE' ? 'VERIFIED' : statusLabel}</div><div style="font-size: 0.75rem; font-weight: 800; border-top: 1px solid ${statusColorHex}; margin-top: 3px; padding-top: 3px;">${vTimeStr}</div></div>` : ''}
               <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
             </div>
             ${scheduleSummaryHtml}
@@ -3664,7 +3684,7 @@ async function printTicketReceipt(id) {
         'USED': '#4a5568', 'PAID': '#c05621', 'PENDING': '#c05621'
     };
     const statusColorHex = statusColors[statusLabel] || '#718096';
-    const hasStamp = statusLabel === "USED" || statusLabel === "BOARDED";
+    const hasStamp = ["ACTIVE", "VERIFIED", "BOARDED", "USED"].includes(statusLabel);
 
     const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
     const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
@@ -3724,7 +3744,7 @@ async function printTicketReceipt(id) {
                     </div>
                     <div class="ticket-qr-section">
                         <div style="border: 2px solid #e2e8f0; border-radius: 8px; width: 100px; height: 100px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: white; color: #cbd5e0; font-size: 2rem;"><i class="fas fa-qrcode"></i></div>
-                        ${hasStamp ? `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 2px 2px 2px ${statusColorHex}44; white-space: nowrap; filter: blur(0.25px) contrast(140%); text-align: center; line-height: 1.1; background: rgba(255,255,255,0.98);"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel}</div><div style="font-size: 0.55rem; font-weight: bold; border-top: 1px solid ${statusColorHex}; margin-top: 2px; padding-top: 2px;">VERIFIED: ${vTimeStr}</div></div>` : ''}
+                        ${hasStamp ? `<div style="position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 2px 2px 2px ${statusColorHex}44; white-space: nowrap; text-align: center; line-height: 1.1; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact;"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel === 'ACTIVE' ? 'VERIFIED' : statusLabel}</div><div style="font-size: 0.75rem; font-weight: 800; border-top: 1px solid ${statusColorHex}; margin-top: 3px; padding-top: 3px;">${vTimeStr}</div></div>` : ''}
                         <p style="margin:8px 0 0 0; font-size:0.7rem; color:#64748b;">${statusLabel === 'USED' ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
                     </div>
                 </div>
