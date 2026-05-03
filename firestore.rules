@@ -68,7 +68,17 @@ service cloud.firestore {
     }
 
     // System Notifications & Broadcasts
-    match /notifications/{id} { allow read, write: if isAuthenticated(); }
+    match /notifications/{id} { 
+      allow read: if isAuthenticated() && (
+        resource.data.recipient == request.auth.uid || 
+        resource.data.recipient == getUserData().role ||
+        resource.data.recipient == 'public'
+      );
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (
+        resource.data.recipient == request.auth.uid || isAdmin()
+      );
+    }
     match /broadcasts/{id} { allow read: if true; allow write: if isAdmin(); }
 
     // System Settings (e.g., Maintenance Mode)

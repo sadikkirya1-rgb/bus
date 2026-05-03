@@ -157,7 +157,7 @@ function setupRealtimeData(user) {
         }, err => console.error("Users Listener Error:", err));
     }
 
-    db.collection('notifications').onSnapshot(snap => {
+    db.collection('notifications').where('recipient', 'in', [user.uid, role, 'public']).onSnapshot(snap => {
         notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         updateNotificationBadge();
     }, err => console.error("Notifications Listener Error:", err));
@@ -889,7 +889,8 @@ async function register(){
           message: `${name} (${userRole}) has registered and is pending approval.`,
           timestamp: new Date().toISOString(),
           read: false,
-          type: 'REGISTRATION'
+          type: 'REGISTRATION',
+          recipient: 'admin'
       });
 
       showNotification("Registration successful!", "success");
@@ -927,7 +928,8 @@ async function loginWithGoogle() {
               message: `${user.displayName} joined via Google and is pending approval.`,
               timestamp: new Date().toISOString(),
               read: false,
-              type: 'REGISTRATION'
+              type: 'REGISTRATION',
+              recipient: 'admin'
           });
 
           // Manually set local state so the UI updates to 'Pending' immediately
@@ -1954,7 +1956,11 @@ async function confirmBooking(){
   confirmBtn.disabled = true;
   confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
-  selectedSeat = 1; // Auto-assign a default seat as there is no user selection
+  // In Production: Logic should fetch the first available seat from the trip's current state
+  const trip = trips.find(t => t.busName === selectedBus.name && t.time === selectedBus.time);
+  const occupiedSeats = tickets.filter(t => t.bus === selectedBus.name && t.date === (document.getElementById('date')?.value || getKampalaDateISO()) && t.status !== 'CANCELLED').map(t => t.seat);
+  selectedSeat = Array.from({length: 28}, (_, i) => i + 1).find(s => !occupiedSeats.includes(s)) || 0;
+
   const ticketId = Math.floor(100000 + Math.random() * 900000);
   let ticket = { 
     bus: selectedBus?.name || "Unknown Bus", // Ensure selectedBus is defined
@@ -1978,8 +1984,26 @@ async function confirmBooking(){
     timestamp: new Date().toISOString()
   };
 
+  if (selectedSeat === 0) {
+      showNotification("Sorry, this bus is now full.", "error");
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = originalBtnHtml;
+      return;
+  }
+
   try {
+    // Production Note: Here you would typically trigger the Payment Gateway API
+    // e.g., await paymentGateway.charge({ amount: ticket.price, phone: ticket.passengerPhone });
+    
     await db.collection('tickets').doc(ticketId.toString()).set(ticket);
+    
+    // Update available seats on the trip template
+    if (trip && trip.id) {
+        await db.collection('trips').doc(trip.id).update({
+            availableSeats: firebase.firestore.FieldValue.increment(-1)
+        });
+    }
+
     addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser?.name || 'Guest'}`);
     
     const confirmBox = document.getElementById('bookingConfirm');
@@ -2215,13 +2239,11 @@ function loadBusSelect() {
 /* ADD BUS */
 async function addNewBus(){
   // Targeted selection within the specific form container to avoid ID collisions
-  const container = document.getElementById('newBusFormContainer');
-  if (!container) return;
-
-  const nameEl = container.querySelector('#newBusName');
-  const routeEl = container.querySelector('#newBusRoute');
-  const priceEl = container.querySelector('#newBusPrice');
-  const typeEl = container.querySelector('#newBusType');
+  // Use document.querySelector with ID if standard, or find within container
+  const nameEl = document.getElementById('newBusName');
+  const routeEl = document.getElementById('newBusRoute');
+  const priceEl = document.getElementById('newBusPrice');
+  const typeEl = document.getElementById('newBusType');
 
   const name = nameEl ? nameEl.value.trim() : "";
   const route = routeEl ? routeEl.value.trim() : "";
@@ -2262,7 +2284,7 @@ async function addNewBus(){
     showNotification("Bus added to live fleet!", "success");
   } catch (error) {
     console.error("Firestore Error:", error);
-    alert("Failed to add bus to live database.");
+    showNotification("Failed to add bus to live database.", "error");
   }
 }
 
@@ -2625,7 +2647,8 @@ async function triggerPanicButton() {
         message: `Operator ${opName} has triggered a Panic Button alert! Location/Route: ${activeTrips.map(t => t.from + '-' + t.to).join(', ')}`,
         timestamp: new Date().toISOString(),
         read: false,
-        type: 'EMERGENCY'
+        type: 'EMERGENCY',
+        recipient: 'admin'
     });
 
     showNotification("PANIC ALERT SENT! Help is on the way.", "error");
@@ -4362,21 +4385,21 @@ function sendNotification(){
   }
   
   let notification = {
-    id: Date.now(),
     type: type,
     title: title,
     message: message,
     timestamp: new Date().toISOString(),
-    read: false
+    read: false,
+    recipient: type === 'all' ? 'public' : (type === 'operators' ? 'bus' : 'user')
   };
   
-  notifications.push(notification);
-  localStorage.setItem('notifications', JSON.stringify(notifications));
-  updateNotificationBadge();
-  
-  alert('Notification sent successfully!');
-  document.getElementById('notificationTitle').value = '';
-  document.getElementById('notificationMessage').value = '';
+  db.collection('notifications').add(notification).then(() => {
+      alert('Notification sent successfully!');
+      document.getElementById('notificationTitle').value = '';
+      document.getElementById('notificationMessage').value = '';
+  }).catch(err => {
+      alert('Error sending notification: ' + err.message);
+  });
 }
 
 /**
