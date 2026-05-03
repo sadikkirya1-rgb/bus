@@ -41,6 +41,7 @@ let maintenanceMode = false;
 let terminalSearchQuery = "";
 let html5QrCode = null;
 let adminRefreshInterval = null;
+let unsubscribes = [];
 let activeSearchSchedules = null; // Tracks current search results for real-time updates
 
 // Development constants
@@ -71,13 +72,19 @@ auth.onAuthStateChanged(async (user) => {
             console.log("onAuthStateChanged: User logged in, role is", role);
             
             // Start Real-time Listeners for Production Data
-            setupRealtimeData(user);
+            setupRealtimeData(currentUser);
             init();
         } else {
             // New Google users won't have a profile yet; loginWithGoogle() will create it.
+            unsubscribes.forEach(unsub => unsub());
+            unsubscribes = [];
             console.log("onAuthStateChanged: No profile found yet. Waiting for registration...");
         }
     } else {
+        // Clear all Firestore listeners on logout to prevent permission errors
+        unsubscribes.forEach(unsub => unsub());
+        unsubscribes = [];
+        
         currentUser = null;
         role = null;
         console.log("onAuthStateChanged: User logged out, role is", role);
@@ -103,18 +110,25 @@ function formatTimeAMPM(timeStr) {
 function setupRealtimeData(user) {
     // Sync Firestore collections to local arrays in real-time
     
+    // Clear previous listeners if any (e.g. if switching accounts)
+    unsubscribes.forEach(unsub => unsub());
+    unsubscribes = [];
+
     // SCOPED TICKETS: Regular users only listen to their own tickets to satisfy security rules
-    let ticketsQuery = db.collection('tickets');
-    if (role !== 'admin') {
-        ticketsQuery = ticketsQuery.where('uid', '==', user.uid);
+    if (role !== 'pending') {
+        let ticketsQuery = db.collection('tickets');
+        if (role !== 'admin') {
+            ticketsQuery = ticketsQuery.where('uid', '==', user.uid);
+        }
+
+        const unsubTickets = ticketsQuery.onSnapshot(snap => {
+            tickets = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            if (role === 'user') renderUpcomingJourneys();
+        }, err => console.error("Tickets Listener Error:", err));
+        unsubscribes.push(unsubTickets);
     }
 
-    ticketsQuery.onSnapshot(snap => {
-        tickets = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        if (role === 'user') renderUpcomingJourneys();
-    }, err => console.error("Tickets Listener Error:", err));
-
-    db.collection('trips').onSnapshot(snap => {
+    const unsubTrips = db.collection('trips').onSnapshot(snap => {
         trips = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         
         // Auto-refresh search results if user is currently looking at the trips screen
@@ -135,15 +149,20 @@ function setupRealtimeData(user) {
         }
         if (role === 'admin' || role === 'bus') renderSchedules();
     }, err => console.error("Trips Listener Error:", err));
+    unsubscribes.push(unsubTrips);
 
-    db.collection('buses').onSnapshot(snap => {
-        buses = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        if (role === 'admin' || role === 'bus') { loadBusSelect(); renderFleet(); }
-    }, err => console.error("Buses Listener Error:", err));
+    if (role === 'admin' || role === 'bus') {
+        const unsubBuses = db.collection('buses').onSnapshot(snap => {
+            buses = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            loadBusSelect();
+            renderFleet();
+        }, err => console.error("Buses Listener Error:", err));
+        unsubscribes.push(unsubBuses);
+    }
 
     // ADMIN ONLY: Only listen to the full users collection if user is an admin
     if (role === 'admin') {
-        db.collection('users').onSnapshot(snap => {
+        const unsubUsers = db.collection('users').onSnapshot(snap => {
         // Alert admin of new registrations via Browser Notification if tab is hidden
         snap.docChanges().forEach(change => {
             if (change.type === "added" && role === 'admin' && document.hidden) {
@@ -157,33 +176,40 @@ function setupRealtimeData(user) {
         users = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         if (role === 'admin' && !document.getElementById('adminUsers').classList.contains('hidden')) loadUsers();
         }, err => console.error("Users Listener Error:", err));
+        unsubscribes.push(unsubUsers);
     }
 
-    db.collection('notifications').where('recipient', 'in', [user.uid, role, 'public']).onSnapshot(snap => {
-        notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        updateNotificationBadge();
-    }, err => console.error("Notifications Listener Error:", err));
+    if (role !== 'pending') {
+        const unsubNotifs = db.collection('notifications').where('recipient', 'in', [user.uid, role, 'public']).onSnapshot(snap => {
+            notifications = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            updateNotificationBadge();
+        }, err => console.error("Notifications Listener Error:", err));
+        unsubscribes.push(unsubNotifs);
+    }
 
     // ADMIN ONLY: Broadcast history is usually only relevant for admins
     if (role === 'admin') {
-        db.collection('broadcasts').orderBy('timestamp', 'desc').onSnapshot(snap => {
+        const unsubBroadcasts = db.collection('broadcasts').orderBy('timestamp', 'desc').onSnapshot(snap => {
             broadcasts = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
             if (role === 'admin' && !document.getElementById('adminNotifications').classList.contains('hidden')) renderBroadcastHistory();
         }, err => console.error("Broadcasts Listener Error:", err));
+        unsubscribes.push(unsubBroadcasts);
     }
 
-    db.collection('terminals').onSnapshot(snap => {
+    const unsubTerminals = db.collection('terminals').onSnapshot(snap => {
         terminals = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         populateCityLists();
         if (role === 'admin') loadTerminals();
     }, err => console.error("Terminals Listener Error:", err));
+    unsubscribes.push(unsubTerminals);
 
-    db.collection('promos').onSnapshot(snap => {
+    const unsubPromos = db.collection('promos').onSnapshot(snap => {
         promos = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         if (role === 'user') loadUserPromos();
     }, err => console.error("Promos Listener Error:", err));
+    unsubscribes.push(unsubPromos);
 
-    db.collection('settings').doc('config').onSnapshot(doc => {
+    const unsubSettings = db.collection('settings').doc('config').onSnapshot(doc => {
         if (doc.exists) {
             maintenanceMode = doc.data().maintenanceMode || false;
             const toggle = document.getElementById('maintenanceToggle');
@@ -196,6 +222,7 @@ function setupRealtimeData(user) {
             }
         }
     }, err => console.error("Settings Listener Error:", err));
+    unsubscribes.push(unsubSettings);
 }
 
 /* DESKTOP BROWSER NOTIFICATIONS */
@@ -917,6 +944,8 @@ async function register(){
 /* GOOGLE LOGIN */
 async function loginWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
+  // Force the account selection prompt
+  provider.setCustomParameters({ prompt: 'select_account' });
   try {
       const result = await auth.signInWithPopup(provider);
       const user = result.user;
@@ -3248,6 +3277,10 @@ function rebook(from, to){
 
 /* LOGOUT */
 async function logout() {
+  // Stop listeners immediately to avoid permission errors during sign-out
+  unsubscribes.forEach(unsub => unsub());
+  unsubscribes = [];
+
   role = null;
   currentUser = null;
   await auth.signOut();
