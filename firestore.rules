@@ -81,6 +81,14 @@ service cloud.firestore {
     }
     match /broadcasts/{id} { allow read: if true; allow write: if isAdmin(); }
 
+    // Promos & Ads
+    match /promos/{promoId} {
+      // Everyone can read active promos (user view)
+      allow read: if true;
+      // Only admin can create, update, delete
+      allow create, update, delete: if isAdmin();
+    }
+
     // System Settings (e.g., Maintenance Mode)
     match /settings/config {
       allow read: if true;

@@ -16,6 +16,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 
 </head>
@@ -162,6 +163,7 @@
     <button onclick="adminTab('activity')" id="a10" title="Activity"><i class="fas fa-history"></i> <span>Activity</span></button>
     <button onclick="adminTab('payments')" id="a7" title="Payments"><i class="fas fa-credit-card"></i> <span>Payments</span></button>
     <button onclick="adminTab('notifications')" id="a8" title="Notifications"><i class="fas fa-bell"></i> <span>Notifications</span></button>
+    <button onclick="adminTab('promos')" id="a15" title="Promos"><i class="fas fa-tags"></i> <span>Promos & Ads</span></button>
     <button onclick="adminTab('settings')" id="a9" title="Settings"><i class="fas fa-cogs"></i> <span>Settings</span></button>
     <button onclick="toggleDarkMode()" title="Theme"><i class="fas fa-moon"></i> <span>Theme</span></button>
   </div>
@@ -250,6 +252,11 @@
 
         <div id="upcomingJourneys" style="margin-top: 5px;">
           <div id="upcomingJourneyList" class="upcoming-journey-list"></div>
+        </div>
+
+        <!-- PROMO BANNER CARDS -->
+        <div id="promoBanners" style="margin-top: 20px;">
+          <div id="promoBannerList" class="promo-banner-list"></div>
         </div>
 
         <div id="trips" class="grid"></div>
@@ -912,6 +919,77 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+      <!-- PROMOS & ADS MANAGEMENT -->
+      <div id="adminPromos" class="hidden">
+        <div class="card">
+          <h3><i class="fas fa-tags"></i> Manage Promos & Ads</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="floating-label-group">
+              <input id="promoTitle" placeholder=" " maxlength="100">
+              <label>Title / Headline</label>
+            </div>
+            <div class="floating-label-group">
+              <input id="promoType" placeholder=" " type="text" list="promoTypesList" maxlength="30">
+              <datalist id="promoTypesList">
+                <option value="Announcement">
+                <option value="Promotion">
+                <option value="News">
+                <option value="Partner">
+                <option value="Marketing">
+                <option value="Advertisement">
+              </datalist>
+              <label>Type</label>
+            </div>
+          </div>
+          
+          <textarea id="promoDescription" placeholder="Description / Message" rows="3" maxlength="500" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: white; font-family: inherit; margin-bottom: 10px;"></textarea>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px;">
+            <div class="form-group">
+              <label style="font-size: 0.7rem; color: var(--uganda-yellow); text-transform: uppercase; display: block; margin-bottom: 5px;">Promo Image (Upload or URL)</label>
+              <input id="promoImageFile" type="file" accept="image/*" style="margin-bottom: 5px; font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 5px; color: white;">
+              <input id="promoImageUrl" placeholder="Or paste image URL" type="url">
+              <img id="promoImagePreview" class="hidden" style="max-width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.2);">
+            </div>
+            <div class="floating-label-group">
+              <input id="promoLinkUrl" placeholder=" " type="url">
+              <label>Link URL (optional)</label>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <div class="floating-label-group">
+              <input id="promoStartDate" placeholder=" " type="date">
+              <label>Start Date</label>
+            </div>
+            <div class="floating-label-group">
+              <input id="promoEndDate" placeholder=" " type="date">
+              <label>End Date</label>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+            <input type="checkbox" id="promoActive" checked style="width: auto;">
+            <label for="promoActive" style="font-size: 0.9rem; cursor: pointer;">Active</label>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button class="btn" style="flex: 1;" onclick="savePromo()"><i class="fas fa-save"></i> Save Promo</button>
+            <button class="btn" style="flex: 1; background: rgba(255,255,255,0.1);" onclick="clearPromoForm()"><i class="fas fa-eraser"></i> Clear</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-list"></i> Active Promos</h3>
+          <div class="search-box" style="margin-bottom: 15px;">
+            <i class="fas fa-search"></i>
+            <input type="text" id="promoSearch" placeholder="Search promos..." onkeyup="filterPromos()">
+          </div>
+          <div id="promosList" style="max-height: 600px; overflow-y: auto;">
+            <p style="text-align: center; opacity: 0.5;">No promos created yet</p>
           </div>
         </div>
       </div>

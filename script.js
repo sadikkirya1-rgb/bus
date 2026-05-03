@@ -17,6 +17,7 @@ const auth = firebase.auth();
 auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
 const db = firebase.firestore();
+const storage = firebase.storage();
 const analytics = firebase.analytics();
 
 // Global State
@@ -34,6 +35,7 @@ let notifications = [];
 let broadcasts = [];
 let refunds = [];
 let terminals = [];
+let promos = [];
 let maintenanceMode = false;
 
 let terminalSearchQuery = "";
@@ -175,6 +177,13 @@ function setupRealtimeData(user) {
         populateCityLists();
         if (role === 'admin') loadTerminals();
     }, err => console.error("Terminals Listener Error:", err));
+
+    db.collection('promos').onSnapshot(snap => {
+        promos = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        if (role === 'user' && !document.getElementById('trips').classList.contains('hidden')) {
+            loadUserPromos();
+        }
+    }, err => console.error("Promos Listener Error:", err));
 
     db.collection('settings').doc('config').onSnapshot(doc => {
         if (doc.exists) {
@@ -1035,6 +1044,7 @@ function init(){
     userTab("home");
     renderRecentSearches();
     renderUpcomingJourneys();
+    loadUserPromos(); // Load promos for user view
     updateNotificationBadge();
     tickets.forEach(scheduleDepartureNotification);
   } else if (role === "bus") {
@@ -1440,6 +1450,8 @@ function loadTrips(){
   const opCountText = operatorList.length > 0 ? `${operatorList.length} Operators` : 'Buses';
 
   showUserScreen('trips');
+
+  loadUserPromos(); // Load active promos for display
 
   const fullDate = new Date(date).toLocaleDateString('en-GB', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
@@ -3088,6 +3100,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropdown = document.getElementById('notifDropdown');
     if (dropdown) dropdown.classList.remove('active');
   });
+
+  // Promo Image Preview Listener
+  const promoFileInput = document.getElementById('promoImageFile');
+  promoFileInput?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('promoImagePreview');
+    if (file && preview) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 });
 
 /* SELECT PAYMENT */
@@ -3240,7 +3267,7 @@ function adminTab(section){
       toggleSidebar();
   }
 
-  const adminSections = ['adminDashboard', 'adminUsers', 'adminOperators', 'adminRoutes', 'adminBookings', 'adminAnalytics', 'adminPayments', 'adminNotifications', 'adminSettings', 'adminActivity', 'adminSupportTickets', 'adminTicketingDesk', 'adminFleetControl', 'adminTerminals'];
+  const adminSections = ['adminDashboard', 'adminUsers', 'adminOperators', 'adminRoutes', 'adminBookings', 'adminAnalytics', 'adminPayments', 'adminNotifications', 'adminPromos', 'adminSettings', 'adminActivity', 'adminSupportTickets', 'adminTicketingDesk', 'adminFleetControl', 'adminTerminals'];
   adminSections.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -3266,6 +3293,7 @@ function adminTab(section){
     'analytics': 'Analytics',
     'payments': 'Payments',
     'notifications': 'Notifications',
+    'promos': 'Promos & Ads',
     'settings': 'Settings',
     'activity': 'Activity',
     'supportTickets': 'Support',
@@ -3293,6 +3321,7 @@ function adminTab(section){
   else if(section === 'analytics') loadAnalytics();
   else if(section === 'payments') loadPaymentSettings();
   else if(section === 'notifications') loadNotifications();
+  else if(section === 'promos') loadPromos();
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
   else if(section === 'supportTickets') loadSupportTickets();
@@ -4422,6 +4451,311 @@ function renderBroadcastHistory() {
             <td style="text-align:center; font-weight:bold;">${b.recipientCount}</td>
         </tr>
     `).join('');
+}
+
+/* ========== PROMO & ADS MANAGEMENT ========== */
+
+/**
+ * Load and render all promos in the admin panel
+ */
+function loadPromos() {
+    const promosList = document.getElementById('promosList');
+    if (!promosList) return;
+
+    // Load promos from Firestore
+    db.collection('promos').orderBy('createdAt', 'desc').get().then(snapshot => {
+        promos = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        renderPromosList();
+    }).catch(err => {
+        console.error('Error loading promos:', err);
+        promosList.innerHTML = '<p style="text-align:center; opacity:0.5;">Error loading promos</p>';
+    });
+}
+
+/**
+ * Render the list of promos in the admin panel
+ */
+function renderPromosList() {
+    const promosList = document.getElementById('promosList');
+    if (!promosList) return;
+
+    if (promos.length === 0) {
+        promosList.innerHTML = '<p style="text-align:center; opacity:0.5; padding: 20px;">No promos created yet</p>';
+        return;
+    }
+
+    let html = promos.map(promo => {
+        const isActive = new Date(promo.endDate) >= new Date();
+        const statusClass = (promo.active && isActive) ? 'bg-boarded' : 'bg-cancelled';
+        const statusText = (promo.active && isActive) ? 'ACTIVE' : 'INACTIVE';
+
+        return `
+            <div class="admin-promo-item">
+                <div class="admin-promo-content">
+                    <h4 class="admin-promo-title">${promo.title}</h4>
+                    <div class="admin-promo-meta">
+                        <span><i class="fas fa-tag"></i> ${promo.type}</span>
+                        <span><i class="fas fa-calendar"></i> ${new Date(promo.startDate).toLocaleDateString()} - ${new Date(promo.endDate).toLocaleDateString()}</span>
+                    </div>
+                    <p style="margin: 8px 0; font-size: 0.9rem; color: rgba(255,255,255,0.8);">${promo.description.substring(0, 100)}${promo.description.length > 100 ? '...' : ''}</p>
+                    <div style="margin-top: 8px;">
+                        <span class="badge ${statusClass}" style="font-size: 0.7rem;">${statusText}</span>
+                    </div>
+                </div>
+                <div class="admin-promo-actions">
+                    <button class="btn btn-sm" onclick="editPromo('${promo.id}')" style="background: rgba(252,209,22,0.2); color: var(--uganda-yellow);"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="btn btn-sm" onclick="deletePromo('${promo.id}')" style="background: rgba(229,62,62,0.2); color: #ff8888;"><i class="fas fa-trash"></i> Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    promosList.innerHTML = html;
+}
+
+/**
+ * Save a new promo or update existing one
+ */
+async function savePromo() {
+    if (role !== 'admin') {
+        showNotification("Access Denied: Admin role required.", "error");
+        return;
+    }
+
+    const title = document.getElementById('promoTitle').value.trim();
+    const type = document.getElementById('promoType').value.trim();
+    const description = document.getElementById('promoDescription').value.trim();
+    const fileInput = document.getElementById('promoImageFile');
+    let imageUrl = document.getElementById('promoImageUrl').value.trim();
+    const linkUrl = document.getElementById('promoLinkUrl').value.trim();
+    const startDate = document.getElementById('promoStartDate').value;
+    const endDate = document.getElementById('promoEndDate').value;
+    const active = document.getElementById('promoActive').checked;
+
+    if (!title || !type || !description || !startDate || !endDate) {
+        showNotification('Please fill all required fields (Title, Type, Description, Dates)', 'error');
+        return;
+    }
+
+    if (new Date(startDate) >= new Date(endDate)) {
+        showNotification('End date must be after start date', 'error');
+        return;
+    }
+
+    // Show loading state
+    const saveBtn = document.querySelector('button[onclick="savePromo()"]');
+    const originalHtml = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        // Handle Image Upload if a file is selected
+        if (fileInput && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            showNotification("Uploading promo image...", "info");
+            const storageRef = storage.ref(`promos/${Date.now()}_${file.name}`);
+            const snapshot = await storageRef.put(file);
+            imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+    const promoData = {
+        title: title,
+        type: type,
+        description: description,
+        imageUrl: imageUrl || null,
+        linkUrl: linkUrl || null,
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+        active: active,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        authorId: currentUser.uid
+    };
+
+    // Check if editing or creating new
+    const editingId = document.getElementById('promoTitle').dataset.editingId;
+    
+    if (editingId) {
+            await db.collection('promos').doc(editingId).update(promoData);
+            showNotification('Promo updated successfully!', 'success');
+    } else {
+            await db.collection('promos').add(promoData);
+            showNotification('Promo created successfully!', 'success');
+    }
+
+        clearPromoForm();
+        loadPromos();
+    } catch (err) {
+        console.error('Promo Save Error:', err);
+        // If the error is 'Missing or insufficient permissions', suggest a fix
+        const errorMsg = err.code === 'permission-denied' 
+            ? "Permission Denied: Please check your Firestore rules for the 'promos' collection." 
+            : `Error saving promo: ${err.message}`;
+        showNotification(errorMsg, 'error');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalHtml;
+    }
+}
+
+/**
+ * Load a promo for editing
+ */
+function editPromo(promoId) {
+    const promo = promos.find(p => p.id === promoId);
+    if (!promo) return;
+
+    document.getElementById('promoTitle').value = promo.title;
+    document.getElementById('promoTitle').dataset.editingId = promoId;
+    document.getElementById('promoType').value = promo.type;
+    document.getElementById('promoDescription').value = promo.description;
+    document.getElementById('promoImageUrl').value = promo.imageUrl || '';
+    document.getElementById('promoLinkUrl').value = promo.linkUrl || '';
+    document.getElementById('promoStartDate').value = new Date(promo.startDate).toISOString().split('T')[0];
+    document.getElementById('promoEndDate').value = new Date(promo.endDate).toISOString().split('T')[0];
+    document.getElementById('promoActive').checked = promo.active;
+
+    const preview = document.getElementById('promoImagePreview');
+    if (promo.imageUrl && preview) {
+        preview.src = promo.imageUrl;
+        preview.classList.remove('hidden');
+    }
+
+    // Scroll to form
+    document.querySelector('#adminPromos .card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/**
+ * Delete a promo
+ */
+function deletePromo(promoId) {
+    if (!confirm('Are you sure you want to delete this promo?')) return;
+
+    db.collection('promos').doc(promoId).delete().then(() => {
+        showNotification('Promo deleted successfully!', 'success');
+        loadPromos();
+    }).catch(err => {
+        alert('Error deleting promo: ' + err.message);
+    });
+}
+
+/**
+ * Clear the promo form
+ */
+function clearPromoForm() {
+    document.getElementById('promoTitle').value = '';
+    document.getElementById('promoTitle').dataset.editingId = '';
+    document.getElementById('promoType').value = '';
+    document.getElementById('promoDescription').value = '';
+    document.getElementById('promoImageFile').value = '';
+    document.getElementById('promoImageUrl').value = '';
+    document.getElementById('promoLinkUrl').value = '';
+    document.getElementById('promoStartDate').value = '';
+    document.getElementById('promoEndDate').value = '';
+    document.getElementById('promoActive').checked = true;
+
+    const preview = document.getElementById('promoImagePreview');
+    if (preview) {
+        preview.src = '';
+        preview.classList.add('hidden');
+    }
+}
+
+/**
+ * Filter promos based on search query
+ */
+function filterPromos() {
+    const searchQuery = document.getElementById('promoSearch').value.toLowerCase();
+    const filteredPromos = promos.filter(p => 
+        p.title.toLowerCase().includes(searchQuery) || 
+        p.description.toLowerCase().includes(searchQuery) ||
+        p.type.toLowerCase().includes(searchQuery)
+    );
+
+    const promosList = document.getElementById('promosList');
+    
+    if (filteredPromos.length === 0) {
+        promosList.innerHTML = '<p style="text-align:center; opacity:0.5; padding: 20px;">No promos match your search</p>';
+        return;
+    }
+
+    const tempPromos = promos;
+    promos = filteredPromos;
+    renderPromosList();
+    promos = tempPromos;
+}
+
+/**
+ * Load and render all active promos for users to see
+ */
+function loadUserPromos() {
+    const now = new Date();
+    
+    db.collection('promos')
+        .where('active', '==', true)
+        .orderBy('createdAt', 'desc')
+        .limit(20)
+        .get()
+        .then(snapshot => {
+            console.log(`[Promos] Found ${snapshot.docs.length} active promos in database`);
+            
+            const userPromos = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }))
+            .filter(promo => {
+                // Filter by date in JavaScript
+                const startDate = new Date(promo.startDate);
+                const endDate = new Date(promo.endDate);
+                const isValid = startDate <= now && now <= endDate;
+                console.log(`[Promos] Promo "${promo.title}": ${isValid ? 'VALID' : 'EXPIRED'} (${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()})`);
+                return isValid;
+            });
+            
+            console.log(`[Promos] Showing ${userPromos.length} valid promos to user`);
+            renderUserPromos(userPromos);
+        })
+        .catch(err => {
+            console.error('Error loading user promos:', err);
+            const promoBannerList = document.getElementById('promoBannerList');
+            if (promoBannerList) promoBannerList.innerHTML = '';
+        });
+}
+
+/**
+ * Render promos in the user view
+ */
+function renderUserPromos(userPromos) {
+    const promoBannerList = document.getElementById('promoBannerList');
+    if (!promoBannerList) return;
+
+    if (userPromos.length === 0) {
+        promoBannerList.innerHTML = '';
+        return;
+    }
+
+    let html = userPromos.map(promo => `
+        <div class="promo-banner-card" onclick="${promo.linkUrl ? `window.open('${promo.linkUrl}', '_blank')` : ''}">
+            <div class="promo-banner-header">
+                <span class="promo-type-badge">${promo.type}</span>
+                <h3 class="promo-title">${promo.title}</h3>
+            </div>
+            ${promo.imageUrl ? `<img src="${promo.imageUrl}" alt="${promo.title}" class="promo-image">` : ''}
+            <p class="promo-description">${promo.description}</p>
+            <div class="promo-meta">
+                <div class="promo-date">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>${new Date(promo.startDate).toLocaleDateString()} - ${new Date(promo.endDate).toLocaleDateString()}</span>
+                </div>
+                ${promo.linkUrl ? `<span class="promo-action"><i class="fas fa-external-link-alt"></i> Learn More</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    promoBannerList.innerHTML = html;
 }
 
 /**
