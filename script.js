@@ -861,6 +861,11 @@ function sendOTP() {
 async function login(){
   let e = document.getElementById('email').value;
   let p = document.getElementById('password').value;
+  const loginBtn = document.querySelector('#loginFormCard .login-btn');
+  const originalHtml = loginBtn.innerHTML;
+
+  loginBtn.disabled = true;
+  loginBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Logging in...';
 
   try {
       await auth.signInWithEmailAndPassword(e, p);
@@ -868,6 +873,8 @@ async function login(){
       document.getElementById('loginPage').classList.add("hidden");
   } catch (error) {
       alert("Error: " + error.message);
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = originalHtml;
   }
 }
 

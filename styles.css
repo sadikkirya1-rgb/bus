@@ -336,9 +336,28 @@ body{
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: radial-gradient(circle at top right, rgba(0, 122, 61, 0.15), transparent),
-              radial-gradient(circle at bottom left, rgba(252, 209, 22, 0.1), transparent);
+  position: relative;
+  overflow: hidden;
   animation: fadeIn 0.5s ease;
+}
+
+.login::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at top right, rgba(0, 122, 61, 0.2), transparent),
+                    radial-gradient(circle at bottom left, rgba(252, 209, 22, 0.15), transparent),
+                    linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)), 
+                    url('assests/background.png');
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
+  animation: zoomBackground 20s infinite alternate ease-in-out;
+}
+
+@keyframes zoomBackground {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
 }
 
 .login h2 {
