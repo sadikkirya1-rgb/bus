@@ -3077,24 +3077,49 @@ function selectPayment(method){
 
 /* LOAD PROFILE */
 function loadProfile(){
-  let user = currentUser || users.find(u => u.email === TEST_USER_EMAIL);
-  if(user) {
-    // Ensure mandatory notification preferences are set
-    user.notifyBookingConfirmations = true;
-    user.notifyTripReminders = true;
-    user.notifyPromotionalOffers = user.notifyPromotionalOffers !== false; // Default to true if not explicitly false
+  if (!currentUser) return;
 
-    document.getElementById('userGreeting').innerText = `Hello, ${user.name}!`;
-    profileName.value = user.name;
-    profileEmail.value = user.email;
-    profilePhone.value = user.phone;
-    localStorage.setItem("users", JSON.stringify(users)); // Save updated user preferences
-  }
+  document.getElementById('userGreeting').innerText = `Hello, ${currentUser.name}!`;
+  document.getElementById('profileName').value = currentUser.name || '';
+  document.getElementById('profileEmail').value = currentUser.email || '';
+  document.getElementById('profilePhone').value = currentUser.phone || '';
+  document.getElementById('iceName').value = currentUser.iceName || '';
+  document.getElementById('icePhone').value = currentUser.icePhone || '';
 }
 
 /* UPDATE PROFILE */
-function updateProfile(){
-  alert("Profile updated successfully!");
+async function updateProfile(){
+  if (!currentUser) return;
+
+  const name = document.getElementById('profileName').value;
+  const email = document.getElementById('profileEmail').value;
+  const phone = document.getElementById('profilePhone').value;
+  const iceName = document.getElementById('iceName').value;
+  const icePhone = document.getElementById('icePhone').value;
+
+  try {
+      await db.collection('users').doc(currentUser.uid).update({
+          name: name,
+          email: email,
+          phone: phone,
+          iceName: iceName,
+          icePhone: icePhone
+      });
+
+      // Update local state so UI reflects changes immediately
+      currentUser.name = name;
+      currentUser.email = email;
+      currentUser.phone = phone;
+      currentUser.iceName = iceName;
+      currentUser.icePhone = icePhone;
+
+      document.getElementById('userGreeting').innerText = `Hello, ${name}!`;
+      showNotification("Profile updated successfully!", "success");
+      addActivityLog(`User updated profile: ${name}`);
+  } catch (error) {
+      console.error("Error updating profile:", error);
+      showNotification("Failed to update profile. Please try again.", "error");
+  }
 }
  
  // Function to update user notification preferences (if they were not mandatory)
