@@ -3319,7 +3319,7 @@ function adminTab(section){
   else if(section === 'analytics') loadAnalytics();
   else if(section === 'payments') loadPaymentSettings();
   else if(section === 'notifications') loadNotifications();
-  else if(section === 'promos') loadPromos();
+  else if(section === 'promos') { clearPromoForm(); loadPromos(); }
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
   else if(section === 'supportTickets') loadSupportTickets();
@@ -4635,6 +4635,7 @@ function editPromo(promoId) {
     document.getElementById('promoStartDate').value = new Date(promo.startDate).toISOString().split('T')[0];
     document.getElementById('promoEndDate').value = new Date(promo.endDate).toISOString().split('T')[0];
     document.getElementById('promoActive').checked = promo.active;
+    document.getElementById('promoFormHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Promo / Ad';
 
     const preview = document.getElementById('promoImagePreview');
     if (promo.imageUrl && preview) {
@@ -4688,6 +4689,7 @@ function clearPromoForm() {
     document.getElementById('promoStartDate').value = '';
     document.getElementById('promoEndDate').value = '';
     document.getElementById('promoActive').checked = true;
+    document.getElementById('promoFormHeader').innerHTML = '<i class="fas fa-plus-circle"></i> Add New Promo / Ad';
 
     const preview = document.getElementById('promoImagePreview');
     if (preview) {
@@ -4747,8 +4749,8 @@ function renderUserPromos(userPromos) {
         return;
     }
 
-    let html = userPromos.map(promo => `
-        <div class="promo-banner-card" onclick="${promo.linkUrl ? `window.open('${promo.linkUrl}', '_blank')` : ''}">
+    let html = userPromos.map((promo, index) => `
+        <div class="promo-banner-card fade-in" style="animation-delay: ${index * 0.15}s; cursor: pointer;" onclick="${promo.linkUrl ? `window.open('${promo.linkUrl}', '_blank')` : ''}">
             <div class="promo-banner-header">
                 <span class="promo-type-badge">${promo.type}</span>
                 <h3 class="promo-title">${promo.title}</h3>
