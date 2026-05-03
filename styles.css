@@ -1090,15 +1090,11 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 10px 0 90px;
+  padding: 10px 0;
 }
 
 .upcoming-journey-list::-webkit-scrollbar {
   display: none; /* Hide scrollbar Chrome/Safari */
-}
-
-#upcomingJourneyList .upcoming-card:last-child {
-  margin-bottom: 24px;
 }
 
 #upcomingJourneyList .upcoming-card {

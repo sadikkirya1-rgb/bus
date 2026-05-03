@@ -180,9 +180,7 @@ function setupRealtimeData(user) {
 
     db.collection('promos').onSnapshot(snap => {
         promos = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        if (role === 'user' && !document.getElementById('trips').classList.contains('hidden')) {
-            loadUserPromos();
-        }
+        if (role === 'user') loadUserPromos();
     }, err => console.error("Promos Listener Error:", err));
 
     db.collection('settings').doc('config').onSnapshot(doc => {
@@ -4551,14 +4549,33 @@ async function savePromo() {
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
+    const progressContainer = document.getElementById('promoUploadProgress');
+    const progressBar = document.getElementById('promoProgressBar');
+    const progressText = document.getElementById('promoProgressText');
+
     try {
         // Handle Image Upload if a file is selected
         if (fileInput && fileInput.files[0]) {
             const file = fileInput.files[0];
-            showNotification("Uploading promo image...", "info");
+            progressContainer.classList.remove('hidden');
+            
             const storageRef = storage.ref(`promos/${Date.now()}_${file.name}`);
-            const snapshot = await storageRef.put(file);
-            imageUrl = await snapshot.ref.getDownloadURL();
+            const uploadTask = storageRef.put(file);
+
+            imageUrl = await new Promise((resolve, reject) => {
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progressBar.style.width = progress + '%';
+                        progressText.innerText = `Uploading: ${Math.round(progress)}%`;
+                    }, 
+                    (error) => reject(error), 
+                    async () => {
+                        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                        resolve(downloadURL);
+                    }
+                );
+            });
         }
 
     const promoData = {
@@ -4598,6 +4615,7 @@ async function savePromo() {
     } finally {
         saveBtn.disabled = false;
         saveBtn.innerHTML = originalHtml;
+        progressContainer.classList.add('hidden');
     }
 }
 
@@ -4631,15 +4649,29 @@ function editPromo(promoId) {
 /**
  * Delete a promo
  */
-function deletePromo(promoId) {
+async function deletePromo(promoId) {
     if (!confirm('Are you sure you want to delete this promo?')) return;
 
-    db.collection('promos').doc(promoId).delete().then(() => {
+    try {
+        const promo = promos.find(p => p.id === promoId);
+        
+        // Delete image from storage if it belongs to our bucket
+        if (promo && promo.imageUrl && promo.imageUrl.includes('firebasestorage.googleapis.com')) {
+            try {
+                const imageRef = storage.refFromURL(promo.imageUrl);
+                await imageRef.delete();
+                console.log("Promo image deleted from storage");
+            } catch (e) {
+                console.warn("Could not delete image from storage (might already be gone):", e);
+            }
+        }
+
+        await db.collection('promos').doc(promoId).delete();
         showNotification('Promo deleted successfully!', 'success');
         loadPromos();
-    }).catch(err => {
-        alert('Error deleting promo: ' + err.message);
-    });
+    } catch (err) {
+        showNotification('Error deleting promo: ' + err.message, 'error');
+    }
 }
 
 /**
@@ -4693,36 +4725,14 @@ function filterPromos() {
  */
 function loadUserPromos() {
     const now = new Date();
-    
-    db.collection('promos')
-        .where('active', '==', true)
-        .orderBy('createdAt', 'desc')
-        .limit(20)
-        .get()
-        .then(snapshot => {
-            console.log(`[Promos] Found ${snapshot.docs.length} active promos in database`);
-            
-            const userPromos = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }))
-            .filter(promo => {
-                // Filter by date in JavaScript
-                const startDate = new Date(promo.startDate);
-                const endDate = new Date(promo.endDate);
-                const isValid = startDate <= now && now <= endDate;
-                console.log(`[Promos] Promo "${promo.title}": ${isValid ? 'VALID' : 'EXPIRED'} (${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()})`);
-                return isValid;
-            });
-            
-            console.log(`[Promos] Showing ${userPromos.length} valid promos to user`);
-            renderUserPromos(userPromos);
-        })
-        .catch(err => {
-            console.error('Error loading user promos:', err);
-            const promoBannerList = document.getElementById('promoBannerList');
-            if (promoBannerList) promoBannerList.innerHTML = '';
-        });
+    // Use the already synced 'promos' array for efficiency and real-time feel
+    const userPromos = promos.filter(promo => {
+        const startDate = new Date(promo.startDate);
+        const endDate = new Date(promo.endDate);
+        return promo.active && startDate <= now && now <= endDate;
+    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    renderUserPromos(userPromos);
 }
 
 /**

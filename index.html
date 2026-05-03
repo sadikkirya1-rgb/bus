@@ -250,12 +250,12 @@
           </div>
         </div>
 
-        <div id="upcomingJourneys" style="margin-top: 5px;">
+        <div id="upcomingJourneys" style="margin-top: 5px; margin-bottom: 15px;">
           <div id="upcomingJourneyList" class="upcoming-journey-list"></div>
         </div>
 
         <!-- PROMO BANNER CARDS -->
-        <div id="promoBanners" style="margin-top: 20px;">
+        <div id="promoBanners" style="margin-top: 5px;">
           <div id="promoBannerList" class="promo-banner-list"></div>
         </div>
 
@@ -953,6 +953,12 @@
               <input id="promoImageFile" type="file" accept="image/*" style="margin-bottom: 5px; font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 5px; color: white;">
               <input id="promoImageUrl" placeholder="Or paste image URL" type="url">
               <img id="promoImagePreview" class="hidden" style="max-width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.2);">
+              <div id="promoUploadProgress" class="hidden" style="margin-top: 10px;">
+                <div class="progress-container" style="height: 10px;">
+                  <div id="promoProgressBar" class="progress-bar" style="width: 0%; background: var(--uganda-yellow);"></div>
+                </div>
+                <small id="promoProgressText" style="font-size: 0.7rem; color: white;"></small>
+              </div>
             </div>
             <div class="floating-label-group">
               <input id="promoLinkUrl" placeholder=" " type="url">
