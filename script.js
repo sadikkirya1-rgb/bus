@@ -1611,10 +1611,13 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
     });
     tripsContainer.innerHTML = `
         <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 20px; max-width: 100%; width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
-                    <i class="fas fa-arrow-left"></i> Back
-                </button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <h4 style="margin: 0; color: white;">${operatorName}</h4>
+                </div>
                 <div style="text-align: right; display: flex; flex-direction: column;">
                     <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Travel Date</span>
                         <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
@@ -1624,8 +1627,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
                         <button id="switchTomorrowBtn" class="view-ticket-btn" style="margin-top: 5px; padding: 2px 8px; font-size: 0.6rem;" onclick="rebookTomorrow('${document.getElementById('from').value}', '${document.getElementById('to').value}')">Switch to Tomorrow</button>
                 </div>
             </div>
-            <h4 style="margin: 5px 0 0 0; color: white;">${operatorName}</h4>
-            <small style="opacity: 0.7;">${document.getElementById('from').value} → ${document.getElementById('to').value}</small>
+            <small style="opacity: 0.7; display: block; margin-top: 5px;">${document.getElementById('from').value} → ${document.getElementById('to').value}</small>
         </div>
         <div id="activeSchedulesList"></div>
     `;
