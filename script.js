@@ -2211,6 +2211,30 @@ async function renderTicketToCanvas(t, scale = 3) {
     drawItem('Seat', `#${t.seat || '1'}`, leftX, infoY + 150);
     drawItem('Booking ID', `#${t.id}`, rightX, infoY + 150, true);
 
+    // Daily Route Schedule Summary (Chips)
+    const routeTimes = [...new Set(trips
+        .filter(trip => trip.from === t.from && trip.to === t.to && trip.date === 'DAILY')
+        .map(trip => trip.time))]
+        .sort((a, b) => getMinutesFromMidnight(a) - getMinutesFromMidnight(b));
+
+    if (routeTimes.length > 0) {
+        const chipY = 385;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#718096';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('DAILY ROUTE SCHEDULE', 40, chipY);
+
+        let chipX = 40;
+        routeTimes.forEach(time => {
+            const isCurrent = time === t.time;
+            ctx.font = 'bold 9px sans-serif';
+            const tw = ctx.measureText(time).width;
+            ctx.fillStyle = isCurrent ? '#FCD116' : '#edf2f7'; roundRect(ctx, chipX, chipY + 6, tw + 10, 18, 4); ctx.fill();
+            ctx.fillStyle = isCurrent ? '#000' : '#2d3748'; ctx.fillText(time, chipX + 5, chipY + 19);
+            chipX += tw + 15;
+        });
+    }
+
     // QR Code
     ctx.fillStyle = '#f8fafc'; roundRect(ctx, 40, 420, 320, 120, 12); ctx.fill();
     try {
@@ -4001,6 +4025,12 @@ async function printTicketReceipt(id) {
     const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
     const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
 
+    // Get daily scheduled trips for this specific route for the printout
+    const routeTimes = [...new Set(trips
+        .filter(trip => trip.from === t.from && trip.to === t.to && trip.date === 'DAILY')
+        .map(trip => trip.time))]
+        .sort((a, b) => getMinutesFromMidnight(a) - getMinutesFromMidnight(b));
+
     const printHtml = `
         <html>
         <head>
@@ -4019,6 +4049,10 @@ async function printTicketReceipt(id) {
                 .info-item label { display: block; font-size: 0.7rem; text-transform: uppercase; color: #718096; letter-spacing: 1px; }
                 .info-item span { font-weight: 700; font-size: 0.95rem; }
                 .ticket-footer { padding: 15px 20px; background: #007A3D; color: white; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+                .daily-schedule-summary { margin-top: 15px; padding-top: 10px; border-top: 1px dashed rgba(0, 0, 0, 0.1); }
+                .daily-schedule-summary label { font-size: 0.65rem; text-transform: uppercase; color: #718096; display: block; margin-bottom: 5px; }
+                .daily-time-chip { display: inline-block; background: #edf2f7; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-right: 5px; margin-bottom: 5px; }
+                .daily-time-chip.active { background: #FCD116; color: #000; }
                 .ticket-qr-section { text-align: center; padding: 20px; background: #f8fafc; border-radius: 12px; margin-top: 15px; position: relative; }
                 .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
                 .bg-active { background: #48bb78; color: white; }
@@ -4053,6 +4087,12 @@ async function printTicketReceipt(id) {
                         <div class="info-item"><label>Est. Duration</label><span>${t.duration || '3h 45m'}</span></div>
                         <div class="info-item"><label>Boarding</label><span>${t.boardingPoint || 'Main Terminal'}</span></div>
                         <div class="info-item"><label>Dropping</label><span>${t.droppingPoint || 'Destination'}</span></div>
+                    </div>
+                    <div class="daily-schedule-summary">
+                        <label>Daily Route Schedule</label>
+                        <div class="daily-schedule-times">
+                            ${routeTimes.map(time => `<span class="daily-time-chip ${time === t.time ? 'active' : ''}">${time}</span>`).join('')}
+                        </div>
                     </div>
                     <div class="ticket-qr-section">
                         <div style="border: 2px solid #e2e8f0; border-radius: 8px; width: 100px; height: 100px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: white; color: #cbd5e0; font-size: 2rem;"><i class="fas fa-qrcode"></i></div>
