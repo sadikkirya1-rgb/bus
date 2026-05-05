@@ -24,12 +24,145 @@
 .splash-screen {
   position: fixed;
   inset: 0;
-  background: var(--primary);
+  /* Layered premium gradient: Central glow overlaying the national color flow */
+  background: 
+    radial-gradient(circle at 50% 45%, rgba(252, 209, 22, 0.15), transparent 70%),
+    linear-gradient(180deg, #000000 0%, #000000 15%, #FCD116 50%, #E53E3E 85%, #E53E3E 100%);
+  background-color: #000;
   z-index: 9999;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   transition: opacity 0.5s ease;
+  overflow: hidden;
+}
+
+/* Pulsing deep blue light effect */
+.splash-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(30, 60, 114, 0.4), transparent 75%);
+  z-index: -1;
+  animation: bgPulse 4s infinite ease-in-out;
+}
+
+@keyframes bgPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.15); }
+}
+
+.splash-screen::after {
+  content: "";
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 30V1.5A1.5 1.5 0 0 1 7.5 0H30v2H7.5V30H6zm24 0V1.5a1.5 1.5 0 0 0-1.5-1.5H6v2h22.5V30H30zM30 60V31.5a1.5 1.5 0 0 0-1.5-1.5H6v2h22.5V60H30zm24 0V31.5a1.5 1.5 0 0 0-1.5-1.5H30v2h22.5V60H54zM54 30V1.5A1.5 1.5 0 0 0 52.5 0H30v2h22.5V30H54z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.5;
+  animation: patternMove 60s linear infinite;
+}
+
+@keyframes patternMove {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-50%, -50%); }
+}
+
+.logo-circle {
+  background: white;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 0 30px rgba(66, 165, 245, 0.4);
+  animation: logoPulse 3s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+
+@keyframes logoPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(66, 165, 245, 0.3); }
+  50% { transform: scale(1.03); box-shadow: 0 0 45px rgba(66, 165, 245, 0.5); }
+}
+
+.splash-title {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin: 0;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  /* Subtle fade and slide animation */
+  opacity: 0;
+  transform: translateY(15px);
+  animation: splashTitleEnter 1s cubic-bezier(0.23, 1, 0.32, 1) 0.4s forwards;
+}
+
+@keyframes splashTitleEnter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.splash-tagline {
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-top: 5px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.splash-welcome {
+  color: #ffffff;
+  margin-top: 30px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  min-height: 1.5rem;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.splash-footer-branding {
+  position: absolute;
+  bottom: 40px;
+  color: #ffffff;
+  text-align: center;
+  font-size: 0.8rem;
+  opacity: 0.9;
+  font-weight: 700;
+}
+
+.uganda-strip {
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(to right, #000 33.3%, #FCD116 33.3%, #FCD116 66.6%, #E53E3E 66.6%);
+  margin: 0 auto 10px;
+  border-radius: 2px;
+}
+
+.premium-loader {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  justify-content: center; /* Center the bouncing dots */
+}
+
+.premium-loader span {
+  width: 10px;
+  height: 10px;
+  background-color: var(--uganda-yellow);
+  border-radius: 50%;
+  animation: bounce 0.5s infinite alternate;
+}
+
+.premium-loader span:nth-child(2) { animation-delay: 0.1s; background-color: #ffffff; }
+.premium-loader span:nth-child(3) { animation-delay: 0.2s; background-color: var(--uganda-red); }
+
+@keyframes bounce {
+  to { transform: translateY(-10px); opacity: 0.5; }
 }
 
 .splash-content .logo {
@@ -313,7 +446,7 @@
 body{
   margin:0;
   font-family: 'Inter', 'Segoe UI', sans-serif;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.85)), url('assests/background.png');
+  background-image: linear-gradient(rgba(0, 31, 15, 0.4), rgba(0, 15, 7, 0.8)), url('assests/background.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

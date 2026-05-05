@@ -394,17 +394,28 @@ function startInfoTicker() {
   window.tickerInterval = setInterval(rotateInfoTicker, 6000);
 }
 
+/* Helper to get time-based greeting */
+function getGreeting() {
+  const now = new Date();
+  const hour = now.getHours();
+  if (hour < 12) {
+    return "Good morning";
+  } else if (hour < 18) {
+    return "Good afternoon";
+  } else {
+    return "Good evening";
+  }
+}
+
 /* ONBOARDING & SPLASH */
 function checkFirstVisit() {
   const welcomeEl = document.getElementById('splashWelcome');
   const splashScreen = document.getElementById('splashScreen');
   const onboardingModal = document.getElementById('onboardingModal');
-
   if (currentUser && welcomeEl) {
-    welcomeEl.innerText = `Welcome back, ${currentUser.name.split(' ')[0]}!`;
+    welcomeEl.innerText = `${getGreeting()}, ${currentUser.name.split(' ')[0]}!`;
     welcomeEl.classList.add('fade-in');
   }
-
   setTimeout(() => {
     splashScreen?.style && (splashScreen.style.opacity = '0');
     setTimeout(() => splashScreen?.classList?.add('hidden'), 500);
