@@ -4586,6 +4586,15 @@ function renderBroadcastHistory() {
 
 /* ========== PROMO & ADS MANAGEMENT ========== */
 
+const BUILTIN_PLACEHOLDERS = [
+    'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1531050171651-7290947663e8?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1511739001486-6bfe10ce785f?auto=format&fit=crop&q=80&w=800'
+];
+
+let selectedPlaceholderUrl = null;
+
 /**
  * Load and render all promos in the admin panel
  */
@@ -4600,6 +4609,7 @@ function loadPromos() {
             ...doc.data()
         }));
         renderPromosList();
+        renderPlaceholderPicker();
     }).catch(err => {
         console.error('Error loading promos:', err);
         promosList.innerHTML = '<p style="text-align:center; opacity:0.5;">Error loading promos</p>';
@@ -4625,6 +4635,7 @@ function renderPromosList() {
 
         return `
             <div class="admin-promo-item">
+                <img src="${promo.imageUrl || BUILTIN_PLACEHOLDERS[0]}" class="admin-promo-thumbnail" alt="Thumb">
                 <div class="admin-promo-content">
                     <h4 class="admin-promo-title">${promo.title}</h4>
                     <div class="admin-promo-meta">
@@ -4647,6 +4658,64 @@ function renderPromosList() {
     promosList.innerHTML = html;
 }
 
+function renderPlaceholderPicker() {
+    const container = document.getElementById('placeholderPicker');
+    if (!container) return;
+    container.innerHTML = BUILTIN_PLACEHOLDERS.map(url => `
+        <img src="${url}" class="placeholder-option ${selectedPlaceholderUrl === url ? 'selected' : ''}" 
+             onclick="selectPlaceholder('${url}')" alt="Option">
+    `).join('');
+}
+
+function selectPlaceholder(url) {
+    selectedPlaceholderUrl = url;
+    document.getElementById('promoImageUrl').value = ""; // Clear manual URL if picking placeholder
+    renderPlaceholderPicker();
+    const preview = document.getElementById('promoImagePreview');
+    if (preview) {
+        preview.src = url;
+        preview.classList.remove('hidden');
+    }
+}
+
+/**
+ * Shows a live preview of the promo card as it will appear to users
+ */
+function previewPromo() {
+    const title = document.getElementById('promoTitle').value.trim();
+    const type = document.getElementById('promoType').value.trim();
+    const description = document.getElementById('promoDescription').value.trim();
+    const linkUrl = document.getElementById('promoLinkUrl').value.trim();
+    const previewImg = document.getElementById('promoImagePreview');
+    let imageUrl = document.getElementById('promoImageUrl').value.trim();
+
+    // Fallback to placeholder or uploaded preview image
+    if (!imageUrl) {
+        imageUrl = (previewImg && !previewImg.classList.contains('hidden')) ? previewImg.src : BUILTIN_PLACEHOLDERS[0];
+    }
+
+    if (!title || !type || !description) {
+        showNotification("Please fill in Title, Type, and Description to generate a preview.", "info");
+        return;
+    }
+
+    const container = document.getElementById('promoLivePreview');
+    container.innerHTML = `
+        <h4 style="color: var(--uganda-yellow); margin-bottom: 15px; font-size: 0.8rem; text-transform: uppercase;">Live User Preview:</h4>
+        <div class="promo-banner-card" style="cursor: default;">
+            <div class="promo-banner-header">
+                <span class="promo-type-badge">${type}</span>
+                <h3 class="promo-title">${title}</h3>
+            </div>
+            <img src="${imageUrl}" alt="Preview" class="promo-image">
+            <p class="promo-description">${description}</p>
+            <div class="promo-meta"><div></div>${linkUrl ? `<span class="promo-action"><i class="fas fa-external-link-alt"></i> Learn More</span>` : ''}</div>
+        </div>
+    `;
+    container.classList.remove('hidden');
+    container.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
 /**
  * Save a new promo or update existing one
  */
@@ -4661,6 +4730,12 @@ async function savePromo() {
     const description = document.getElementById('promoDescription').value.trim();
     const fileInput = document.getElementById('promoImageFile');
     let imageUrl = document.getElementById('promoImageUrl').value.trim();
+
+    // Use placeholder if no manual URL and no file upload pending
+    if (!imageUrl && (!fileInput || !fileInput.files[0])) {
+        imageUrl = selectedPlaceholderUrl;
+    }
+
     const linkUrl = document.getElementById('promoLinkUrl').value.trim();
     const startDate = document.getElementById('promoStartDate').value;
     const endDate = document.getElementById('promoEndDate').value;
@@ -4770,6 +4845,9 @@ function editPromo(promoId) {
     document.getElementById('promoActive').checked = promo.active;
     document.getElementById('promoFormHeader').innerHTML = '<i class="fas fa-edit"></i> Edit Promo / Ad';
 
+    selectedPlaceholderUrl = BUILTIN_PLACEHOLDERS.includes(promo.imageUrl) ? promo.imageUrl : null;
+    renderPlaceholderPicker();
+
     const preview = document.getElementById('promoImagePreview');
     if (promo.imageUrl && preview) {
         preview.src = promo.imageUrl;
@@ -4822,9 +4900,15 @@ function clearPromoForm() {
     document.getElementById('promoStartDate').value = '';
     document.getElementById('promoEndDate').value = '';
     document.getElementById('promoActive').checked = true;
+    selectedPlaceholderUrl = null;
+    renderPlaceholderPicker();
     document.getElementById('promoFormHeader').innerHTML = '<i class="fas fa-plus-circle"></i> Add New Promo / Ad';
 
     const preview = document.getElementById('promoImagePreview');
+    const livePreview = document.getElementById('promoLivePreview');
+    if (livePreview) {
+        livePreview.classList.add('hidden');
+    }
     if (preview) {
         preview.src = '';
         preview.classList.add('hidden');
@@ -4888,7 +4972,7 @@ function renderUserPromos(userPromos) {
                 <span class="promo-type-badge">${promo.type}</span>
                 <h3 class="promo-title">${promo.title}</h3>
             </div>
-            <img src="${promo.imageUrl || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800'}" alt="${promo.title}" class="promo-image">
+            <img src="${promo.imageUrl || BUILTIN_PLACEHOLDERS[0]}" alt="${promo.title}" class="promo-image">
             <p class="promo-description">${promo.description}</p>
             <div class="promo-meta">
                 <div></div>
