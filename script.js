@@ -554,12 +554,25 @@ function renderUpcomingJourneys() {
   if (!container || !currentUser) return;
 
   // Filter tickets for current user and future/current status
-  const userTickets = tickets.filter(t => 
+  const allUserTickets = tickets.filter(t => 
     (t.uid === currentUser.uid || 
      t.email?.toLowerCase() === currentUser.email?.toLowerCase() || 
      (t.passenger?.toLowerCase() === currentUser.name?.toLowerCase())) && 
     ["PENDING", "PAID", "ACTIVE", "VERIFIED", "BOARDED"].includes(t.status)
-  ).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 3);
+  ).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Group tickets to ensure only 1 terminal card shows per unique journey (route + date)
+  const uniqueJourneys = [];
+  const seenJourneys = new Set();
+  allUserTickets.forEach(t => {
+    const key = `${t.from}-${t.to}-${t.date}`;
+    if (!seenJourneys.has(key)) {
+      seenJourneys.add(key);
+      uniqueJourneys.push(t);
+    }
+  });
+
+  const userTickets = uniqueJourneys.slice(0, 3);
 
   if (userTickets.length === 0) {
     container.innerHTML = `
