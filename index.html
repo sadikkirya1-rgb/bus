@@ -258,15 +258,10 @@
           <div id="upcomingJourneyList" class="upcoming-journey-list"></div>
         </div>
 
-        <!-- PROMO BANNER CARDS -->
-        <div id="promoBanners" style="margin-top: 0px;">
-          <div id="promoBannerList" class="promo-banner-list"></div>
-        </div>
-
         <div id="trips" class="grid"></div>
 
         <!-- BUS DETAILS SCREEN -->
-        <div id="busDetailsBox" class="card hidden fade-in">
+        <div id="busDetailsBox" class="card hidden fade-in" style="background: var(--primary); border: none; padding: 20px; max-width: 100%; width: 100%;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
                 <button class="screen-back-btn" onclick="showUserScreen('trips')" style="margin: 0;">
                     <i class="fas fa-arrow-left"></i> Back
@@ -1043,6 +1038,11 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- GLOBAL PROMO BANNER CARDS (Appears on all screens) -->
+    <div id="promoBanners" style="margin-top: 30px; padding-bottom: 20px;">
+      <div id="promoBannerList" class="promo-banner-list"></div>
     </div>
 
   </div>

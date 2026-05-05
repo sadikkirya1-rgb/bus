@@ -2629,16 +2629,6 @@ input:focus, select:focus, textarea:focus {
   border-color: #4a5568;
 }
 
-/* Specific adjustments for bus details screen */
-#busDetailsBox #detailsRoute {
-  justify-content: center; /* Center the route text */
-  text-align: center;
-}
-
-#busDetailsBox #detailsAmenities {
-  justify-content: center; /* Center the amenity icons */
-}
-
 .dark-mode .topbar {
   background: rgba(45, 55, 72, 0.9);
 }

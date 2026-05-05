@@ -205,7 +205,7 @@ function setupRealtimeData(user) {
 
     const unsubPromos = db.collection('promos').onSnapshot(snap => {
         promos = snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        if (role === 'user') loadUserPromos();
+        loadUserPromos(); // Promos should load for all roles now
     }, err => console.error("Promos Listener Error:", err));
     unsubscribes.push(unsubPromos);
 
@@ -1610,7 +1610,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
         day: '2-digit', month: 'short', year: 'numeric' 
     });
     tripsContainer.innerHTML = `
-        <div class="card" style="background: rgba(255,255,255,0.05); margin-bottom: 20px; border: 1px dashed rgba(255,255,255,0.2);">
+        <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 20px; max-width: 100%; width: 100%;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                 <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
                     <i class="fas fa-arrow-left"></i> Back
