@@ -366,9 +366,19 @@
 
 /* FULLSCREEN MODAL */
 .modal-content-ticket {
-    width: 90%;
-    max-width: 450px;
+    width: 90vw; /* Allow it to take up more width, 90% of viewport width */
+    max-width: 600px; /* Set a reasonable maximum width for larger screens */
+    max-height: 90vh; /* Limit height to 90% of viewport height */
+    overflow-y: auto; /* Enable vertical scrolling if content overflows */
     animation: zoomIn 0.3s ease;
+    /* The smart-ticket inside will provide its own background, border, shadow */
+    /* No padding, border, shadow, background on the modal container itself */
+}
+
+/* Override smart-ticket styles when inside the fullscreen modal */
+.modal-content-ticket .smart-ticket {
+    max-width: none; /* Allow it to expand to the modal-content-ticket width */
+    margin: 0; /* Remove any external margins */
 }
 
 @keyframes zoomIn {
