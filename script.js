@@ -4888,7 +4888,7 @@ function renderUserPromos(userPromos) {
                 <span class="promo-type-badge">${promo.type}</span>
                 <h3 class="promo-title">${promo.title}</h3>
             </div>
-            ${promo.imageUrl ? `<img src="${promo.imageUrl}" alt="${promo.title}" class="promo-image">` : ''}
+            <img src="${promo.imageUrl || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800'}" alt="${promo.title}" class="promo-image">
             <p class="promo-description">${promo.description}</p>
             <div class="promo-meta">
                 <div></div>
