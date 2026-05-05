@@ -4891,10 +4891,7 @@ function renderUserPromos(userPromos) {
             ${promo.imageUrl ? `<img src="${promo.imageUrl}" alt="${promo.title}" class="promo-image">` : ''}
             <p class="promo-description">${promo.description}</p>
             <div class="promo-meta">
-                <div class="promo-date">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>${new Date(promo.startDate).toLocaleDateString()} - ${new Date(promo.endDate).toLocaleDateString()}</span>
-                </div>
+                <div></div>
                 ${promo.linkUrl ? `<span class="promo-action"><i class="fas fa-external-link-alt"></i> Learn More</span>` : ''}
             </div>
         </div>
