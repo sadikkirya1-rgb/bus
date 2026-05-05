@@ -2048,9 +2048,9 @@ async function confirmBooking(){
     passengerPhone: document.querySelector('.p-phone')?.value || "",
     email: currentUser?.email || "",
     phone: currentUser?.phone || "",
-    uid: currentUser ? (currentUser.uid || currentUser.id) : null,
+    uid: auth.currentUser ? auth.currentUser.uid : null,
     id: ticketId,
-    status: "PENDING", // Show status pending until admin verify the payment
+    status: selectedPayment === 'cash' ? "UNPAID" : "PENDING",
     timestamp: new Date().toISOString()
   };
 
@@ -2067,13 +2067,6 @@ async function confirmBooking(){
     
     await db.collection('tickets').doc(ticketId.toString()).set(ticket);
     
-    // Update available seats on the trip template
-    if (trip && trip.id) {
-        await db.collection('trips').doc(trip.id).update({
-            availableSeats: firebase.firestore.FieldValue.increment(-1)
-        });
-    }
-
     addActivityLog(`New booking: ${ticket.from} to ${ticket.to} by ${currentUser?.name || 'Guest'}`);
     
     const confirmBox = document.getElementById('bookingConfirm');
@@ -2960,18 +2953,25 @@ function renderTickets(){
   hiddenCards.className = 'hidden';
 
   filteredTickets.forEach((t, index) => {
-      let statusClass = "bg-secondary";
       let statusLabel = t.status || "PENDING";
+      let displayStatus = statusLabel;
+      if (statusLabel === "ACTIVE") displayStatus = "PAID & ACTIVE";
+      else if (statusLabel === "PENDING") displayStatus = "PAYMENT PENDING";
+      else if (statusLabel === "UNPAID") displayStatus = "UNPAID (CASH)";
+
+      let statusClass = "bg-secondary";
       if(statusLabel === "ACTIVE") statusClass = "bg-active";
       else if(statusLabel === "VERIFIED") statusClass = "bg-active";
       else if(statusLabel === "BOARDED") statusClass = "bg-boarded";
+      else if(statusLabel === "UNPAID") statusClass = "bg-secondary";
       else if(statusLabel === "USED") statusClass = "bg-used";
       else if(statusLabel === "PAID") statusClass = "bg-paid";
       else if(statusLabel === "PENDING") statusClass = "bg-paid";
       
       const statusColors = {
         'ACTIVE': '#2f855a', 'VERIFIED': '#2f855a', 'BOARDED': '#2b6cb0',
-        'USED': '#4a5568', 'PAID': '#c05621', 'PENDING': '#c05621'
+        'USED': '#4a5568', 'PAID': '#c05621', 'PENDING': '#c05621',
+        'UNPAID': '#e53e3e'
       };
       const statusColorHex = statusColors[statusLabel] || '#718096';
       const hasStamp = ["ACTIVE", "VERIFIED", "BOARDED", "USED"].includes(statusLabel);
@@ -3003,7 +3003,7 @@ function renderTickets(){
       tr.innerHTML = `
         <td>#${t.id}</td>
         <td>${t.date}</td>
-        <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+        <td><span class="badge ${statusClass}">${displayStatus}</span></td>
       `;
       tbody.appendChild(tr);
 
@@ -3016,7 +3016,7 @@ function renderTickets(){
               <img src="assests/logo.png" style="width: 35px; height: 35px; object-fit: contain;">
               <div style="font-weight:bold; color:var(--primary-color); font-size: 0.85rem;">UGBUS TICKETS</div>
             </div>
-            <div class="badge ${statusClass}">${statusLabel}</div>
+            <div class="badge ${statusClass}">${displayStatus}</div>
           </div>
           <div class="ticket-body">
             <div class="ticket-route">
@@ -3036,7 +3036,7 @@ function renderTickets(){
             </div>
             <div class="ticket-qr-section" style="${isUsed ? 'filter: grayscale(1); opacity: 0.5;' : ''} position: relative; overflow: hidden;">
               <div class="qr-container"></div>
-              ${hasStamp ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; z-index: 5; pointer-events: none; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 2px 2px 2px ${statusColorHex}44; white-space: nowrap; text-align: center; line-height: 1.1; background: white;"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel === 'ACTIVE' ? 'VERIFIED' : statusLabel}</div><div style="font-size: 0.75rem; font-weight: 800; border-top: 1px solid ${statusColorHex}; margin-top: 3px; padding-top: 3px;">${vTimeStr}</div></div>` : ''}
+              ${hasStamp ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); border: 4px double ${statusColorHex}; color: ${statusColorHex}; padding: 12px 20px; border-radius: 50%; z-index: 5; pointer-events: none; opacity: 1.0; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 4px ${statusColorHex}, 2px 2px 2px ${statusColorHex}44; white-space: nowrap; text-align: center; line-height: 1.1; background: white;"><div style="font-weight: 900; font-size: 1.3rem;">${statusLabel === 'ACTIVE' ? 'PAID & ACTIVE' : statusLabel}</div><div style="font-size: 0.75rem; font-weight: 800; border-top: 1px solid ${statusColorHex}; margin-top: 3px; padding-top: 3px;">${vTimeStr}</div></div>` : ''}
               <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
             </div>
             ${scheduleSummaryHtml}
@@ -3892,10 +3892,10 @@ function loadBookings(){
             <td>#${t.id}</td><td>${t.passenger}</td><td>${t.from} → ${t.to}</td>
             <td>${t.price.toLocaleString()}</td>
             <td>
-              <span class="badge ${t.status === 'PENDING' ? 'bg-paid' : t.status === 'ACTIVE' ? 'bg-active' : t.status === 'BOARDED' ? 'bg-boarded' : 'bg-used'}">${t.status}</span>
+              <span class="badge ${t.status === 'PENDING' ? 'bg-paid' : t.status === 'UNPAID' ? 'bg-secondary' : t.status === 'ACTIVE' ? 'bg-active' : t.status === 'BOARDED' ? 'bg-boarded' : 'bg-used'}">${t.status === 'ACTIVE' ? 'PAID & ACTIVE' : (t.status === 'PENDING' ? 'PAYMENT PENDING' : t.status)}</span>
             </td>
             <td style="display:flex; gap:5px;">
-              ${t.status === 'PENDING' ? `<button class="btn btn-sm" style="background:#48bb78" onclick="updateTicketStatus(${t.id}, 'ACTIVE')" title="Verify Payment & Set Active"><i class="fas fa-check"></i></button>` : ''}
+              ${(t.status === 'PENDING' || t.status === 'UNPAID') ? `<button class="btn btn-sm" style="background:#48bb78" onclick="updateTicketStatus(${t.id}, 'ACTIVE')" title="Verify Payment & Set Active"><i class="fas fa-check"></i></button>` : ''}
               ${t.status === 'ACTIVE' ? `<button class="btn btn-sm" style="background:#f6ad55" onclick="updateTicketStatus(${t.id}, 'BOARDED')" title="Manual Terminal Boarding"><i class="fas fa-id-card-clip"></i></button>` : ''}
               ${t.status === 'BOARDED' ? `<button class="btn btn-sm" style="background:#4299e1" onclick="updateTicketStatus(${t.id}, 'USED')" title="Mark Trip Finished"><i class="fas fa-check-double"></i></button>` : ''}
               ${t.status === 'USED' ? `<button class="btn btn-sm" style="background:#718096" onclick="updateTicketStatus(${t.id}, 'PENDING')" title="Reset to Pending"><i class="fas fa-undo"></i></button>` : ''}
