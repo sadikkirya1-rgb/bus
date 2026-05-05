@@ -2211,41 +2211,17 @@ async function renderTicketToCanvas(t, scale = 3) {
     drawItem('Seat', `#${t.seat || '1'}`, leftX, infoY + 150);
     drawItem('Booking ID', `#${t.id}`, rightX, infoY + 150, true);
 
-    // Daily Route Schedule Summary (Chips)
-    const routeTimes = [...new Set(trips
-        .filter(trip => trip.from === t.from && trip.to === t.to && trip.date === 'DAILY')
-        .map(trip => trip.time))]
-        .sort((a, b) => getMinutesFromMidnight(a) - getMinutesFromMidnight(b));
-
-    if (routeTimes.length > 0) {
-        const chipY = 385;
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#718096';
-        ctx.font = 'bold 8px sans-serif';
-        ctx.fillText('DAILY ROUTE SCHEDULE', 40, chipY);
-
-        let chipX = 40;
-        routeTimes.forEach(time => {
-            const isCurrent = time === t.time;
-            ctx.font = 'bold 9px sans-serif';
-            const tw = ctx.measureText(time).width;
-            ctx.fillStyle = isCurrent ? '#FCD116' : '#edf2f7'; roundRect(ctx, chipX, chipY + 6, tw + 10, 18, 4); ctx.fill();
-            ctx.fillStyle = isCurrent ? '#000' : '#2d3748'; ctx.fillText(time, chipX + 5, chipY + 19);
-            chipX += tw + 15;
-        });
-    }
-
     // QR Code
-    ctx.fillStyle = '#f8fafc'; roundRect(ctx, 40, 420, 320, 120, 12); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; roundRect(ctx, 40, 380, 320, 110, 12); ctx.fill();
     try {
         const tempDiv = document.createElement('div');
         new QRCode(tempDiv, { text: `TICKET:${t.id}`, width: 80 * scale, height: 80 * scale });
         await new Promise(r => setTimeout(r, 200));
         const qrCanvas = tempDiv.querySelector('canvas');
-        if (qrCanvas) ctx.drawImage(qrCanvas, 160, 450, 80, 80);
+        if (qrCanvas) ctx.drawImage(qrCanvas, 160, 395, 80, 80);
     } catch (e) {}
     ctx.textAlign = 'center'; ctx.fillStyle = '#64748b'; ctx.font = '12px sans-serif';
-    ctx.fillText(statusLabel === 'USED' ? 'This ticket has already been used' : 'Scan at Boarding', 200, 525);
+    ctx.fillText(statusLabel === 'USED' ? 'This ticket has already been used' : 'Scan at Boarding', 200, 480);
 
     // Stamp
     const stampedStatuses = ['ACTIVE', 'VERIFIED', 'BOARDED', 'USED'];
@@ -2254,7 +2230,7 @@ async function renderTicketToCanvas(t, scale = 3) {
         const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
         const stampTxt = statusLabel === 'ACTIVE' ? 'PAID & ACTIVE' : statusLabel;
 
-        ctx.save(); ctx.translate(200, 490); ctx.rotate(-15 * Math.PI / 180);
+        ctx.save(); ctx.translate(200, 435); ctx.rotate(-15 * Math.PI / 180);
         ctx.strokeStyle = statusColor; ctx.lineWidth = 3; 
         
         ctx.font = '900 24px "Courier New", Courier, monospace';
@@ -2275,6 +2251,37 @@ async function renderTicketToCanvas(t, scale = 3) {
         ctx.fillText(vTimeStr, 0, 20);
         ctx.restore();
     }
+
+    // Daily Route Schedule Summary (Chips)
+    const routeTimes = [...new Set(trips
+        .filter(trip => trip.from === t.from && trip.to === t.to && trip.date === 'DAILY')
+        .map(trip => trip.time))]
+        .sort((a, b) => getMinutesFromMidnight(a) - getMinutesFromMidnight(b));
+
+    if (routeTimes.length > 0) {
+        const chipY = 500;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#718096';
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('DAILY ROUTE SCHEDULE', 40, chipY);
+
+        let chipX = 40;
+        routeTimes.forEach(time => {
+            const isCurrent = time === t.time;
+            ctx.font = 'bold 9px sans-serif';
+            const tw = ctx.measureText(time).width;
+            ctx.fillStyle = isCurrent ? '#FCD116' : '#edf2f7'; roundRect(ctx, chipX, chipY + 6, tw + 10, 18, 4); ctx.fill();
+            ctx.fillStyle = isCurrent ? '#000' : '#2d3748'; ctx.fillText(time, chipX + 5, chipY + 19);
+            chipX += tw + 15;
+        });
+    }
+
+    // Thanks and Contact Info
+    const contactY = 535;
+    ctx.textAlign = 'center'; ctx.fillStyle = '#007A3D'; ctx.font = 'bold 9px sans-serif';
+    ctx.fillText('THANK YOU FOR CHOOSING UGBUS!', 200, contactY);
+    ctx.fillStyle = '#718096'; ctx.font = '8px sans-serif';
+    ctx.fillText('Kampala Road, Plot 12, Kampala | +256 414 123 456 | support@ugbus.ug', 200, contactY + 12);
 
     // Footer
     ctx.fillStyle = '#007A3D'; ctx.fillRect(20, 565, 360, 55);
@@ -3076,6 +3083,11 @@ function renderTickets(){
               <p style="margin:5px 0 0 0; font-size:0.7rem; color:#64748b;">${isUsed ? 'This ticket has already been used' : 'Scan at Boarding'}</p>
             </div>
             ${scheduleSummaryHtml}
+            <div style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px; font-size: 0.7rem; color: #718096; text-align: center;">
+              <p style="margin: 0; font-weight: 700; color: var(--primary-color); text-transform: uppercase;">Thank you for choosing UGBUS!</p>
+              <p style="margin: 2px 0;">Kampala Road, Plot 12, Kampala</p>
+              <p style="margin: 0;">+256 414 123 456 | support@ugbus.ug</p>
+            </div>
           </div>
           <div class="ticket-footer">
             <div>Total Fare: UGX ${t.price.toLocaleString()}</div>
@@ -4093,6 +4105,11 @@ async function printTicketReceipt(id) {
                         <div class="daily-schedule-times">
                             ${routeTimes.map(time => `<span class="daily-time-chip ${time === t.time ? 'active' : ''}">${time}</span>`).join('')}
                         </div>
+                    </div>
+                    <div style="margin-top: 15px; text-align: center; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                        <p style="margin: 0; font-weight: 800; color: #007A3D; font-size: 0.8rem; text-transform: uppercase;">THANK YOU FOR CHOOSING UGBUS!</p>
+                        <p style="margin: 4px 0 0 0; font-size: 0.65rem; color: #718096;">Kampala Road, Plot 12, Kampala</p>
+                        <p style="margin: 2px 0 0 0; font-size: 0.65rem; color: #718096;">+256 414 123 456 | support@ugbus.ug</p>
                     </div>
                     <div class="ticket-qr-section">
                         <div style="border: 2px solid #e2e8f0; border-radius: 8px; width: 100px; height: 100px; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: white; color: #cbd5e0; font-size: 2rem;"><i class="fas fa-qrcode"></i></div>
