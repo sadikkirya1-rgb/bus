@@ -1510,13 +1510,11 @@ function loadTrips(){
 
   const headerCard = `
     <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 20px;">
-      <button class="screen-back-btn" onclick="userTab('home')" style="color: white; margin-bottom: 15px;">
-        <i class="fas fa-arrow-left"></i> Back to Search
-      </button>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div class="logo" style="margin: 0;">
-          <img src="assests/logo.png" alt="Logo" style="width: 35px; height: 35px; object-fit: contain;">
-          <h1 style="color: white; font-size: 1.2rem; margin: 0;">UGBUS TICKETS</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="screen-back-btn" onclick="userTab('home')" style="color: white; margin: 0;">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
         </div>
         <div style="text-align: right; color: white;">
           <div style="font-weight: 800; font-size: 1rem; color: var(--uganda-yellow);">${from} → ${to}</div>
