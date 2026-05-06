@@ -223,6 +223,8 @@
     <div id="userUI" class="hidden">
 
       <div id="userHome">
+        <div id="bookingFlowStepper" class="booking-stepper hidden"></div>
+
         <div id="maintenanceBanner" class="card hidden" style="background: var(--uganda-red); color: white; border: none; margin-bottom: 15px; text-align: center; padding: 12px; font-size: 0.9rem;">
           <i class="fas fa-tools"></i> <strong>Service Notice:</strong> We are performing scheduled maintenance. Schedule creation is temporarily restricted.
         </div>
@@ -353,7 +355,10 @@
             </div>
           </div>
 
-          <button class="btn" onclick="confirmBooking()" id="confirmBtn" disabled><i class="fas fa-check"></i> Confirm & Pay</button>
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn" style="flex: 1; background: var(--uganda-red); border: 1px solid rgba(255,255,255,0.2);" onclick="confirmCancelBooking()"><i class="fas fa-times"></i> Cancel</button>
+            <button class="btn" onclick="confirmBooking()" id="confirmBtn" disabled style="flex: 2;"><i class="fas fa-check"></i> Confirm & Pay</button>
+          </div>
         </div>
 
       </div>

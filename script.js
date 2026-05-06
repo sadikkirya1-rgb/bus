@@ -780,15 +780,116 @@ function shareETA(id) {
 }
 
 function showUserScreen(screenId) {
-  const screens = ['search-section', 'upcomingJourneys', 'trips', 'busDetailsBox', 'seatBox', 'pointsBox', 'passengerBox', 'bookingConfirm'];
+  const screens = ['search-section', 'upcomingJourneys', 'trips', 'busDetailsBox', 'pointsBox', 'passengerBox', 'bookingConfirm'];
   screens.forEach(s => {
     const el = document.getElementById(s); // seatBox will now always be hidden or removed
-    if (el) el.classList.add('hidden');
+    if (el) el.classList.add('hidden'); // Hide all booking-related screens
   });
   
   const active = document.getElementById(screenId);
-  if (active) active.classList.remove('hidden');
+  if (active) active.classList.remove('hidden'); // Show the requested screen
+
+  // Update Progress Stepper for booking flow
+  const bookingScreens = {
+      'trips': 1,
+      'busDetailsBox': 1,
+      'pointsBox': 2,
+      'passengerBox': 3,
+      'bookingConfirm': 4
+  };
+  updateBookingStepper(bookingScreens[screenId] || 0);
+
   window.scrollTo(0,0);
+}
+
+/**
+ * Updates the visual progress stepper during the booking flow.
+ */
+function updateBookingStepper(step) {
+    const stepper = document.getElementById('bookingFlowStepper');
+    if (!stepper) return;
+
+    if (step === 0) {
+        stepper.classList.add('hidden');
+        return;
+    }
+
+    stepper.classList.remove('hidden');
+    const steps = [
+        { num: 1, text: 'Routes' },
+        { num: 2, text: 'Points' },
+        { num: 3, text: 'Passenger' },
+        { num: 4, text: 'Confirm' }
+    ];
+
+    // Determine the current screen to prevent navigating forward via stepper
+    const currentScreenId = getCurrentBookingScreen();
+    const currentStepNumber = getStepNumberFromScreen(currentScreenId);
+
+    stepper.innerHTML = steps.map(s => {
+        let statusClass = s.num < step ? 'completed' : (s.num === step ? 'active' : '');
+        const content = s.num < step ? '<i class="fas fa-check"></i>' : s.num;
+        
+        // Only make steps clickable if they are completed or the current active step
+        // And ensure they don't try to go to a step beyond the current one
+        const isClickable = s.num <= currentStepNumber;
+        const onClickAttr = isClickable ? `onclick="goToBookingStep(${s.num})"` : '';
+        const cursorStyle = isClickable ? 'cursor: pointer;' : 'cursor: default;';
+        const clickableClass = isClickable ? 'clickable' : '';
+
+        return `
+            <div class="step-item ${statusClass} ${clickableClass}" ${onClickAttr} style="${cursorStyle}">
+                <div class="step-number">${content}</div>
+                <div class="step-text">${s.text}</div>
+            </div>`;
+    }).join('');
+}
+
+function goToBookingStep(targetStep) {
+    let screenId;
+    switch (targetStep) {
+        case 1: screenId = 'trips'; break; // Go back to the list of operators
+        case 2: screenId = 'pointsBox'; break;
+        case 3: screenId = 'passengerBox'; break;
+        case 4: screenId = 'bookingConfirm'; break;
+        default: return;
+    }
+    showUserScreen(screenId);
+}
+
+function confirmCancelBooking() {
+    if (confirm("Are you sure you want to cancel your booking and return to the home screen?")) {
+        userTab('home');
+    }
+}
+
+// Helper to determine the currently visible booking screen
+function getCurrentBookingScreen() {
+    const bookingScreens = ['trips', 'busDetailsBox', 'pointsBox', 'passengerBox', 'bookingConfirm'];
+    for (const screenId of bookingScreens) {
+        const el = document.getElementById(screenId);
+        if (el && !el.classList.contains('hidden')) {
+            return screenId;
+        }
+    }
+    return null; // Not in a booking screen
+}
+
+// Helper to map a booking screen ID to its step number
+function getStepNumberFromScreen(screenId) {
+    switch (screenId) {
+        case 'trips':
+        case 'busDetailsBox': // Both are considered step 1 (Routes)
+            return 1;
+        case 'pointsBox':
+            return 2;
+        case 'passengerBox':
+            return 3;
+        case 'bookingConfirm':
+            return 4;
+        default:
+            return 0; // Not a booking step
+    }
 }
 
 function showTerminalBuses(from, to, date) {
@@ -1261,6 +1362,7 @@ function userTab(tab){
     document.getElementById('upcomingJourneys').classList.remove('hidden');
     document.getElementById('trips').classList.add('hidden');
     document.getElementById('busDetailsBox').classList.add('hidden');
+    updateBookingStepper(0);
   }else if(tab==="tickets"){
     if (role === null) { // If guest, tickets require login
       showAuthPage();
