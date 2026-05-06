@@ -278,6 +278,10 @@
         <!-- BOARDING & DROPPING POINTS -->
         <div id="pointsBox" class="card hidden">
           <button class="screen-back-btn" onclick="showUserScreen('busDetailsBox')"><i class="fas fa-arrow-left"></i> Back to Bus Details</button>
+          <div class="form-group" style="margin-bottom: 15px; text-align: left;">
+            <label style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 5px; display: block;">Number of Seats</label>
+            <input type="number" id="passengerCount" value="1" min="1" max="10" onchange="calculateTotal()" style="font-size: 1.2rem; font-weight: bold; text-align: center;">
+          </div>
           <select id="boardingPoint">
             <option value="" disabled selected hidden>Boarding Point</option>
           </select>
@@ -313,7 +317,16 @@
           <button class="screen-back-btn" onclick="showUserScreen('passengerBox')"><i class="fas fa-arrow-left"></i> Back</button>
           <h3><i class="fas fa-check-circle"></i> Booking Confirmation</h3>
           <p id="bookingDetails"></p>
-            <div id="bookingStatus" class="badge bg-secondary" style="margin-bottom: 10px; display: inline-block;">Status: CREATED</div>
+          
+          <div id="priceBreakdown" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; margin: 15px 0; text-align: left;">
+            <!-- Total will be injected here -->
+          </div>
+
+          <div class="floating-label-group" style="margin-bottom: 20px;">
+            <input id="promoCode" placeholder=" " oninput="applyPromoCode()">
+            <label for="promoCode">Enter Promo Code (Optional)</label>
+          </div>
+
           <!-- PAYMENT METHODS -->
           <h4>Select Payment Method</h4>
           <div class="payment-methods">

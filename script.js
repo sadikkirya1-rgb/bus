@@ -795,15 +795,9 @@ function showTerminalBuses(from, to, date) {
   // Fill the search fields to simulate a real search
   document.getElementById('from').value = from;
   document.getElementById('to').value = to;
-  document.getElementById('date').value = date;
-  
-  // Set the "Others" button text if necessary
-  const othersBtn = document.getElementById('btnOthers');
-  if (othersBtn) othersBtn.innerText = date;
-  
-  // Highlight the correct search parameters and trigger loadTrips
-  setSearchDate('others');
-  loadTrips();
+
+  // Always focus on today's date and the today button even when an upcoming journey is clicked
+  setSearchDate('today');
 }
 
 function cancelJourney(id) {
@@ -1343,6 +1337,7 @@ function setSearchDate(mode) {
     dateInput.value = getKampalaDateISO(today);
     dateInput.classList.add('hidden');
     document.getElementById('btnOthers').innerText = 'Others';
+    if (document.getElementById('from').value && document.getElementById('to').value) loadTrips();
   } else if (mode === 'tomorrow') {
     document.getElementById('btnTomorrow').classList.add('active');
     const tomorrow = new Date(today);
@@ -1350,6 +1345,7 @@ function setSearchDate(mode) {
     dateInput.value = getKampalaDateISO(tomorrow);
     dateInput.classList.add('hidden');
     document.getElementById('btnOthers').innerText = 'Others';
+    if (document.getElementById('from').value && document.getElementById('to').value) loadTrips();
   } else if (mode === 'others') {
     document.getElementById('btnOthers').classList.add('active');
     try {
@@ -1362,10 +1358,7 @@ function setSearchDate(mode) {
 }
 
 function updateOthersText() {
-  const dateInput = document.getElementById('date');
-  if (dateInput.value) {
-    document.getElementById('btnOthers').innerText = dateInput.value;
-  }
+  // Keep button text as 'Others' per user request to allow manual selection
 }
 
 /* BUS NAV */
@@ -1473,7 +1466,7 @@ function loadHeatmap() {
 function loadTrips(){
   let from = document.getElementById('from').value;
   let to = document.getElementById('to').value;
-  let date = document.getElementById('date') ? document.getElementById('date').value : new Date().toISOString().split('T')[0];
+  const date = (document.getElementById('date') && document.getElementById('date').value) ? document.getElementById('date').value : getKampalaDateISO();
   let time = document.getElementById('time') ? document.getElementById('time').value : "";
   let sortOrder = document.getElementById('sortTrips') ? document.getElementById('sortTrips').value : "time";
 
@@ -1564,11 +1557,10 @@ function loadTrips(){
   } else {
     operatorList.forEach(name => {
       const opTrips = operatorGroups[name];
-      const searchDate = document.getElementById('date').value;
       let d = document.createElement("div");
       d.className = "upcoming-card fade-in";
       d.style.marginBottom = "12px";
-      d.onclick = () => renderOperatorSchedules(name, opTrips, 'time', searchDate);
+      d.onclick = () => renderOperatorSchedules(name, opTrips, 'time', date);
       d.innerHTML = `
         <div class="up-num"><i class="fas fa-building" style="font-size:1.2rem"></i></div>
         <div class="up-center">
@@ -1589,6 +1581,7 @@ function loadTrips(){
  * Displays the detailed schedules for a specific operator with countdowns.
  */
 function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', searchDate) {
+    if (!searchDate || searchDate === "") searchDate = getKampalaDateISO();
     activeSearchSchedules = { name: operatorName, data: opTrips, searchDate: searchDate };
     const tripsContainer = document.getElementById('trips');
     
@@ -1619,7 +1612,6 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
                     <h4 style="margin: 0; color: white;">${operatorName}</h4>
                 </div>
                 <div style="text-align: right; display: flex; flex-direction: column;">
-                    <span style="font-size: 0.6rem; opacity: 0.6; text-transform: uppercase; color: white; margin-bottom: 2px;">Travel Date</span>
                         <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end;">
                             <span id="headerTravelDate" style="font-size: 0.85rem; font-weight: 700; color: var(--uganda-yellow);">${travelDateStr}</span>
                             <i class="fas fa-calendar-alt" style="cursor: pointer; color: white; font-size: 0.8rem;" onclick="setSearchDate('others')" title="Pick Date"></i>
@@ -1977,10 +1969,44 @@ function fillFromAccountHolder() {
   showUserScreen('passengerBox');
 }
 
-function showBookingSummary() {
-  const pCountEl = document.getElementById('passengerCount');
-  const count = pCountEl ? (parseInt(pCountEl.value) || 1) : 1;
+/**
+ * Dynamic Price Calculator
+ */
+function calculateTotal() {
+    const count = parseInt(document.getElementById('passengerCount').value) || 1;
+    const basePrice = selectedBus ? selectedBus.price : 0;
+    const subtotal = basePrice * count;
+    
+    // Promo Logic
+    const promoCodeInput = document.getElementById('promoCode')?.value.toUpperCase();
+    let discount = 0;
+    let promoLabel = "";
 
+    if (promoCodeInput === "WELCOME20") {
+        discount = subtotal * 0.2;
+        promoLabel = " (20% Welcome Discount applied!)";
+    }
+
+    const total = subtotal - discount;
+    const breakdownEl = document.getElementById('priceBreakdown');
+    if (breakdownEl) {
+        breakdownEl.innerHTML = `
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Subtotal (${count} seats):</span> <span>UGX ${subtotal.toLocaleString()}</span></div>
+            <div style="display:flex; justify-content:space-between; color:var(--uganda-yellow); margin-bottom:5px;"><span>Discount:</span> <span>- UGX ${discount.toLocaleString()}</span></div>
+            <hr style="opacity:0.1; margin: 10px 0;">
+            <div style="display:flex; justify-content:space-between; font-weight:800; font-size:1.1rem;"><span>Total:</span> <span>UGX ${total.toLocaleString()}</span></div>
+            <small style="color:var(--uganda-yellow); display:block; margin-top:5px;">${promoLabel}</small>
+        `;
+    }
+    return { total, count, discount };
+}
+
+function applyPromoCode() {
+    calculateTotal();
+}
+
+function showBookingSummary() {
+  const { total, count } = calculateTotal();
   const pName = document.querySelector('.p-name')?.value.trim();
   const pPhone = document.querySelector('.p-phone')?.value.trim();
 
@@ -1999,13 +2025,8 @@ function showBookingSummary() {
     <strong>Bus:</strong> ${selectedBus.name}<br>
     <strong>Route:</strong> ${document.getElementById('from').value} to ${document.getElementById('to').value}<br>
     <strong>Points:</strong> ${document.getElementById('boardingPoint').value} → ${document.getElementById('droppingPoint').value}<br>
-    <div style="margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; border-left: 4px solid var(--uganda-yellow);">
-        <div style="font-size: 0.75rem; text-transform: uppercase; opacity: 0.7;">Passenger Contact</div>
-        <div style="font-weight: 600;">${pName}</div>
-        <div style="font-size: 0.9rem;">${pPhone}</div>
-    </div>
-    <strong>Total:</strong> UGX ${(selectedBus.price * count).toLocaleString()}
   `;
+  calculateTotal(); // Refresh breakdown on summary screen
 }
 
 /* CONFIRM BOOKING */
@@ -2028,10 +2049,15 @@ async function confirmBooking(){
   confirmBtn.disabled = true;
   confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
-  // In Production: Logic should fetch the first available seat from the trip's current state
+  const { total, count } = calculateTotal();
   const trip = trips.find(t => t.busName === selectedBus.name && t.time === selectedBus.time);
   const occupiedSeats = tickets.filter(t => t.bus === selectedBus.name && t.date === (document.getElementById('date')?.value || getKampalaDateISO()) && t.status !== 'CANCELLED').map(t => t.seat);
-  selectedSeat = Array.from({length: 28}, (_, i) => i + 1).find(s => !occupiedSeats.includes(s)) || 0;
+  
+  // Assign multiple seats
+  let assignedSeats = [];
+  for(let i=1; i<=28; i++) {
+      if (!occupiedSeats.includes(i) && assignedSeats.length < count) assignedSeats.push(i);
+  }
 
   const ticketId = Math.floor(100000 + Math.random() * 900000);
   let ticket = { 
@@ -2040,8 +2066,9 @@ async function confirmBooking(){
     duration: selectedBus?.duration || "3h 45m",
     boardingPoint: document.getElementById('boardingPoint').value,
     droppingPoint: document.getElementById('droppingPoint').value,
-    seat: selectedSeat,
-    price: selectedBus?.price || 0,
+    seat: assignedSeats.join(', '),
+    price: total,
+    seatCount: count,
     date: document.getElementById('date') ? document.getElementById('date').value : getKampalaDateISO(),
     from: document.getElementById('from').value,
     to: document.getElementById('to').value,
