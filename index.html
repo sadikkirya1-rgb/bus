@@ -87,13 +87,15 @@
             <i id="loginEye" class="fas fa-eye"></i>
           </button>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px; margin: -5px 0 5px 0;">
-          <input type="checkbox" id="rememberMe" style="width: auto; margin: 0;">
-          <label for="rememberMe" style="font-size: 0.85rem; color: white; cursor: pointer;">Remember Me</label>
+        <div class="login-actions-row">
+          <div class="remember-me-checkbox-group">
+            <input type="checkbox" id="rememberMe">
+            <label for="rememberMe" style="font-size: 0.85rem; color: white; cursor: pointer;">Remember Me</label>
+          </div>
+          <button type="submit" class="btn login-btn">
+            <i class="fas fa-sign-in-alt"></i> Login
+          </button>
         </div>
-        <button type="submit" class="btn login-btn">
-          <i class="fas fa-sign-in-alt"></i> Login
-        </button>
         <button type="button" class="btn google-login-btn" onclick="loginWithGoogle()">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px;" alt="Google Logo">
           Login with Google

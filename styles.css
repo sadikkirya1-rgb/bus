@@ -656,6 +656,28 @@ body{
   box-shadow: 0 4px 15px rgba(0, 122, 61, 0.3);
 }
 
+.login-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 10px; /* Adjust as needed to maintain spacing from element above */
+  margin-bottom: 10px; /* Adjust as needed to maintain spacing from element below */
+}
+
+.login-actions-row .login-btn {
+  margin-top: 0; /* Override default margin-top for login-btn when in this row */
+  flex-shrink: 0; /* Prevent button from shrinking */
+  width: auto; /* Allow button to size content */
+}
+
+.remember-me-checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0; /* Reset any default margins */
+}
+
 .google-login-btn {
   background: white !important;
   color: #444 !important;
