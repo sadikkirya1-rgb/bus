@@ -1509,7 +1509,7 @@ function loadTrips(){
   });
 
   const headerCard = `
-    <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 20px;">
+    <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 12px 20px 20px 20px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <button class="screen-back-btn" onclick="userTab('home')" style="color: white; margin: 0;">
@@ -1601,7 +1601,7 @@ function renderOperatorSchedules(operatorName, opTrips, sortOrder = 'time', sear
         day: '2-digit', month: 'short', year: 'numeric' 
     });
     tripsContainer.innerHTML = `
-        <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 20px; max-width: 100%; width: 100%;">
+        <div class="card" style="background: var(--primary); margin-bottom: 20px; border: none; padding: 12px 20px 20px 20px; max-width: 100%; width: 100%;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <button class="screen-back-btn" onclick="loadTrips()" style="margin: 0;">
