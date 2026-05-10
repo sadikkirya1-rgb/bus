@@ -3339,13 +3339,18 @@ document.addEventListener('DOMContentLoaded', () => {
   promoFileInput?.addEventListener('change', function(e) {
     const file = e.target.files[0];
     const preview = document.getElementById('promoImagePreview');
-    if (file && preview) {
+    const removeBtn = document.getElementById('removePromoImageBtn');
+    if (file && preview && removeBtn) {
       const reader = new FileReader();
       reader.onload = (e) => {
         preview.src = e.target.result;
         preview.classList.remove('hidden');
+        removeBtn.classList.remove('hidden');
       };
       reader.readAsDataURL(file);
+      document.getElementById('promoImageUrl').value = "";
+      selectedPlaceholderUrl = null;
+      renderPlaceholderPicker();
     }
   });
 });
@@ -3558,7 +3563,13 @@ function adminTab(section){
   else if(section === 'analytics') loadAnalytics();
   else if(section === 'payments') loadPaymentSettings();
   else if(section === 'notifications') loadNotifications();
-  else if(section === 'promos') { clearPromoForm(); loadPromos(); }
+  else if(section === 'promos') { 
+    clearPromoForm(); 
+    loadPromos(); 
+    document.getElementById('promoFormContainer').classList.add('hidden');
+    document.getElementById('togglePromoBtn').innerHTML = '<i class="fas fa-plus"></i> Add New Promo';
+    document.getElementById('togglePromoBtn').style.background = 'var(--primary-color)';
+  }
   else if(section === 'settings') loadSettings();
   else if(section === 'activity') loadActivity();
   else if(section === 'supportTickets') loadSupportTickets();
@@ -4722,6 +4733,23 @@ const BUILTIN_PLACEHOLDERS = [
 
 let selectedPlaceholderUrl = null;
 
+function togglePromoForm() {
+    const container = document.getElementById('promoFormContainer');
+    const btn = document.getElementById('togglePromoBtn');
+    const isHidden = container.classList.contains('hidden');
+    
+    if (isHidden) {
+        container.classList.remove('hidden');
+        btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        btn.style.background = 'var(--uganda-red)';
+    } else {
+        clearPromoForm();
+        container.classList.add('hidden');
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add New Promo';
+        btn.style.background = 'var(--primary-color)';
+    }
+}
+
 /**
  * Load and render all promos in the admin panel
  */
@@ -4755,34 +4783,43 @@ function renderPromosList() {
         return;
     }
 
-    let html = promos.map(promo => {
-        const isActive = new Date(promo.endDate) >= new Date();
-        const statusClass = (promo.active && isActive) ? 'bg-boarded' : 'bg-cancelled';
-        const statusText = (promo.active && isActive) ? 'ACTIVE' : 'INACTIVE';
-
-        return `
-            <div class="admin-promo-item">
-                <img src="${promo.imageUrl || BUILTIN_PLACEHOLDERS[0]}" class="admin-promo-thumbnail" alt="Thumb">
-                <div class="admin-promo-content">
-                    <h4 class="admin-promo-title">${promo.title}</h4>
-                    <div class="admin-promo-meta">
-                        <span><i class="fas fa-tag"></i> ${promo.type}</span>
-                        <span><i class="fas fa-calendar"></i> ${new Date(promo.startDate).toLocaleDateString()} - ${new Date(promo.endDate).toLocaleDateString()}</span>
-                    </div>
-                    <p style="margin: 8px 0; font-size: 0.9rem; color: rgba(255,255,255,0.8);">${promo.description.substring(0, 100)}${promo.description.length > 100 ? '...' : ''}</p>
-                    <div style="margin-top: 8px;">
-                        <span class="badge ${statusClass}" style="font-size: 0.7rem;">${statusText}</span>
-                    </div>
-                </div>
-                <div class="admin-promo-actions">
-                    <button class="btn btn-sm" onclick="editPromo('${promo.id}')" style="background: rgba(252,209,22,0.2); color: var(--uganda-yellow);"><i class="fas fa-edit"></i> Edit</button>
-                    <button class="btn btn-sm" onclick="deletePromo('${promo.id}')" style="background: rgba(229,62,62,0.2); color: #ff8888;"><i class="fas fa-trash"></i> Delete</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    promosList.innerHTML = html;
+    promosList.innerHTML = `
+      <table class="ticket-table">
+        <thead>
+          <tr>
+            <th>Image</th>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Dates</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${promos.map(promo => {
+            const isActive = new Date(promo.endDate) >= new Date();
+            const statusClass = (promo.active && isActive) ? 'bg-active' : 'bg-secondary';
+            const statusText = (promo.active && isActive) ? 'ACTIVE' : 'INACTIVE';
+            
+            return `
+              <tr>
+                <td><img src="${promo.imageUrl || BUILTIN_PLACEHOLDERS[0]}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;"></td>
+                <td><strong>${promo.title}</strong></td>
+                <td><span class="badge bg-primary">${promo.type}</span></td>
+                <td><small>${new Date(promo.startDate).toLocaleDateString()} - ${new Date(promo.endDate).toLocaleDateString()}</small></td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>
+                  <div style="display: flex; gap: 5px;">
+                    <button class="btn btn-sm" style="background:#2b6cb0" onclick="editPromo('${promo.id}')" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm" style="background:var(--uganda-red)" onclick="deletePromo('${promo.id}')" title="Delete"><i class="fas fa-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
 }
 
 function renderPlaceholderPicker() {
@@ -4799,9 +4836,11 @@ function selectPlaceholder(url) {
     document.getElementById('promoImageUrl').value = ""; // Clear manual URL if picking placeholder
     renderPlaceholderPicker();
     const preview = document.getElementById('promoImagePreview');
-    if (preview) {
+    const removeBtn = document.getElementById('removePromoImageBtn');
+    if (preview && removeBtn) {
         preview.src = url;
         preview.classList.remove('hidden');
+        removeBtn.classList.remove('hidden');
     }
 }
 
@@ -4938,14 +4977,33 @@ async function savePromo() {
             showNotification('Promo created successfully!', 'success');
     }
 
+        // Hide form container on success
+        const container = document.getElementById('promoFormContainer');
+        const toggleBtn = document.getElementById('togglePromoBtn');
+        container.classList.add('hidden');
+        toggleBtn.innerHTML = '<i class="fas fa-plus"></i> Add New Promo';
+        toggleBtn.style.background = 'var(--primary-color)';
+
+        const removeBtn = document.getElementById('removePromoImageBtn');
+        if (removeBtn) {
+            removeBtn.classList.add('hidden');
+        }
+
         clearPromoForm();
         loadPromos();
     } catch (err) {
         console.error('Promo Save Error:', err);
-        // If the error is 'Missing or insufficient permissions', suggest a fix
-        const errorMsg = err.code === 'permission-denied' 
-            ? "Permission Denied: Please check your Firestore rules for the 'promos' collection." 
-            : `Error saving promo: ${err.message}`;
+        let errorMsg = `Error saving promo: ${err.message}`;
+        
+        if (err.code === 'permission-denied') {
+            errorMsg = "Permission Denied: Check Firestore rules for 'promos' collection.";
+        } else if (err.code === 'storage/unauthorized') {
+            console.error("Security Rule Denied UID:", auth.currentUser ? auth.currentUser.uid : "None");
+            errorMsg = "Storage Denied: Your account does not have permission to upload to this folder. Please check Firebase Storage Rules and your user role in Firestore.";
+        } else if (err.code === 'storage/retry-limit-exceeded' || err.message.toLowerCase().includes('cors')) {
+            errorMsg = "Storage Error: Upload blocked by CORS policy. Please configure bucket settings.";
+        }
+
         showNotification(errorMsg, 'error');
     } finally {
         saveBtn.disabled = false;
@@ -4960,6 +5018,13 @@ async function savePromo() {
 function editPromo(promoId) {
     const promo = promos.find(p => p.id === promoId);
     if (!promo) return;
+
+    // Show form container for editing
+    const container = document.getElementById('promoFormContainer');
+    const toggleBtn = document.getElementById('togglePromoBtn');
+    container.classList.remove('hidden');
+    toggleBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Edit';
+    toggleBtn.style.background = 'var(--uganda-red)';
 
     document.getElementById('promoTitle').value = promo.title;
     document.getElementById('promoTitle').dataset.editingId = promoId;
@@ -4976,9 +5041,11 @@ function editPromo(promoId) {
     renderPlaceholderPicker();
 
     const preview = document.getElementById('promoImagePreview');
-    if (promo.imageUrl && preview) {
+    const removeBtn = document.getElementById('removePromoImageBtn');
+    if (promo.imageUrl && preview && removeBtn) {
         preview.src = promo.imageUrl;
         preview.classList.remove('hidden');
+        removeBtn.classList.remove('hidden');
     }
 
     // Scroll to form
@@ -5033,12 +5100,36 @@ function clearPromoForm() {
 
     const preview = document.getElementById('promoImagePreview');
     const livePreview = document.getElementById('promoLivePreview');
+    const removeBtn = document.getElementById('removePromoImageBtn');
     if (livePreview) {
         livePreview.classList.add('hidden');
     }
     if (preview) {
         preview.src = '';
         preview.classList.add('hidden');
+    }
+    if (removeBtn) {
+        removeBtn.classList.add('hidden');
+    }
+}
+
+/**
+ * Removes the currently selected promo image
+ */
+function removePromoImage() {
+    document.getElementById('promoImageFile').value = '';
+    document.getElementById('promoImageUrl').value = '';
+    selectedPlaceholderUrl = null;
+    renderPlaceholderPicker();
+    
+    const preview = document.getElementById('promoImagePreview');
+    const removeBtn = document.getElementById('removePromoImageBtn');
+    if (preview) {
+        preview.src = '';
+        preview.classList.add('hidden');
+    }
+    if (removeBtn) {
+        removeBtn.classList.add('hidden');
     }
 }
 
@@ -5070,6 +5161,12 @@ function filterPromos() {
  * Load and render all active promos for users to see
  */
 function loadUserPromos() {
+    const promoBanners = document.getElementById('promoBanners');
+    if (role === 'admin') {
+        if (promoBanners) promoBanners.classList.add('hidden');
+        return;
+    }
+
     const now = new Date();
     // Use the already synced 'promos' array for efficiency and real-time feel
     const userPromos = promos.filter(promo => {
@@ -5086,12 +5183,16 @@ function loadUserPromos() {
  */
 function renderUserPromos(userPromos) {
     const promoBannerList = document.getElementById('promoBannerList');
+    const promoBanners = document.getElementById('promoBanners');
     if (!promoBannerList) return;
 
     if (userPromos.length === 0) {
         promoBannerList.innerHTML = '';
+        if (promoBanners) promoBanners.classList.add('hidden');
         return;
     }
+
+    if (promoBanners) promoBanners.classList.remove('hidden');
 
     let html = userPromos.map((promo, index) => `
         <div class="promo-banner-card fade-in" style="animation-delay: ${index * 0.15}s; cursor: pointer;" onclick="${promo.linkUrl ? `window.open('${promo.linkUrl}', '_blank')` : ''}">

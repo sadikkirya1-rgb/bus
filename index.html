@@ -946,7 +946,12 @@
       </div>
       <!-- PROMOS & ADS MANAGEMENT -->
       <div id="adminPromos" class="hidden">
-        <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="margin: 0; color: white;"><i class="fas fa-tags"></i> Promo Management</h3>
+          <button class="btn" id="togglePromoBtn" onclick="togglePromoForm()"><i class="fas fa-plus"></i> Add New Promo</button>
+        </div>
+
+        <div id="promoFormContainer" class="card hidden">
           <h3 id="promoFormHeader"><i class="fas fa-plus-circle"></i> Add New Promo / Ad</h3>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
             <div class="floating-label-group">
@@ -975,7 +980,10 @@
               <div id="placeholderPicker" class="placeholder-picker"></div>
               <input id="promoImageFile" type="file" accept="image/*" style="margin-bottom: 5px; font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 5px; color: white;">
               <input id="promoImageUrl" placeholder="Or paste image URL" type="url">
-              <img id="promoImagePreview" class="hidden" style="max-width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.2);">
+              <div style="position: relative; display: inline-block; width: 100%;">
+                <img id="promoImagePreview" class="hidden" style="max-width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.2);">
+                <button id="removePromoImageBtn" class="hidden" onclick="removePromoImage()" style="position: absolute; top: 15px; right: 5px; background: var(--uganda-red); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><i class="fas fa-times"></i></button>
+              </div>
               <div id="promoUploadProgress" class="hidden" style="margin-top: 10px;">
                 <div class="progress-container" style="height: 10px;">
                   <div id="promoProgressBar" class="progress-bar" style="width: 0%; background: var(--uganda-yellow);"></div>
