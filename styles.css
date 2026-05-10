@@ -1012,7 +1012,7 @@ body{
 .main{
   flex:1;
   padding: 15px;
-  padding-top: calc(100px + env(safe-area-inset-top)); /* Reduced gap from 130px */
+  padding-top: calc(85px + env(safe-area-inset-top)); /* Reduced gap to bring content closer to header */
   padding-bottom: 100px;
   overflow-y: auto;
   transition: margin-left 0.3s ease;
@@ -1980,8 +1980,8 @@ input:checked + .slider:before { transform: translateX(14px); }
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  margin-top: 10px; /* Added small space between header and card */
-  margin-bottom: 15px; /* Added space between search card and journeys */
+  margin-top: 5px; /* Reduced space between header and card */
+  margin-bottom: 10px; /* Reduced space between search card and journeys */
 }
 
 .search-section input {
@@ -2277,7 +2277,7 @@ input:focus, select:focus, textarea:focus {
   }
   .main {
     padding: 20px;
-    padding-top: calc(100px + env(safe-area-inset-top)); /* Matching desktop adjustment for mobile */
+    padding-top: calc(85px + env(safe-area-inset-top)); /* Matching desktop adjustment for mobile */
     padding-bottom: 100px;
     width: 100%;
   }
