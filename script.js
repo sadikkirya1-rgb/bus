@@ -48,6 +48,14 @@ let activeSearchSchedules = null; // Tracks current search results for real-time
 const TEST_USER_EMAIL = "user@bus.ug";
 const TEST_USER_NAME = "John Doe";
 
+const standardOperators = [
+  { name: 'Swift Express', from: 'Kampala', to: 'Gulu', price: 35000, type: 'Luxury', am: ['wifi', 'snowflake'] },
+  { name: 'Global Coaches', from: 'Kampala', to: 'Mbarara', price: 25000, type: 'Standard', am: ['wifi'] },
+  { name: 'Link Bus', from: 'Kampala', to: 'Fort Portal', price: 30000, type: 'Standard', am: ['usb'] },
+  { name: 'King Coach', from: 'Kampala', to: 'Lira', price: 40000, type: 'VIP', am: ['wifi', 'snowflake', 'charging-station'] }
+];
+const standardTimes = ["08:00 AM", "11:00 AM", "02:00 PM", "06:00 PM"];
+
 // --- FIREBASE AUTH LISTENER ---
 auth.onAuthStateChanged(async (user) => {
     if (user) {
@@ -4757,18 +4765,10 @@ function loadPromos() {
     const promosList = document.getElementById('promosList');
     if (!promosList) return;
 
-    // Load promos from Firestore
-    db.collection('promos').orderBy('createdAt', 'desc').get().then(snapshot => {
-        promos = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        renderPromosList();
-        renderPlaceholderPicker();
-    }).catch(err => {
-        console.error('Error loading promos:', err);
-        promosList.innerHTML = '<p style="text-align:center; opacity:0.5;">Error loading promos</p>';
-    });
+    // Use the already synced 'promos' array from the real-time listener
+    // This makes the UI instant and reduces database costs
+    renderPromosList();
+    renderPlaceholderPicker();
 }
 
 /**
@@ -4920,8 +4920,10 @@ async function savePromo() {
     // Show loading state
     const saveBtn = document.querySelector('button[onclick="savePromo()"]');
     const originalHtml = saveBtn.innerHTML;
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    }
 
     const progressContainer = document.getElementById('promoUploadProgress');
     const progressBar = document.getElementById('promoProgressBar');
@@ -5006,9 +5008,11 @@ async function savePromo() {
 
         showNotification(errorMsg, 'error');
     } finally {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalHtml;
-        progressContainer.classList.add('hidden');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalHtml;
+        }
+        if (progressContainer) progressContainer.classList.add('hidden');
     }
 }
 
