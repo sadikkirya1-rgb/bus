@@ -2028,9 +2028,17 @@ input:checked + .slider:before { transform: translateX(14px); }
 /* New styles for search controls bottom */
 .search-controls-bottom {
   display: flex;
-  align-items: center; /* Vertically align items */
-  gap: 10px; /* Space between date input and button */
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
   margin-top: 15px; /* Add some space from elements above */
+}
+
+.search-main-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .search-controls-bottom input[type="date"] {
@@ -2053,6 +2061,7 @@ input:checked + .slider:before { transform: translateX(14px); }
   transition: var(--transition);
   animation: searchPulse 2s infinite;
   box-shadow: 0 0 15px rgba(252, 209, 22, 0.5);
+  white-space: nowrap;
 }
 
 @keyframes searchPulse {

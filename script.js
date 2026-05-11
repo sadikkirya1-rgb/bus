@@ -453,44 +453,6 @@ function closeOnboarding() {
   document.getElementById('onboardingModal').classList.add('hidden');
 }
 
-function saveRecentSearch(from, to) {
-  let searches = JSON.parse(localStorage.getItem("recentSearches") || "[]");
-  // Remove duplicate if it exists
-  searches = searches.filter(s => !(s.from === from && s.to === to));
-  // Add to front
-  searches.unshift({ from, to });
-  // Keep last 3
-  localStorage.setItem("recentSearches", JSON.stringify(searches.slice(0, 3)));
-  renderRecentSearches();
-}
-
-function renderRecentSearches() {
-  const searches = JSON.parse(localStorage.getItem("recentSearches") || "[]");
-  const container = document.getElementById('recentSearchChips');
-  
-  if (!container) return;
-
-  if (searches.length === 0 || !searches[0]) {
-    container.classList.add('hidden');
-    return;
-  }
-  
-  container.classList.remove('hidden');
-  const s = searches[0];
-  container.innerHTML = `
-    <div class="search-chip" onclick="reRunSearch('${s.from}', '${s.to}')">
-      <i class="fas fa-history"></i> ${s.from} → ${s.to}
-    </div>
-  `;
-}
-
-function reRunSearch(from, to) {
-  document.getElementById('from').value = from;
-  document.getElementById('to').value = to;
-  filterToCities();
-  loadTrips();
-}
-
 function updateNotificationBadge() {
   const badge = document.getElementById('notifBadge');
   const count = notifications.filter(n => !n.read).length;
@@ -755,9 +717,12 @@ window.rebookTomorrow = function(from, to) {
     
     const btns = document.querySelectorAll('.date-btn');
     btns.forEach(b => b.classList.remove('active'));
-    document.getElementById('btnOthers').classList.add('active');
-    document.getElementById('btnOthers').innerText = tomorrowStr;
-    document.getElementById('date').classList.remove('hidden');
+    const btnOthers = document.getElementById('btnOthers');
+    if (btnOthers) {
+        btnOthers.classList.add('active');
+        btnOthers.innerText = tomorrowStr;
+    }
+    if (document.getElementById('date')) document.getElementById('date').classList.remove('hidden');
     loadTrips();
 };
 
@@ -1203,7 +1168,6 @@ function init(){
     bottomNav.classList.remove("hidden");
     renderBottomNav();
     userTab("home");
-    renderRecentSearches();
     renderUpcomingJourneys();
     loadUserPromos(); // Load promos for user view
     updateNotificationBadge();
@@ -1438,26 +1402,31 @@ function filterToCities() {
 
 function setSearchDate(mode) {
   const dateInput = document.getElementById('date');
+  if (!dateInput) return;
+
   const btns = document.querySelectorAll('.date-btn');
   btns.forEach(b => b.classList.remove('active'));
   
   const today = new Date();
   if (mode === 'today') {
-    document.getElementById('btnToday').classList.add('active');
+    const btnToday = document.getElementById('btnToday');
+    if (btnToday) btnToday.classList.add('active');
     dateInput.value = getKampalaDateISO(today);
-    dateInput.classList.add('hidden');
-    document.getElementById('btnOthers').innerText = 'Others';
+    const btnOthers = document.getElementById('btnOthers');
+    if (btnOthers) btnOthers.innerText = 'Others';
     if (document.getElementById('from').value && document.getElementById('to').value) loadTrips();
   } else if (mode === 'tomorrow') {
-    document.getElementById('btnTomorrow').classList.add('active');
+    const btnTomorrow = document.getElementById('btnTomorrow');
+    if (btnTomorrow) btnTomorrow.classList.add('active');
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1); // Increment day based on local time, then convert to Kampala ISO
     dateInput.value = getKampalaDateISO(tomorrow);
-    dateInput.classList.add('hidden');
-    document.getElementById('btnOthers').innerText = 'Others';
+    const btnOthers = document.getElementById('btnOthers');
+    if (btnOthers) btnOthers.innerText = 'Others';
     if (document.getElementById('from').value && document.getElementById('to').value) loadTrips();
   } else if (mode === 'others') {
-    document.getElementById('btnOthers').classList.add('active');
+    const btnOthers = document.getElementById('btnOthers');
+    if (btnOthers) btnOthers.classList.add('active');
     try {
       dateInput.showPicker();
     } catch (error) {
@@ -1587,7 +1556,6 @@ function loadTrips(){
     }
     return;
   }
-  saveRecentSearch(from, to);
   const tripsContainer = document.getElementById('trips');
   if (!tripsContainer) return;
   
@@ -1864,8 +1832,11 @@ function refreshActiveSchedules() {
                 document.getElementById('date').value = tomorrowStr;
                 const btns = document.querySelectorAll('.date-btn');
                 btns.forEach(b => b.classList.remove('active'));
-                document.getElementById('btnOthers').classList.add('active');
-                document.getElementById('btnOthers').innerText = tomorrowStr;
+                const btnOthers = document.getElementById('btnOthers');
+                if (btnOthers) {
+                    btnOthers.classList.add('active');
+                    btnOthers.innerText = tomorrowStr;
+                }
                 
                 // Proceed directly to booking details for this bus
                 showBusDetails(t.busName, t.price, t.amenities, t.time);

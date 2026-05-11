@@ -242,17 +242,14 @@
               <input id="to" placeholder=" " list="ugandaCitiesTo" required>
               <label for="to">where Are You Going ?</label>
             </div>
-            <div class="date-buttons" style="display: flex; gap: 10px;">
-              <button type="button" class="btn date-btn active" id="btnToday" onclick="setSearchDate('today')">Today</button>
-              <button type="button" class="btn date-btn" id="btnTomorrow" onclick="setSearchDate('tomorrow')">Tomorrow</button>
-              <button type="button" class="btn date-btn" id="btnOthers" onclick="setSearchDate('others')">Others</button>
-            </div>            
             <datalist id="ugandaCitiesFrom"></datalist>
             <datalist id="ugandaCitiesTo"></datalist>
           </div>
           <div class="search-controls-bottom">
-            <input id="date" type="date" class="hidden" onchange="updateOthersText()">
-            <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search</button>
+            <div class="search-main-controls">
+              <input id="date" type="date" onchange="updateOthersText()">
+              <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search</button>
+            </div>
             <div id="recentSearchChips" class="hidden" style="display: flex; gap: 8px;"></div>
           </div>
         </div>
