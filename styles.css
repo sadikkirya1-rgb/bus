@@ -2088,10 +2088,8 @@ input:checked + .slider:before { transform: translateX(14px); }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  align-self: flex-end;
-  margin-top: -24px;
-  margin-bottom: -24px;
-  margin-right: 15px;
+  align-self: center;
+  margin: 0 0 0 10px;
   z-index: 5;
   transition: var(--transition);
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
