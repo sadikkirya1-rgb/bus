@@ -2118,7 +2118,7 @@ input:checked + .slider:before { transform: translateX(14px); }
 }
 
 .search-row .floating-label-group {
-  flex: 1;
+  flex: 0 0 200px;
 }
 
 .search-row input[type="date"] {
