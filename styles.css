@@ -2139,6 +2139,7 @@ input:checked + .slider:before { transform: translateX(14px); }
 
 .search-row .search-btn {
   flex: 0 0 auto;
+  min-width: 140px;
   background: var(--uganda-yellow) !important;
   color: black !important;
   transition: var(--transition);
