@@ -2118,19 +2118,29 @@ input:checked + .slider:before { transform: translateX(14px); }
 }
 
 .search-row .floating-label-group {
-  flex: 0 0 200px;
+  flex: 0 0 180px;
+}
+
+.search-row .floating-label-group input {
+  padding: 9px 12px !important;
+  font-size: 0.95rem !important;
+}
+
+.search-row .floating-label-group label {
+  font-size: 0.85rem;
 }
 
 .search-row input[type="date"] {
   flex: 0 0 auto;
   width: auto;
-  min-width: 140px;
+  min-width: 130px;
   background: rgba(255, 255, 255, 0.1) !important;
   border: none !important;
   color: white !important;
   color-scheme: dark;
-  padding: 12px 15px !important;
+  padding: 9px 12px !important;
   border-radius: 10px !important;
+  font-size: 0.95rem !important;
 }
 
 .search-row input[type="date"]::-webkit-calendar-picker-indicator {
@@ -2139,14 +2149,15 @@ input:checked + .slider:before { transform: translateX(14px); }
 
 .search-row .search-btn {
   flex: 0 0 auto;
-  min-width: 140px;
+  min-width: 130px;
   background: var(--uganda-yellow) !important;
   color: black !important;
   transition: var(--transition);
   animation: searchPulse 2s infinite;
   box-shadow: 0 0 15px rgba(252, 209, 22, 0.5);
   white-space: nowrap;
-  padding: 12px 15px !important;
+  padding: 9px 12px !important;
+  font-size: 0.95rem !important;
   border-radius: 10px !important;
 }
 
