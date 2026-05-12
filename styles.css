@@ -2121,6 +2121,11 @@ input:checked + .slider:before { transform: translateX(14px); }
   flex: 0 0 180px;
 }
 
+.search-row input[type="date"],
+.search-row .search-btn {
+  margin-left: 18px;
+}
+
 .search-row .floating-label-group input {
   padding: 9px 12px !important;
   font-size: 0.95rem !important;
