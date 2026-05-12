@@ -231,27 +231,27 @@
 
         <div id="search-section" class="card search-section fade-in">
           <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
-            <div class="floating-label-group">
-              <input id="from" placeholder=" " list="ugandaCitiesFrom" required oninput="filterToCities()">
-              <label for="from">Boarding From</label>
+            <div class="search-row">
+              <div class="floating-label-group">
+                <input id="from" placeholder=" " list="ugandaCitiesFrom" required oninput="filterToCities()">
+                <label for="from">Boarding From</label>
+              </div>
+              <input id="date" type="date" onchange="updateOthersText()">
             </div>
             <button type="button" class="swap-btn" onclick="swapLocations()">
               <i class="fas fa-exchange-alt fa-rotate-90"></i>
             </button>
-            <div class="floating-label-group">
-              <input id="to" placeholder=" " list="ugandaCitiesTo" required>
-              <label for="to">where Are You Going ?</label>
+            <div class="search-row">
+              <div class="floating-label-group">
+                <input id="to" placeholder=" " list="ugandaCitiesTo" required>
+                <label for="to">where Are You Going ?</label>
+              </div>
+              <button class="btn search-btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search</button>
             </div>
             <datalist id="ugandaCitiesFrom"></datalist>
             <datalist id="ugandaCitiesTo"></datalist>
           </div>
-          <div class="search-controls-bottom">
-            <div class="search-main-controls">
-              <input id="date" type="date" onchange="updateOthersText()">
-              <button class="btn" onclick="loadTrips()"><i class="fas fa-search"></i> Search</button>
-            </div>
-            <div id="recentSearchChips" class="hidden" style="display: flex; gap: 8px;"></div>
-          </div>
+          <div id="recentSearchChips" class="hidden" style="display: flex; gap: 8px;"></div>
         </div>
 
         <div id="upcomingJourneys" style="margin-top: 0px; margin-bottom: 5px;">

@@ -2111,6 +2111,51 @@ input:checked + .slider:before { transform: translateX(14px); }
   background: #fcfcfc; /* Slightly off-white for hover */
 }
 
+.search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.search-row .floating-label-group {
+  flex: 1;
+}
+
+.search-row input[type="date"] {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 140px;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: none !important;
+  color: white !important;
+  color-scheme: dark;
+  padding: 12px 15px !important;
+  border-radius: 10px !important;
+}
+
+.search-row input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1); /* Ensures the icon is pure white across different browsers */
+}
+
+.search-row .search-btn {
+  flex: 0 0 auto;
+  background: var(--uganda-yellow) !important;
+  color: black !important;
+  transition: var(--transition);
+  animation: searchPulse 2s infinite;
+  box-shadow: 0 0 15px rgba(252, 209, 22, 0.5);
+  white-space: nowrap;
+  padding: 12px 15px !important;
+  border-radius: 10px !important;
+}
+
+.search-row .search-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+  filter: brightness(1.1);
+  animation: none;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary-color);

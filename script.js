@@ -4151,7 +4151,7 @@ async function printTicketReceipt(id) {
     const statusColorHex = statusColors[statusLabel] || '#718096';
     const hasStamp = ["ACTIVE", "VERIFIED", "BOARDED", "USED"].includes(statusLabel);
 
-    const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp);
+    const vDate = new Date(t.boardedAt || t.updatedAt || t.timestamp); // No change needed here, it's a date object
     const vTimeStr = `${vDate.getDate().toString().padStart(2,'0')}/${(vDate.getMonth()+1).toString().padStart(2,'0')} ${vDate.getHours().toString().padStart(2,'0')}:${vDate.getMinutes().toString().padStart(2,'0')}`;
 
     // Get daily scheduled trips for this specific route for the printout
@@ -4205,7 +4205,7 @@ async function printTicketReceipt(id) {
                 <div class="ticket-body">
                     <div class="ticket-route">
                         <div class="route-node"><h2>${t.from.substring(0,3).toUpperCase()}</h2><p>${t.from}</p></div>
-                        <div class="route-divider"><i class="fas fa-bus"></i></div>
+                        <div class="route-divider" style="font-size: 1rem;"><i class="fas fa-bus"></i></div>
                         <div class="route-node" style="text-align:right;"><h2>${t.to.substring(0,3).toUpperCase()}</h2><p>${t.to}</p></div>
                     </div>
                     <div class="ticket-info-grid">
